@@ -4,4 +4,4 @@
 
 - `homepage.patternGate` 控制首页图案门禁。
 
-工具清单不使用显示开关，`src/tool/tools-data.ts` 中登记的三个 HTTP 工具会直接进入首页、搜索和分类计数。页面级配置用于整理入口呈现，不是权限控制。
+工具清单不使用显示开关，`src/tool/tools-data.ts` 中登记的三个 HTTP 工具会直接进入首页。页面级配置用于整理入口呈现，不是权限控制。

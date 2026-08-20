@@ -16,8 +16,6 @@ const projectRoot = path.resolve(__dirname, "..");
 const sourceRoot = path.join(projectRoot, "src");
 const staticRoot = path.join(projectRoot, "public");
 const distRoot = resolveDistRoot();
-const skillsRoot = path.join(projectRoot, ".agents", "skills");
-const userManualsRoot = path.join(projectRoot, "spec", "user");
 const execFileAsync = promisify(execFile);
 
 function resolveDistRoot(): string {
@@ -40,8 +38,6 @@ function resolveDistRoot(): string {
 
 const pageEntries = [
   { source: "src/tool/tools-render.ts", output: "tool/app", page: "tool/index.html" },
-  { source: "src/tool/manuals.ts", output: "tool/manuals-app", page: "tool/manuals.html" },
-  { source: "src/tool/developer.ts", output: "tool/developer-app", page: "tool/developer.html" },
   { source: "src/tool/app/http-flight-stats-helper/shell.ts", output: "tool/app/http-flight-stats-helper/app", page: "tool/app/http-flight-stats-helper/index.html" },
   { source: "src/tool/app/api-docs/main.ts", output: "tool/app/api-docs/app", page: "tool/app/api-docs/index.html" },
   { source: "src/tool/app/http-lock-entry-helper/shell.ts", output: "tool/app/http-lock-entry-helper/app", page: "tool/app/http-lock-entry-helper/index.html" },
@@ -273,43 +269,6 @@ function toolEntryFromOutput(output: string): string {
   return match?.[1] || "";
 }
 
-function readFrontmatterValue(frontmatter: string, key: string): string {
-  const prefix = `${key}:`;
-  const line = frontmatter
-    .split(/\r?\n/)
-    .find((candidate) => candidate.trimStart().startsWith(prefix));
-  return line ? line.trim().slice(prefix.length).trim() : "";
-}
-
-async function generateSkillsDataFile() {
-  const entries = await fs.readdir(skillsRoot, { withFileTypes: true });
-  const skills: Array<{ name: string; description: string; source: string; path: string }> = [];
-  for (const entry of entries.sort((left, right) => left.name.localeCompare(right.name, "en"))) {
-    if (!entry.isDirectory()) continue;
-    const skillPath = path.join(skillsRoot, entry.name, "SKILL.md");
-
-    try {
-      const source = await fs.readFile(skillPath, "utf8");
-      const frontmatterMatch = source.match(/^---\s*\r?\n([\s\S]*?)\r?\n---/);
-      const frontmatter = frontmatterMatch?.[1] || "";
-      skills.push({
-        name: readFrontmatterValue(frontmatter, "name") || entry.name,
-        description: readFrontmatterValue(frontmatter, "description"),
-        source,
-        path: `.agents/skills/${entry.name}/SKILL.md`
-      });
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
-    }
-  }
-
-  skills.sort((left, right) => left.name.localeCompare(right.name, "en"));
-
-  const outputPath = path.join(distRoot, "tool", "skills-data.json");
-  await fs.mkdir(path.dirname(outputPath), { recursive: true });
-  await fs.writeFile(outputPath, `${JSON.stringify(skills)}\n`, "utf8");
-}
-
 function readObjectStringProperty(node: ts.ObjectLiteralExpression, propertyName: string): string {
   for (const property of node.properties) {
     if (!ts.isPropertyAssignment(property)) continue;
@@ -349,29 +308,6 @@ async function readToolCatalog(): Promise<Array<{ name: string; description: str
   return catalog;
 }
 
-function stripFrontmatter(source: string): string {
-  return source.replace(/^---\r?\n[\s\S]*?\r?\n---\r?\n?/, "");
-}
-
-async function generateManualsDataFile() {
-  const manuals: Array<{ name: string; description: string; source: string; path: string }> = [];
-
-  for (const tool of await readToolCatalog()) {
-    const relativePath = `spec/user/${tool.entry}/manual.md`;
-    const source = await fs.readFile(path.join(projectRoot, relativePath), "utf8");
-    manuals.push({
-      name: tool.name,
-      description: tool.description,
-      source: source.trim(),
-      path: relativePath
-    });
-  }
-
-  const outputPath = path.join(distRoot, "tool", "manuals-data.json");
-  await fs.mkdir(path.dirname(outputPath), { recursive: true });
-  await fs.writeFile(outputPath, `${JSON.stringify(manuals)}\n`, "utf8");
-}
-
 async function copySourceAsset(sourceFilePath: string): Promise<string> {
   const outputFilePath = toAssetOutputPath(sourceFilePath);
   await fs.mkdir(path.dirname(outputFilePath), { recursive: true });
@@ -389,8 +325,6 @@ async function main() {
     await copySourceAsset(sourceFilePath);
   }
 
-  await generateSkillsDataFile();
-  await generateManualsDataFile();
   await buildPageEntries();
   const standaloneRoot = await buildStandaloneApplicationBundles();
   let exportCount = 0;

@@ -160,7 +160,6 @@ function collectReferencedPaths(contents: string[]): Set<string> {
   }
   referenced.add("theme.js");
   referenced.add("theme.css");
-  if (contents.some((content) => content.includes("./support-shell.css"))) referenced.add("support-shell.css");
   return referenced;
 }
 
@@ -183,9 +182,7 @@ async function copyReferencedResources(
 ): Promise<Map<string, Uint8Array>> {
   const resources = new Map<string, Uint8Array>();
   for (const relativePath of [...referencedPaths].sort((left, right) => left.localeCompare(right, "en"))) {
-    const sourcePath = relativePath === "support-shell.css"
-      ? path.join(distRoot, "tool", relativePath)
-      : path.join(distRoot, relativePath);
+    const sourcePath = path.join(distRoot, relativePath);
     try {
       const content = await fs.readFile(sourcePath);
       addZipBytes(zip, addedFiles, relativePath, content);

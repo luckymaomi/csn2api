@@ -8,8 +8,6 @@ import { assertJavaScriptSyntax } from "../helpers/syntax";
 describe("all tool JavaScript files", () => {
   const htmlFiles = [
     resolveFromDist("tool", "index.html"),
-    resolveFromDist("tool", "developer.html"),
-    resolveFromDist("tool", "manuals.html"),
     ...walkFiles(resolveFromDist("tool", "app"), [".html"])
   ];
 

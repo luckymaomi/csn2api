@@ -347,128 +347,8 @@ body.is-gated {
     outline-offset: 3px;
 }
 
-.tool-controls {
-    display: grid;
-    grid-template-columns: minmax(300px, 1fr) minmax(470px, auto);
-    gap: 36px;
-    align-items: end;
+#toolsView {
     padding-top: 44px;
-    margin-bottom: 32px;
-}
-
-.search-box,
-.category-area {
-    min-width: 0;
-}
-
-.search-field {
-    position: relative;
-}
-
-.search-field input {
-    width: 100%;
-    height: 56px;
-    padding: 0 56px 0 18px;
-    border: 2px solid var(--soft-border);
-    outline: 0;
-    background: var(--soft-surface);
-    box-shadow: var(--hard-shadow-medium);
-    color: var(--soft-ink);
-    font-family: "Cascadia Mono", Consolas, "Microsoft YaHei UI", monospace;
-    font-size: 14px;
-    transition: box-shadow 150ms ease-out, transform 150ms ease-out, background 150ms ease-out;
-}
-
-.search-field input::placeholder {
-    color: var(--soft-quiet);
-    opacity: 1;
-}
-
-.search-field input:focus {
-    background: var(--soft-surface);
-    box-shadow: var(--hard-shadow-focus);
-    outline: 2px solid var(--soft-focus);
-    outline-offset: 2px;
-}
-
-.search-field kbd {
-    position: absolute;
-    top: 50%;
-    right: 14px;
-    display: grid;
-    width: 28px;
-    height: 28px;
-    place-items: center;
-    border: 2px solid var(--soft-border);
-    background: var(--soft-surface-muted);
-    color: var(--soft-muted);
-    font: 12px/1 Consolas, monospace;
-    transform: translateY(-50%);
-}
-
-.category-switch {
-    display: grid;
-    grid-template-columns: repeat(4, minmax(max-content, 1fr));
-    gap: 10px;
-}
-
-.category-button {
-    min-width: 0;
-    height: 44px;
-    padding: 0 13px;
-    border: 2px solid var(--soft-border);
-    background: var(--soft-surface);
-    box-shadow: var(--hard-shadow-small);
-    color: var(--soft-muted);
-    font-family: "Cascadia Mono", Consolas, "Microsoft YaHei UI", monospace;
-    font-size: 12px;
-    font-weight: 700;
-    white-space: nowrap;
-    cursor: pointer;
-    transition: box-shadow 150ms ease-out, transform 150ms ease-out, background 150ms ease-out, color 150ms ease-out;
-}
-
-.category-button:nth-child(2) {
-    --category-accent: var(--soft-pink);
-}
-
-.category-button:nth-child(3) {
-    --category-accent: var(--soft-mint);
-}
-
-.category-button:nth-child(4) {
-    --category-accent: var(--soft-amber);
-}
-
-.category-button:hover {
-    background: var(--soft-surface-muted);
-    box-shadow: none;
-    color: var(--soft-ink);
-    transform: translate(2px, 2px);
-}
-
-.category-button.active {
-    background: var(--category-accent, var(--soft-sky));
-    box-shadow: var(--hard-shadow-small);
-    color: var(--soft-on-pastel);
-}
-
-.category-button.active:hover,
-.category-button:active {
-    box-shadow: none;
-    transform: translate(3px, 3px);
-}
-
-.category-button:focus-visible {
-    box-shadow: var(--hard-shadow-focus);
-    outline: 2px solid var(--soft-focus);
-    outline-offset: 2px;
-}
-
-.category-button span {
-    margin-left: 4px;
-    font-size: 10px;
-    font-variant-numeric: tabular-nums;
 }
 
 .tool-list {
@@ -668,27 +548,7 @@ body.is-gated {
     color: var(--soft-cooling);
 }
 
-.empty-state {
-    padding: 46px 24px;
-    border: 2px solid var(--soft-border);
-    background: var(--soft-surface);
-    box-shadow: var(--hard-shadow-medium);
-    color: var(--soft-muted);
-    font-family: "Cascadia Mono", Consolas, "Microsoft YaHei UI", monospace;
-    font-size: 13px;
-    text-align: left;
-}
-
 @media (max-width: 1180px) {
-    .tool-controls {
-        grid-template-columns: 1fr;
-        gap: 24px;
-    }
-
-    .category-area {
-        width: 100%;
-    }
-
     .tool-list {
         grid-template-columns: repeat(4, minmax(0, 1fr));
     }
@@ -720,7 +580,7 @@ body.is-gated {
 
     .external-actions {
         display: grid;
-        grid-template-columns: repeat(5, minmax(0, 1fr));
+        grid-template-columns: repeat(3, minmax(0, 1fr));
     }
 
     .header-link,
@@ -748,10 +608,6 @@ body.is-gated {
     .external-actions {
         grid-template-columns: repeat(3, minmax(0, 1fr));
         gap: 10px;
-    }
-
-    .category-switch {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
     .tool-list {

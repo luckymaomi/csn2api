@@ -40,8 +40,6 @@
 
             <nav class="external-actions" aria-label="扩展入口">
                 <a class="header-link" href="./app/api-docs/index.html" target="_blank" rel="noopener noreferrer" title="API 文档">API 文档</a>
-                <a class="header-link" href="./manuals.html" target="_blank" rel="noopener noreferrer" title="用户手册">用户手册</a>
-                <a class="header-link" href="./developer.html" target="_blank" rel="noopener noreferrer" title="开发者">开发者</a>
                 <button class="icon-button" id="homeThemeToggle" type="button" aria-label="切换到暗夜模式" aria-pressed="false" title="切换到暗夜模式">
                     <svg class="theme-icon theme-icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                         <circle cx="12" cy="12" r="4"></circle>
@@ -62,30 +60,9 @@
         <main>
             <h1 class="visually-hidden">飞行门户接口</h1>
 
-            <section class="tool-controls" aria-labelledby="toolIndexTitle">
-                <div class="search-box">
-                    <label class="visually-hidden" for="searchInput">搜索工具</label>
-                    <div class="search-field">
-                        <input id="searchInput" type="search" placeholder="输入工具、任务或关键词" autocomplete="off" spellcheck="false">
-                        <kbd aria-hidden="true">/</kbd>
-                    </div>
-                </div>
-
-                <div class="category-area">
-                    <h2 id="toolIndexTitle" class="visually-hidden">工具索引</h2>
-                    <span id="resultToolCount" class="visually-hidden" aria-live="polite">0 项</span>
-                    <div class="category-switch" id="categorySwitch" data-default-category="all" role="group" aria-label="工具分类">
-                        <button type="button" class="category-button" data-category="all" aria-pressed="false">全部 <span data-category-count="all">0</span></button>
-                        <button type="button" class="category-button" data-category="automation" aria-pressed="false">批量自动化 <span data-category-count="automation">0</span></button>
-                    </div>
-                </div>
-            </section>
-
             <section id="toolsView" aria-label="工具清单">
                 <div class="tool-list" id="toolList"></div>
             </section>
-
-            <div id="emptyState" class="empty-state" hidden>没找到。换个词再搜一次。</div>
         </main>
     </div>
 
