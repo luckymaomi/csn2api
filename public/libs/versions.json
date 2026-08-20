@@ -1,0 +1,18 @@
+{
+  "schemaVersion": 1,
+  "updatedAt": "2026-08-20",
+  "libraries": {
+    "bootstrap": {
+      "version": "5.3.3",
+      "files": ["bootstrap.min.css", "bootstrap.bundle.min.js"],
+      "source": "https://github.com/twbs/bootstrap/releases/tag/v5.3.3",
+      "license": "MIT"
+    },
+    "marked": {
+      "version": "15.0.12",
+      "files": ["marked.min.js"],
+      "source": "https://github.com/markedjs/marked/releases/tag/v15.0.12",
+      "license": "MIT"
+    }
+  }
+}

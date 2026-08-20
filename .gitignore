@@ -1,0 +1,42 @@
+node_modules/
+# dist/ 是构建产物；GitHub Pages 由 Actions 从 dist/ 自动部署
+dist/
+coverage/
+.vite/
+.vitest/
+
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+*.tsbuildinfo
+*.tmp
+*.temp
+*.bak
+*.orig
+
+.DS_Store
+Thumbs.db
+
+.vscode/
+.idea/
+
+__pycache__/
+*.pyc
+*.pyo
+
+# 飞行经历查询（皇帝版）运行结果，禁止进入版本库
+/public/tool/app/http-flight-stats-helper/results/
+
+# 锁班皇帝（新）运行结果，禁止进入版本库
+/public/tool/app/http-lock-entry-helper/results/
+
+# 飞行人员信息查询（皇帝版）运行结果，禁止进入版本库
+/public/tool/app/http-qualification-query-helper/results/
+
+plan.md
+
+# 本地门户会话凭据，禁止进入版本库
+.cookie

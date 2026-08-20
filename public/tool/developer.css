@@ -1,0 +1,417 @@
+.developer-main,
+.manual-main {
+    width: min(1160px, 100%);
+}
+
+.developer-tabs {
+    display: grid;
+    width: min(410px, 100%);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    margin: 0 auto;
+    padding: 10px;
+    border: 2px solid var(--soft-border);
+    background: var(--soft-surface);
+    box-shadow: var(--hard-shadow-medium);
+}
+
+.developer-tabs .nav-link {
+    min-height: 42px;
+    padding: 0 16px;
+    border: 2px solid var(--soft-border) !important;
+    background: var(--soft-surface);
+    color: var(--soft-muted);
+    font-family: "Cascadia Mono", Consolas, "Microsoft YaHei UI", monospace;
+    font-size: 12px;
+    font-weight: 720;
+    transition: box-shadow 150ms ease-out, transform 150ms ease-out, color 150ms ease-out, background 150ms ease-out;
+}
+
+.developer-tabs .nav-link:hover,
+.developer-tabs .nav-link:focus-visible {
+    background: var(--soft-sky);
+    box-shadow: var(--hard-shadow-small);
+    color: var(--soft-on-pastel);
+    transform: translate(2px, 2px);
+}
+
+.developer-tabs .nav-link:focus-visible {
+    outline: 2px solid var(--soft-focus);
+    outline-offset: 2px;
+}
+
+.developer-tabs .nav-link.active {
+    background: var(--soft-pink);
+    box-shadow: var(--hard-shadow-small);
+    color: var(--soft-on-pastel);
+}
+
+.tab-content {
+    margin-top: 30px;
+}
+
+.skills-list,
+.commit-list {
+    display: grid;
+    gap: 16px;
+}
+
+.skill-item {
+    min-width: 0;
+}
+
+.skill-toggle {
+    display: grid;
+    width: 100%;
+    min-height: 76px;
+    grid-template-columns: minmax(0, 1fr) 34px;
+    gap: 16px;
+    align-items: center;
+    padding: 14px 16px;
+    border: 2px solid var(--soft-border);
+    background: color-mix(in srgb, var(--soft-sky) 8%, var(--soft-surface));
+    box-shadow: var(--hard-shadow-medium);
+    color: var(--soft-ink);
+    text-align: left;
+    transition: box-shadow 150ms ease-out, transform 150ms ease-out, color 150ms ease-out, background 150ms ease-out;
+}
+
+.skill-item:nth-child(4n + 2) .skill-toggle {
+    background: color-mix(in srgb, var(--soft-pink) 8%, var(--soft-surface));
+}
+
+.skill-item:nth-child(4n + 3) .skill-toggle {
+    background: color-mix(in srgb, var(--soft-mint) 10%, var(--soft-surface));
+}
+
+.skill-item:nth-child(4n + 4) .skill-toggle {
+    background: color-mix(in srgb, var(--soft-amber) 10%, var(--soft-surface));
+}
+
+.skill-toggle:hover,
+.skill-toggle:focus-visible {
+    background: var(--soft-sky);
+    box-shadow: none;
+    color: var(--soft-on-pastel);
+    transform: translate(2px, 2px);
+}
+
+.skill-toggle:focus-visible {
+    outline: 2px solid var(--soft-focus);
+    outline-offset: 3px;
+}
+
+.skill-toggle[aria-expanded="true"] {
+    background: var(--soft-mint);
+    box-shadow: none;
+    color: var(--soft-on-pastel);
+    transform: translate(2px, 2px);
+}
+
+.skill-summary-copy {
+    display: grid;
+    min-width: 0;
+    grid-template-columns: minmax(150px, 220px) minmax(0, 1fr);
+    gap: 18px;
+    align-items: baseline;
+}
+
+.skill-summary-copy strong {
+    overflow-wrap: anywhere;
+    color: inherit;
+    font-size: 14px;
+    font-weight: 780;
+}
+
+.skill-summary-copy > span {
+    min-width: 0;
+    color: var(--soft-muted);
+    font-size: 13px;
+    line-height: 1.55;
+}
+
+.skill-toggle:hover .skill-summary-copy > span,
+.skill-toggle:focus-visible .skill-summary-copy > span,
+.skill-toggle[aria-expanded="true"] .skill-summary-copy > span {
+    color: color-mix(in srgb, var(--soft-on-pastel) 74%, transparent);
+}
+
+.skill-chevron {
+    display: grid;
+    width: 30px;
+    height: 30px;
+    place-items: center;
+    border: 2px solid currentColor;
+    color: var(--soft-muted);
+}
+
+.skill-chevron svg {
+    width: 17px;
+    height: 17px;
+    fill: none;
+    stroke: currentColor;
+    stroke-linecap: square;
+    stroke-linejoin: miter;
+    stroke-width: 2;
+}
+
+.skill-toggle[aria-expanded="true"] .skill-chevron {
+    color: var(--soft-on-pastel);
+    rotate: 180deg;
+}
+
+.skill-body {
+    padding: 14px 0 0;
+}
+
+.skill-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 12px;
+}
+
+.copy-skill {
+    cursor: pointer;
+}
+
+.skill-markdown {
+    max-height: min(70vh, 760px);
+    margin: 0;
+    padding: 22px 24px;
+    overflow: auto;
+    border: 2px solid var(--soft-border);
+    background: var(--soft-surface);
+    box-shadow: var(--hard-shadow-medium);
+    color: var(--soft-ink);
+    font-size: 14px;
+    line-height: 1.75;
+    overflow-wrap: anywhere;
+}
+
+.skill-markdown > :first-child {
+    margin-top: 0;
+}
+
+.skill-markdown > :last-child {
+    margin-bottom: 0;
+}
+
+.skill-markdown h1,
+.skill-markdown h2,
+.skill-markdown h3 {
+    color: var(--soft-ink);
+    line-height: 1.4;
+}
+
+.skill-markdown h1 {
+    margin: 0 0 20px;
+    font-size: 26px;
+}
+
+.skill-markdown h2 {
+    margin: 30px 0 12px;
+    font-size: 20px;
+}
+
+.skill-markdown h3 {
+    margin: 24px 0 10px;
+    font-size: 17px;
+}
+
+.skill-markdown p,
+.skill-markdown ul,
+.skill-markdown ol,
+.skill-markdown table,
+.skill-markdown pre,
+.skill-markdown blockquote {
+    margin: 0 0 16px;
+}
+
+.skill-markdown table {
+    display: block;
+    width: 100%;
+    overflow-x: auto;
+    border-collapse: collapse;
+}
+
+.skill-markdown th,
+.skill-markdown td {
+    min-width: 150px;
+    padding: 9px 11px;
+    border: 1px solid color-mix(in srgb, var(--soft-border) 74%, transparent);
+    text-align: left;
+    vertical-align: top;
+}
+
+.skill-markdown th {
+    background: var(--soft-sky);
+    color: var(--soft-on-pastel);
+    font-weight: 750;
+}
+
+.skill-markdown blockquote {
+    padding: 11px 13px;
+    border: 2px solid var(--soft-border);
+    background: var(--soft-surface-muted);
+    color: var(--soft-muted);
+}
+
+.skill-markdown code {
+    padding: 2px 5px;
+    border: 1px solid color-mix(in srgb, var(--soft-border) 68%, transparent);
+    background: var(--soft-surface-muted);
+    color: var(--soft-ink);
+    font: 0.9em/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.skill-markdown pre {
+    padding: 14px;
+    overflow: auto;
+    border: 2px solid var(--soft-border);
+    background: var(--soft-surface-muted);
+}
+
+.skill-markdown pre code {
+    padding: 0;
+    border: 0;
+    background: transparent;
+}
+
+.skill-markdown img {
+    max-width: 100%;
+    height: auto;
+    border: 2px solid var(--soft-border);
+    box-shadow: var(--hard-shadow-small);
+}
+
+.skill-markdown a {
+    color: var(--soft-sky);
+    text-underline-offset: 3px;
+}
+
+.commit-meta {
+    min-height: 38px;
+    padding: 2px 0 12px;
+    color: var(--soft-muted);
+    font-family: "Cascadia Mono", Consolas, monospace;
+    font-size: 12px;
+}
+
+.commit-item {
+    display: grid;
+    grid-template-columns: 150px 86px minmax(0, 1fr);
+    gap: 14px;
+    align-items: baseline;
+    padding: 14px 16px;
+    border: 2px solid var(--soft-border);
+    background: var(--soft-surface);
+    box-shadow: var(--hard-shadow-small);
+    color: var(--soft-ink);
+}
+
+.commit-item:nth-child(4n + 2) {
+    background: color-mix(in srgb, var(--soft-pink) 8%, var(--soft-surface));
+}
+
+.commit-item:nth-child(4n + 3) {
+    background: color-mix(in srgb, var(--soft-mint) 10%, var(--soft-surface));
+}
+
+.commit-item:hover {
+    background: var(--soft-sky);
+    box-shadow: none;
+    color: var(--soft-on-pastel);
+    transform: translate(2px, 2px);
+}
+
+.commit-date,
+.commit-hash {
+    color: var(--soft-muted);
+    font-size: 12px;
+}
+
+.commit-hash {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.commit-message {
+    min-width: 0;
+    overflow-wrap: anywhere;
+    font-size: 13px;
+}
+
+.empty-row {
+    padding: 24px 16px;
+    border: 2px solid var(--soft-border);
+    background: var(--soft-surface-muted);
+    color: var(--soft-muted);
+    font-size: 13px;
+    text-align: center;
+}
+
+.manual-toolbar {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 20px;
+}
+
+.download-manuals {
+    cursor: pointer;
+}
+
+.download-manuals:disabled {
+    background: var(--soft-surface-muted);
+    box-shadow: none;
+    color: var(--soft-quiet);
+    cursor: not-allowed;
+    transform: translate(2px, 2px);
+}
+
+.toast {
+    border: 2px solid var(--soft-border) !important;
+    background: var(--soft-surface) !important;
+    box-shadow: var(--hard-shadow-medium);
+    color: var(--soft-ink) !important;
+}
+
+.toast .btn-close {
+    filter: none;
+}
+
+:root[data-theme="dark"] .toast .btn-close {
+    filter: invert(1);
+}
+
+@media (max-width: 760px) {
+    .developer-tabs {
+        width: 100%;
+    }
+
+    .skill-summary-copy,
+    .commit-item {
+        grid-template-columns: 1fr;
+        gap: 4px;
+    }
+
+    .skill-markdown {
+        max-height: 72vh;
+        padding: 17px;
+    }
+}
+
+@media (max-width: 520px) {
+    .skill-toggle {
+        grid-template-columns: minmax(0, 1fr) 30px;
+        padding-right: 8px;
+        padding-left: 8px;
+    }
+
+    .skill-body {
+        padding-right: 0;
+        padding-left: 0;
+    }
+
+    .manual-toolbar .download-manuals {
+        width: 100%;
+    }
+}

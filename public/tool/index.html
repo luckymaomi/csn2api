@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-default-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>飞行门户接口</title>
+    <script src="../theme.js"></script>
+    <link rel="stylesheet" href="../theme.css">
+    <link rel="stylesheet" href="./index.css">
+</head>
+<body class="is-gated">
+    <div class="pattern-gate" id="homePatternGate" role="dialog" aria-modal="true" aria-label="首页图案验证">
+        <div class="pattern-gate-inner">
+            <div class="pattern-board" id="homePatternBoard" aria-label="访问图案">
+                <svg class="pattern-lines" aria-hidden="true">
+                    <polyline id="homePatternPath" points=""></polyline>
+                    <line id="homePatternTrail" hidden></line>
+                </svg>
+                <button type="button" class="pattern-dot" data-pattern-node="1" aria-label="图案点 1"></button>
+                <button type="button" class="pattern-dot" data-pattern-node="2" aria-label="图案点 2"></button>
+                <button type="button" class="pattern-dot" data-pattern-node="3" aria-label="图案点 3"></button>
+                <button type="button" class="pattern-dot" data-pattern-node="4" aria-label="图案点 4"></button>
+                <button type="button" class="pattern-dot" data-pattern-node="5" aria-label="图案点 5"></button>
+                <button type="button" class="pattern-dot" data-pattern-node="6" aria-label="图案点 6"></button>
+                <button type="button" class="pattern-dot" data-pattern-node="7" aria-label="图案点 7"></button>
+                <button type="button" class="pattern-dot" data-pattern-node="8" aria-label="图案点 8"></button>
+                <button type="button" class="pattern-dot" data-pattern-node="9" aria-label="图案点 9"></button>
+            </div>
+            <p class="visually-hidden" id="homePatternStatus" aria-live="polite"></p>
+        </div>
+    </div>
+
+    <div class="page-shell" inert>
+        <header class="command-bar">
+            <a class="brand-lockup" href="./index.html" aria-label="飞行门户接口首页">
+                <span class="brand-copy">
+                    <strong>飞行门户接口</strong>
+                </span>
+            </a>
+
+            <nav class="external-actions" aria-label="扩展入口">
+                <a class="header-link" href="./app/api-docs/index.html" target="_blank" rel="noopener noreferrer" title="API 文档">API 文档</a>
+                <a class="header-link" href="./manuals.html" target="_blank" rel="noopener noreferrer" title="用户手册">用户手册</a>
+                <a class="header-link" href="./developer.html" target="_blank" rel="noopener noreferrer" title="开发者">开发者</a>
+                <button class="icon-button" id="homeThemeToggle" type="button" aria-label="切换到暗夜模式" aria-pressed="false" title="切换到暗夜模式">
+                    <svg class="theme-icon theme-icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <circle cx="12" cy="12" r="4"></circle>
+                        <path d="M12 2v2M12 20v2M4.93 4.93l1.42 1.42M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.42-1.42M17.66 6.34l1.41-1.41"></path>
+                    </svg>
+                    <svg class="theme-icon theme-icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M20.99 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 20.99 12.79Z"></path>
+                    </svg>
+                </button>
+                <a class="icon-button" href="https://github.com/luckymaomi/ieb" target="_blank" rel="noopener noreferrer" aria-label="GitHub" title="GitHub">
+                    <svg viewBox="0 0 16 16" aria-hidden="true">
+                        <path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82A7.65 7.65 0 0 1 8 3.86c.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/>
+                    </svg>
+                </a>
+            </nav>
+        </header>
+
+        <main>
+            <h1 class="visually-hidden">飞行门户接口</h1>
+
+            <section class="tool-controls" aria-labelledby="toolIndexTitle">
+                <div class="search-box">
+                    <label class="visually-hidden" for="searchInput">搜索工具</label>
+                    <div class="search-field">
+                        <input id="searchInput" type="search" placeholder="输入工具、任务或关键词" autocomplete="off" spellcheck="false">
+                        <kbd aria-hidden="true">/</kbd>
+                    </div>
+                </div>
+
+                <div class="category-area">
+                    <h2 id="toolIndexTitle" class="visually-hidden">工具索引</h2>
+                    <span id="resultToolCount" class="visually-hidden" aria-live="polite">0 项</span>
+                    <div class="category-switch" id="categorySwitch" data-default-category="all" role="group" aria-label="工具分类">
+                        <button type="button" class="category-button" data-category="all" aria-pressed="false">全部 <span data-category-count="all">0</span></button>
+                        <button type="button" class="category-button" data-category="automation" aria-pressed="false">批量自动化 <span data-category-count="automation">0</span></button>
+                    </div>
+                </div>
+            </section>
+
+            <section id="toolsView" aria-label="工具清单">
+                <div class="tool-list" id="toolList"></div>
+            </section>
+
+            <div id="emptyState" class="empty-state" hidden>没找到。换个词再搜一次。</div>
+        </main>
+    </div>
+
+    <script type="module" src="./app.js"></script>
+</body>
+</html>

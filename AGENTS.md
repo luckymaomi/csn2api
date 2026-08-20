@@ -1,0 +1,102 @@
+# 飞行门户接口 Agent 工作规约
+
+本文件是仓库地图和最高约束。具体开发方法看 `.agents/skills/`，具体业务事实看 `spec/`。
+
+## 基础约束
+
+- 始终使用简体中文和项目 owner 交流。
+- 仓库文本文件统一使用 UTF-8 无 BOM；发现 BOM 或其他可清洗的编码问题时直接规范源文件，不在读取端保留兼容分支。
+- 阅读本仓库文本文件时按 UTF-8 读取；PowerShell 中文显示乱码时，不要误判文件损坏。
+- PowerShell here-string 或管道把含中文字符串的脚本传给 `node`、`python` 等命令时，中文字面量可能被终端编码污染成问号；涉及中文路径、sheet 名、表头、分类名的验证脚本，优先用文件扫描、索引、表头读取结果或 UTF-8 脚本文件定位。
+- 在 PowerShell 中运行 Node/npm 命令时使用 `npm.cmd`、`npx.cmd`，不要直接用 `npm`、`npx`。
+- 不回滚用户已有改动；脏工作区只处理当前任务相关文件。
+
+## 事实纪律
+
+- 所有判断、计划、代码修改和回复必须基于仓库代码、spec、测试、命令输出、用户提供的数据或可复现运行结果。
+- 必须区分已确认事实、用户提供事实、未验证推测、计划事项和已完成并验证事项。
+- 任何会影响生产数据、接口契约、导出结果、自动化提交或用户工作流的不明确事项，都必须向 owner 确认后再执行。
+- HTTP 200、页面提示、Mock 或单元测试都不能单独证明生产业务成功。
+- 文档只写当前事实，不写历史过程、未来计划或未经验证的推测。
+
+## 产品边界
+
+- 本项目品牌为“飞行门户接口”，仓库名为 `ieb`。
+- 首页业务工具只有 `http-lock-entry-helper`、`http-flight-stats-helper` 和 `http-qualification-query-helper`。
+- API 文档位于 `public/tool/app/api-docs/`，只记录锁班、飞行经历和飞行人员信息三类 IEB 接口。
+- 三个工作台与 API 文档必须保持独立可运行，不依赖其他本地仓库。
+- SOC 随机置位只作为独立维护 skill 保留，不属于 IEB 首页工具；SOC 与 IEB 不共享页面、Cookie 或接口事实。
+
+## Skills
+
+- 中大型开发、跨模块重构、工具下线、测试结构整理或生产级验收时，先读 `.agents/skills/plan/SKILL.md` 并维护根目录 `plan.md`。
+- 新增或修改工具、业务规则、spec、测试或构建时，读 `.agents/skills/ieb-dev/SKILL.md`。
+- 涉及页面 UI、表格、筛选区、结果区或主题时，读 `.agents/skills/ui-clarity/SKILL.md`。
+- 涉及 Excel 读取、导出、表头映射或日期解析时，读 `.agents/skills/excel-dev/SKILL.md`。
+- 涉及 IEB Cookie/cURL、Network 请求、纯 HTTP 查询或状态动作时，读 `.agents/skills/flight-portal-http-probe/SKILL.md`。
+- 涉及 API 目录、页面、本地执行器、Cookie 生命周期、真实调试或 Markdown 导出时，读 `.agents/skills/api-docs-dev/SKILL.md`。
+- 涉及 SOC 随机置位、`KkTvlApply` 或随机审批申请时，读 `.agents/skills/soc-positioning/SKILL.md`；不得把 SOC 与 IEB skill 或接口事实混用。
+- 如果 skill 和 owner 当前明确需求冲突，以 owner 当前需求为准，并说明冲突点。
+
+## 安全与生产边界
+
+- Cookie、cURL、真实身份、记录 ID、原始响应、截图和临时结果不得进入 Git、fixture、日志或静态文件。
+- 三个 IEB 工作台只监听 `127.0.0.1`，凭据只保存在本地后端内存。
+- 飞行经历和飞行人员信息是只读查询；锁班提交、通过、撤销、解锁和否决是写操作。
+- 生产写操作必须取得 owner 对当前对象、日期、类型、备注和动作的明确授权；过去授权不延续。
+- 当前三个工作台保持严格串行，不新增并发入口。
+- 登录失效、响应契约变化、归属不唯一或业务结果不明确时停止当前动作，不无限重试或猜字段。
+
+## Spec、测试与完成标准
+
+- `spec/dev/` 保存开发规格和业务规则，`spec/user/` 保存用户手册。
+- 代码、测试和文档必须同步；任一方描述旧事实，任务就没有完成。
+- 修改业务规则、解析规则、日期规则、导出结构或修复回归时，优先补充或更新测试。
+- 测试保护可观察业务规则，不为目录形状或临时实现写脆弱断言。
+- 仓库发生代码改动后，收尾前必须运行全量测试；无法运行时说明原因和风险。
+- 真实接口验证需要 owner 当次授权的 Session；没有真实验证时只能报告自动测试结果。
+
+## 工程取舍
+
+- 浏览器工具保持静态、本地优先和按工具独立；不为了展示技术增加框架和层级。
+- TypeScript 使用同一严格类型检查配置；稳定业务函数写明参数和返回结构。
+- 每个 Python 工作台是可独立分发的完整 APP，不为了复用拆成跨工具运行时依赖。
+- Excel 员工号按文本归一，日期按业务日期处理，不依赖 UTC 字符串表现。
+- 页面使用 `public/theme.css` 和 `public/theme.js`；页面专属 CSS 只维护布局和领域特判。
+
+## 运行证据
+
+- 用户提供原始输入时优先用原始输入复现；表格、文本、日期和姓名问题需要查看中间值。
+- 浏览器自动化问题要区分输入解析、页面值和实际提交值；本仓库当前产品不依赖 Playwright。
+- 内网不可访问时，以用户提供的 HTML、截图、日志和本地代码为事实来源。
+- `start_index.py` 和各 APP 本地入口是否长期运行由 owner 决定。agent 为验证临时启动后必须终止本轮进程并确认端口释放。
+- 前端视觉由 owner 人工检查；agent 负责构建、测试和静态连通性验证。
+
+## 仓库入口
+
+- TypeScript 源码在 `src/`，静态页面和 Python APP 在 `public/`，构建产物在 `dist/`。
+- 首页工具清单在 `src/tool/tools-data.ts`，首页在 `public/tool/index.html`。
+- API 文档在 `public/tool/app/api-docs/`，三个工作台分别位于 `public/tool/app/http-*/`。
+- API catalog JSON 是接口请求与响应契约的唯一事实源。
+- 开发规格在 `spec/dev/<tool>/`，用户手册在 `spec/user/<tool>/manual.md`，测试在 `tests/`。
+
+## 常用命令
+
+```powershell
+npm.cmd run build
+npm.cmd run typecheck
+npm.cmd test
+npm.cmd run verify
+npx.cmd vitest run tests/tool/<name>.test.ts
+```
+
+## 提交与推送
+
+- 提交信息使用简体中文，写成不分段、不换行的完整段落，具体说明实际修改和行为变化。
+- 提交前确认暂存区只包含当前任务文件。
+- 不提交真实业务数据、Cookie、临时文件、探测输出或构建产物。
+
+## 收尾回复
+
+- 最终回复保持简洁，说明改了什么、验证了什么和剩余风险。
+- 不粘贴大段日志、diff 或源码，除非 owner 明确要求。
