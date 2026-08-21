@@ -1,11 +1,11 @@
 ---
 name: api-docs-dev
-description: 维护 watchdog API 文档的接口目录、静态页面、本地执行器、Cookie 生命周期、真实单次调试和 Markdown 导出时使用；业务工作台功能开发使用对应工具 skill。
+description: 维护 csn2api 仓库的跨系统 API 目录、静态页面、本地执行器、Cookie 生命周期、真实接口调试、明确的本地组合工作流和 Markdown 导出时使用；业务工作台功能开发使用对应工具 skill。
 ---
 
 # API 文档维护
 
-API 文档是跨系统 HTTP 接口的事实导航和真实单次调试器，不是批量业务工作台。开始前读取 `spec/dev/api-docs/spec.md`、`public/tool/app/api-docs/catalog/index.json` 及索引引用的当前模块 JSON；涉及飞行门户请求时同时使用 `flight-portal-http-probe`，涉及页面时同时使用 `ui-clarity`，正式改代码时同时使用 `ieb-dev`。
+API 文档是跨系统 HTTP 接口的事实导航和真实调试器，不是独立批量业务工作台。catalog 可以登记明确标记的本地组合工作流，但不得伪装成生产系统原生接口。开始前读取 `spec/dev/api-docs/spec.md`、`public/tool/app/api-docs/catalog/index.json` 及索引引用的当前模块 JSON；涉及飞行门户请求时同时使用 `flight-portal-http-probe`，涉及页面时同时使用 `ui-clarity`，正式改代码时同时使用 `csn2api-dev`。
 
 ## 唯一事实源
 

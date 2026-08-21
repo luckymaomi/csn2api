@@ -5,7 +5,7 @@ description: watchdog 仓库内开发、修改或排查 Excel 读取、Excel 导
 
 # Excel 开发
 
-在飞行门户接口仓库处理 Excel 工具时使用本 skill。先读 `AGENTS.md` 和 `.agents/skills/ieb-dev/SKILL.md`，再执行本文件约束。
+在 csn2api 仓库处理 Excel 工具时使用本 skill。先读 `AGENTS.md` 和 `.agents/skills/csn2api-dev/SKILL.md`，再执行本文件约束。
 
 ## 核心原则
 
@@ -84,7 +84,7 @@ Excel 日期相关修改至少覆盖：
 
 ## 验证命令
 
-先跑相关局部测试，再按 `ieb-dev` 收尾要求运行：
+先跑相关局部测试，再按 `csn2api-dev` 收尾要求运行：
 
 ```powershell
 npm.cmd run build

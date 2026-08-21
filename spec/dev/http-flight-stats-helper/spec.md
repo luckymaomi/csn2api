@@ -22,7 +22,7 @@
 - 查询范围为“飞行时间+起落数”“飞行经历+起落数”“左座经历+起落数”“全部数据”。前三项可组合；“全部数据”为全选快捷项。
 - 范围只控制输出列。每名员工始终只发送一次完整查询，不为多个范围重复请求。
 
-## 串行与归属
+## 执行顺序与归属
 
 - 所有人员严格按输入顺序逐个查询，前一人请求结束后才开始下一人；页面不提供并发数或并发开关。
 - 所有查询复用凭据验证阶段保留的单个 `requests.Session`，不创建线程本地 Session 或请求池。
@@ -44,7 +44,7 @@
 - `input_data.py`：Excel/粘贴输入边界归一。
 - `portal_client.py`：凭据验证、单个 Session、请求参数和动态表格归属。
 - `exporter.py`：范围筛选与最终原版/去分钟版双文件。
-- `runner.py`：串行循环、事件、中断、会话失效和原顺序结果。
+- `runner.py`：逐条循环、事件、中断、会话失效和原顺序结果。
 - `manager.py`：内存 Session、阶段、批次线程、状态和结果路径。
 - `server.py`：loopback HTTP API 与静态资源。
 - `web/`：人工工作台。
@@ -53,7 +53,7 @@
 
 - `POST /api/session/verify`：验证 `credentials`，不回显凭据。
 - `POST /api/check-data`：读取当前 Excel Base64 或粘贴输入并提示有效性。
-- `POST /api/run`：按当前内存登录态开始严格串行查询。
+- `POST /api/run`：按当前内存登录态开始逐人查询。
 - `POST /api/start`：agent 全链路入口；可提供新凭据，也可复用当前已验证 Session。
 - `POST /api/stop`：在请求边界终止批次。
 - `GET /api/status`：查询阶段、进度、日志和逐人结果。

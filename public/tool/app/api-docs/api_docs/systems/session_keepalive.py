@@ -10,9 +10,15 @@ from .errors import SessionExpiredError
 class SessionKeepAlive:
     """按随机间隔执行只读会话检查，并维护脱敏状态。"""
 
-    def __init__(self, interval_factory: Callable[[], int], timeout_seconds: int) -> None:
+    def __init__(
+        self,
+        interval_factory: Callable[[], int],
+        timeout_seconds: int,
+        thread_name: str = "cookie-keepalive",
+    ) -> None:
         self.interval_factory = interval_factory
         self.timeout_seconds = timeout_seconds
+        self.thread_name = thread_name
         self.lock = Lock()
         self.stop_event = Event()
         self.thread: Thread | None = None
@@ -26,7 +32,7 @@ class SessionKeepAlive:
         self.thread = Thread(
             target=self._run,
             args=(check,),
-            name="flight-portal-cookie-keepalive",
+            name=self.thread_name,
             daemon=True,
         )
         self.thread.start()

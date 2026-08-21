@@ -8,7 +8,7 @@ from http_lock_entry.server import create_server
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="启动锁班皇帝（新）智能串行工作台")
+    parser = argparse.ArgumentParser(description="启动锁班皇帝（新）智能模式工作台")
     parser.add_argument("--port", type=int, default=0, help="本地端口，默认随机分配")
     parser.add_argument("--no-open", action="store_true", help="不自动打开工作台页面")
     return parser.parse_args()
@@ -20,7 +20,7 @@ def main() -> int:
     server = create_server(app_directory, "smart", args.port)
     port = server.server_address[1]
     url = f"http://127.0.0.1:{port}/"
-    print(f"锁班皇帝（新·智能串行）：{url}")
+    print(f"锁班皇帝（新·智能模式）：{url}")
     if not args.no_open:
         webbrowser.open(url)
     try:

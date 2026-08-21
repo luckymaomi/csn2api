@@ -29,7 +29,7 @@ def random_keepalive_interval() -> int:
 
 
 class FlightPortalAdapter:
-    """维护飞行门户会话，并串行执行文档允许的请求。"""
+    """维护飞行门户会话，并逐条执行文档允许的请求。"""
 
     def __init__(
         self,
@@ -46,7 +46,11 @@ class FlightPortalAdapter:
         self.cookies: dict[str, str] = {}
         self.option_cache: dict[str, list[dict[str, str]]] = {}
         self.request_lock = RLock()
-        self.keepalive = SessionKeepAlive(keepalive_interval_factory, timeout_seconds)
+        self.keepalive = SessionKeepAlive(
+            keepalive_interval_factory,
+            timeout_seconds,
+            "flight-portal-cookie-keepalive",
+        )
 
     def load_credentials(self, source: str) -> dict[str, object]:
         cookies = parse_credentials(source)

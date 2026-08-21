@@ -16,29 +16,35 @@ describe("API docs delivery", () => {
     expect(toolCatalog).toContain('entry: "http-qualification-query-helper"');
   });
 
-  it("presents one cookie manager and the documented API entries", () => {
+  it("presents cross-system cookie management and the documented API entries", () => {
     const html = readFileSync(`${root}/index.html`, "utf8");
     expect(html).toContain("Cookie 管理");
-    expect(html).toContain('id="credentialInput"');
+    expect(html).toContain('id="sessionPanels"');
     expect(html).toContain('id="sendRequestButton"');
     expect(html).toContain('id="exportMarkdownButton"');
     expect(html).toContain('data-response-view="table"');
     expect(html).toContain('data-response-view="json"');
     expect(html).toContain('data-response-view="raw"');
     expect(html).toContain('data-response-view="headers"');
-    expect(html).toContain('id="credentialStatus"');
-    expect(html).toContain('id="savedCredentialPanel"');
-    expect(html).toContain('id="savedCredentialText"');
-    expect(html).toContain('id="copyCredentialButton"');
+    const app = readFileSync(`${root}/app.mjs`, "utf8");
+    expect(app).toContain('data-session-panel');
+    expect(app).toContain("state.systems.map");
+    expect(app).toContain('data-session-action="load"');
+    expect(app).toContain('data-session-action="clear"');
+    expect(app).toContain('data-session-action="copy"');
   });
 
-  it("keeps three business catalogs and complete internal lock facts", () => {
+  it("keeps the current business catalogs and complete internal request facts", () => {
     const index = JSON.parse(readFileSync(`${root}/catalog/index.json`, "utf8"));
     expect(index.modules.map((module: { name: string }) => module.name)).toEqual([
       "飞行经历查询接口",
       "飞行人员锁班接口",
-      "飞行人员信息查询接口"
+      "飞行人员信息查询接口",
+      "OA 公文已阅接口"
     ]);
+    expect(index.systems.map((system: { id: string }) => system.id)).toEqual(["flight-portal", "oa"]);
+    expect(index.systems[0].navigationUrl).toBe("https://ieb.csair.com/index/index");
+    expect(index.systems[1].credentialRequestUrl).toBe("https://work.csair.com/oai/work/box/query/waiting");
     const lockCatalog = JSON.parse(readFileSync(`${root}/catalog/lock-entry.json`, "utf8"));
     expect(lockCatalog.endpoints).toHaveLength(1);
     expect(JSON.stringify(lockCatalog)).toContain("showNonproductionTaskImportPage");
@@ -51,6 +57,14 @@ describe("API docs delivery", () => {
       "训练检查记录"
     ]);
     expect(personnelCatalog.endpoints).toHaveLength(5);
+    const oaCatalog = JSON.parse(readFileSync(`${root}/catalog/oa-read.json`, "utf8"));
+    expect(oaCatalog.endpoints.map((endpoint: { id: string }) => endpoint.id)).toEqual([
+      "count",
+      "read"
+    ]);
+    expect(oaCatalog.endpoints[0].executionKind).toBe("local-workflow");
+    expect(oaCatalog.endpoints[1].executionKind).toBe("local-workflow");
+    expect(oaCatalog.endpoints[1].progressive).toBe(true);
   });
 
   it("keeps browser responsibilities in syntax-valid ESM modules", () => {
@@ -59,8 +73,12 @@ describe("API docs delivery", () => {
     modules.forEach((name) => assertJavaScriptSyntax(`${root}/${name}`));
     const app = readFileSync(`${root}/app.mjs`, "utf8");
     expect(app).toContain("setInterval(refreshSessionStatus, 3000)");
-    expect(app).toContain("飞行门户 Cookie 已验证");
+    expect(app).toContain("Cookie 已验证");
     expect(app).toContain('fetchJson("/api/session", { method: "DELETE" })');
+    expect(app).toContain("pollProgressiveExecution");
+    expect(app).toContain("followProgressiveResponse");
+    expect(app).toContain("scrollProgressiveResponseToBottom");
+    expect(app).toContain('elements.responseTable?.addEventListener("scroll"');
   });
 
   it("renders every internal request as an always-visible semantic operation", () => {

@@ -1,0 +1,114 @@
+{
+  "schemaVersion": 1,
+  "id": "oa-read",
+  "systemId": "oa",
+  "name": "OA 公文已阅接口",
+  "description": "扫描全部 OA 待办数量，并按用户指定的任意正整数逐条处理当前可执行公文。",
+  "baseUrl": "https://work.csair.com",
+  "navigationUrl": "https://work.csair.com/oaw/work/my-dealt-with/schedule-list?sourceType=wait",
+  "cookies": [
+    { "name": "SESSION", "required": true, "description": "OA 当前登录 Session；随完整 cURL 一并取得" },
+    { "name": "ROUTE-SESSION", "required": false, "description": "OA 当前路由会话；完整 cURL 中存在时原样保留" }
+  ],
+  "commonHeaders": [
+    { "name": "Accept", "value": "application/json, text/plain, */*", "description": "OA JSON 响应" },
+    { "name": "Accept-Language", "value": "zh-CN,zh;q=0.9", "description": "中文响应" },
+    { "name": "Origin", "value": "https://work.csair.com", "description": "OA 同源请求" },
+    { "name": "Referer", "value": "https://work.csair.com/oaw/work/my-dealt-with/schedule-list?sourceType=wait", "description": "OA 待办列表来源" }
+  ],
+  "groups": [
+    { "id": "oa", "name": "OA" }
+  ],
+  "endpoints": [
+    {
+      "id": "count",
+      "groupId": "oa",
+      "name": "获取全部 OA 数量",
+      "summary": "本地执行器遍历全部待办分页，返回待办总数、可执行公文数、跳过数和各模块数量。",
+      "risk": "read",
+      "method": "POST",
+      "path": "/api/execute",
+      "executionKind": "local-workflow",
+      "parameters": [],
+      "response": {
+        "format": "Local workflow result",
+        "statuses": [
+          { "code": 200, "description": "全量分页扫描完成；每页仍分别检查 OA HTTP 状态、登录态和业务码" }
+        ],
+        "fields": [
+          { "name": "total", "type": "number", "description": "本次全量扫描得到的 OA 待办总数" },
+          { "name": "eligible", "type": "number", "description": "可执行已阅的 DOC/official-document 公文数" },
+          { "name": "skipped", "type": "number", "description": "其他模块的跳过数" },
+          { "name": "tables", "type": "array", "description": "按动态模块汇总的数量和处理方式" }
+        ],
+        "example": "{\"total\":3,\"eligible\":2,\"skipped\":1}"
+      }
+    },
+    {
+      "id": "read",
+      "groupId": "oa",
+      "name": "按数量点击 OA 已阅",
+      "summary": "本地执行器先扫描全部待办，再按指定数量选取 DOC/official-document 公文逐条调用已阅；数量 1 与其他数量使用同一链路。",
+      "risk": "write",
+      "method": "POST",
+      "path": "/api/execute",
+      "executionKind": "local-workflow",
+      "progressive": true,
+      "parameters": [
+        { "name": "count", "in": "workflow", "label": "已阅数量", "type": "number", "required": true, "default": "10", "minimum": 1, "description": "任意正整数；超过当前可处理公文数时自动收敛到全部" }
+      ],
+      "response": {
+        "format": "Local progressive workflow task",
+        "statuses": [
+          { "code": 202, "description": "本地任务已启动；通过返回的 taskId 读取扫描和逐条已阅进度" },
+          { "code": 200, "description": "任务快照；每条仍分别检查 OA HTTP 状态和业务码" }
+        ],
+        "fields": [
+          { "name": "taskId", "type": "string", "description": "当前页面生命周期内的本地任务标识" },
+          { "name": "state", "type": "string", "description": "running、completed 或 failed" },
+          { "name": "result.data.summary", "type": "object", "description": "扫描数、可处理数、指定数、目标数、成功数和失败数" },
+          { "name": "result.data.tables[0].rows", "type": "array", "description": "每条 OA 完成后立即追加的完整标题、模块、状态和结果" }
+        ],
+        "example": "{\"taskId\":\"<local-task-id>\",\"state\":\"running\",\"result\":{\"data\":{\"summary\":{\"target\":2,\"success\":1},\"tables\":[{\"rows\":[{\"title\":\"示例公文\",\"status\":\"成功\"}]}]}}}"
+      }
+    }
+  ],
+  "internalRequests": [
+    {
+      "id": "user-info",
+      "name": "OA 会话验证",
+      "purpose": "确认 Cookie 对应 OA 登录态仍有效，并作为当前页会话保活请求。",
+      "method": "GET",
+      "path": "/oai/work/login/userInfo",
+      "parameters": [],
+      "response": "HTTP 200、JSON 根节点为对象且业务码为 200；重定向或业务码 301 表示登录失效。"
+    },
+    {
+      "id": "waiting-query",
+      "name": "OA 待办分页",
+      "purpose": "按 0 基页码扫描全部待办；移除仪表盘 moduleMainCategoryId 筛选。",
+      "method": "POST",
+      "path": "/oai/work/box/query/waiting",
+      "parameters": ["offsetPageIndex", "pageMode", "resultCountPerPage"],
+      "response": "HTTP 200 且业务码 200；动态识别记录数组与总数字段，按 fileId + stepItemId 去重。"
+    },
+    {
+      "id": "have-read",
+      "name": "OA 公文已阅",
+      "purpose": "对一条 DOC/official-document 公文提交已阅。",
+      "method": "POST",
+      "path": "/oai/doc/pc/form/sw/haveRead",
+      "parameters": ["approveOpinionType=null", "approveOpinionContent=null", "docId", "docType", "flowStepId"],
+      "response": "HTTP 200、JSON 根节点为对象且业务码为 200；每条最多提交一次。"
+    }
+  ],
+  "technicalNotes": [
+    "OA 与 IEB 使用不同域名、Cookie、Session 和保活请求，不共享任何运行时凭据。",
+    "完整 waiting cURL 中的 Cookie、User-Agent 和 JSON 模板由本地执行器结构化解析，cURL 文本不会作为命令执行。",
+    "全量扫描移除 moduleMainCategoryId 页面筛选，并按服务端总数、空页、短页或不再出现新记录收敛，不设置固定页数上限。",
+    "只有 DOC/official-document 进入已阅队列，其他模块只计入跳过数量。",
+    "获取全部 OA 数量与按数量已阅都会扫描全部分页；分页查询和单条 haveRead 只作为内部请求事实。",
+    "按数量已阅只要求 count 为正整数，不设置最大值；一条返回后再发送下一条，并把每条完成结果立即写入本地任务快照。",
+    "HTTP 200 不是业务成功依据；登录失效、HTTP 异常或业务码异常时停止后续派发。"
+  ]
+}

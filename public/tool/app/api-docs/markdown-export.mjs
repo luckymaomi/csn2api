@@ -66,9 +66,10 @@ function sourceName(module) {
     return configured || `${module.id}.json`;
 }
 
-function moduleIndex(modules) {
+function moduleIndex(modules, systems) {
     return {
         schemaVersion: 1,
+        systems,
         modules: modules.map((module) => ({
             id: module.id,
             name: module.name,
@@ -78,14 +79,39 @@ function moduleIndex(modules) {
     };
 }
 
-function uniqueCookies(modules) {
-    const cookies = new Map();
-    modules.forEach((module) => {
-        (module.cookies || []).forEach((cookie) => {
-            if (!cookies.has(cookie.name)) cookies.set(cookie.name, cookie);
-        });
-    });
-    return [...cookies.values()];
+function parameterLocation(value) {
+    return ({ query: "Query", form: "Form", json: "JSON", workflow: "本地工作流" })[value] || value;
+}
+
+function appendSystemGuide(lines, system, modules) {
+    const module = modules.find((item) => item.systemId === system.id) || {};
+    const [validationModuleId, validationRequestId] = text(system.validationRequestId).split(".");
+    const validationModule = modules.find((item) => item.id === validationModuleId) || {};
+    const validation = (validationModule.internalRequests || []).find((item) => item.id === validationRequestId) || {};
+    lines.push(
+        `### ${system.name}`,
+        "",
+        `- 系统 ID：${inlineCode(system.id)}`,
+        `- 登录入口：${inlineCode(system.navigationUrl)}`,
+        `- 建议抓取请求：${inlineCode(system.credentialRequestUrl)}`,
+        "",
+        markdownTable(["Cookie", "要求", "技术事实"], (module.cookies || []).map((cookie) => [
+            inlineCode(cookie.name),
+            cookie.required ? "必填" : "按当前请求保留",
+            cookie.description || ""
+        ])),
+        "",
+        "获取方法：",
+        ""
+    );
+    (system.credentialSteps || []).forEach((step, index) => lines.push(`${index + 1}. ${text(step)}`));
+    lines.push(
+        "",
+        `说明：${text(system.credentialNote)}`,
+        "",
+        `会话验证：${inlineCode(validation.method)} ${inlineCode((validationModule.baseUrl || "") + (validation.path || ""))}`,
+        ""
+    );
 }
 
 function appendEndpoint(lines, module, endpoint, index) {
@@ -96,7 +122,9 @@ function appendEndpoint(lines, module, endpoint, index) {
         `- 技术 ID：${inlineCode(`${module.id}.${endpoint.id}`)}`,
         `- 风险：${endpoint.risk === "write" ? "写操作" : "只读"}`,
         `- 方法：${inlineCode(endpoint.method)}`,
-        `- 完整 URL：${inlineCode(module.baseUrl + endpoint.path)}`,
+        `- 执行类型：${endpoint.executionKind === "local-workflow" ? "本地组合工作流" : "生产 HTTP 请求"}`,
+        ...(endpoint.progressive ? ["- 结果交付：本地任务快照；每条完成后立即追加结果"] : []),
+        `- 完整 URL：${inlineCode(endpoint.executionKind === "local-workflow" ? "http://127.0.0.1:<port>/api/execute" : module.baseUrl + endpoint.path)}`,
         `- 响应格式：${text(endpoint.response?.format)}`,
         "",
         text(endpoint.summary),
@@ -113,7 +141,7 @@ function appendEndpoint(lines, module, endpoint, index) {
         "",
         markdownTable(["名称", "位置", "类型", "要求", "默认或来源", "约束与选项", "说明"], (endpoint.parameters || []).map((parameter) => [
             inlineCode(parameter.name),
-            parameter.in === "query" ? "Query" : "Form",
+            parameterLocation(parameter.in),
             inlineCode(parameter.type || "text"),
             requirement(parameter),
             parameterSource(parameter),
@@ -195,37 +223,33 @@ function appendModule(lines, module, index) {
     lines.push("");
 }
 
-export function buildApiDocsMarkdown(modules) {
+export function buildApiDocsMarkdown(modules, systems = []) {
     const catalogModules = Array.isArray(modules) ? modules : [];
-    const cookies = uniqueCookies(catalogModules);
+    const catalogSystems = Array.isArray(systems) ? systems : [];
     const lines = [
         "---",
-        "documentType: ieb-api-catalog",
+        "documentType: csn2api-api-catalog",
         "schemaVersion: 1",
-        "system: flight-portal",
+        "system: cross-system",
         "---",
         "",
-        "# 飞行门户接口 API 文档",
+        "# csn2api API 文档",
         "",
         "> 本文件由 API 文档目录生成。正文供人连续阅读，附录保留供语言模型或程序读取的同源 JSON。",
         "",
         "## 使用边界",
         "",
-        "- 本文件记录 HTTP 请求事实，不替代批量业务工作台。",
+        "- 本文件记录 HTTP 请求事实和明确标记的本地组合工作流，不替代独立业务工作台。",
         "- 写操作仍需调用者明确确认目标、日期和动作。",
         "- 导出不包含运行时 Cookie、真实响应、人员数据或本地会话状态。",
         "",
         "## 认证与会话",
         "",
-        markdownTable(["Cookie", "要求", "技术事实"], cookies.map((cookie) => [
-            inlineCode(cookie.name),
-            cookie.required ? "必填" : "可选",
-            cookie.description || ""
-        ])),
-        "",
-        "Cookie 值由调用者从当前已登录会话提供；本文档只记录字段名称和认证事实。",
+        "IEB 与 OA 的 Cookie、Session 和保活请求彼此独立。Cookie 值由调用者从当前已登录会话提供；本文档只记录字段名称和认证事实。",
         ""
     ];
+
+    catalogSystems.forEach((system) => appendSystemGuide(lines, system, catalogModules));
 
     catalogModules.forEach((module, index) => appendModule(lines, module, index));
 
@@ -237,7 +261,7 @@ export function buildApiDocsMarkdown(modules) {
         "### 模块索引",
         "",
         "````json",
-        JSON.stringify(moduleIndex(catalogModules), null, 2),
+        JSON.stringify(moduleIndex(catalogModules, catalogSystems), null, 2),
         "````",
         ""
     );
@@ -254,7 +278,7 @@ export function buildApiDocsMarkdown(modules) {
     return `${lines.join("\n").trim()}\n`;
 }
 
-export function downloadMarkdown(markdown, filename = "ieb-api-docs.md") {
+export function downloadMarkdown(markdown, filename = "csn2api-api-docs.md") {
     const url = URL.createObjectURL(new Blob([markdown], { type: "text/markdown;charset=utf-8" }));
     const anchor = document.createElement("a");
     anchor.href = url;

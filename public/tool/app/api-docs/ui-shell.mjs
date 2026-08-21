@@ -12,18 +12,25 @@ export function createToast(element) {
     };
 }
 
-export function renderEndpointNavigation(container, records, selectedId, search) {
+export function renderEndpointNavigation(container, systems, records, selectedId, search) {
     const visible = records.filter((record) => {
         if (!search) return true;
         const text = `${record.endpoint.name} ${record.endpoint.path} ${record.endpoint.summary}`.toLowerCase();
         return text.includes(search);
     });
-    container.innerHTML = visible.length
-        ? visible.map((record) => `<button class="endpoint-nav${record.fullId === selectedId ? " is-active" : ""}" type="button" data-endpoint-id="${escapeHtml(record.fullId)}">
-            <span class="method${record.endpoint.method === "POST" ? " is-post" : ""}">${escapeHtml(record.endpoint.method)}</span>
-            <span class="endpoint-nav-name">${escapeHtml(record.endpoint.name.replace(/接口$/, ""))}</span>
-        </button>`).join("")
-        : `<p class="empty-parameters">没有匹配接口</p>`;
+    container.innerHTML = systems.map((system) => {
+        const systemRecords = visible.filter((record) => record.module.systemId === system.id);
+        if (!systemRecords.length && search) return "";
+        return `<details class="system-disclosure" open>
+            <summary><span>${escapeHtml(system.name)}</span><small>${systemRecords.length}</small></summary>
+            <div class="system-endpoint-list">${systemRecords.length
+                ? systemRecords.map((record) => `<button class="endpoint-nav${record.fullId === selectedId ? " is-active" : ""}" type="button" data-endpoint-id="${escapeHtml(record.fullId)}">
+                    <span class="method${record.endpoint.method === "POST" ? " is-post" : ""}">${escapeHtml(record.endpoint.method)}</span>
+                    <span class="endpoint-nav-name">${escapeHtml(record.endpoint.name.replace(/接口$/, ""))}</span>
+                </button>`).join("")
+                : `<p class="empty-parameters">暂无接口</p>`}</div>
+        </details>`;
+    }).join("") || `<p class="empty-parameters">没有匹配接口</p>`;
 }
 
 function checkedTime(value) {
@@ -31,7 +38,7 @@ function checkedTime(value) {
     return match ? match[1] : "尚未检查";
 }
 
-export function renderSessionStatus(elements, status) {
+export function renderSessionStatus(elements, status, systemName = "当前系统") {
     const keepAlive = status?.keepAlive || {};
     let statusText = "Cookie 未验证";
     let detailText = "验证后每 1-60 秒自动检查一次";
@@ -46,7 +53,7 @@ export function renderSessionStatus(elements, status) {
         visualState = "healthy";
     } else if (status?.ready && keepAlive.state === "error") {
         statusText = "自动验证请求异常";
-        detailText = `${keepAlive.error || "连接飞行门户失败"}，将在下一轮重试`;
+        detailText = `${keepAlive.error || `连接${systemName}失败`}，将在下一轮重试`;
         visualState = "error";
     } else if (status?.ready) {
         statusText = "Cookie 有效";

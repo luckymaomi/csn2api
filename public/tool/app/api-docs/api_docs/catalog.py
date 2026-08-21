@@ -40,8 +40,29 @@ class ApiCatalog:
 
     def _load(self) -> dict[str, object]:
         index = self._read_json(self.catalog_directory / "index.json")
-        if index.get("schemaVersion") != 1 or not isinstance(index.get("modules"), list):
+        if (
+            index.get("schemaVersion") != 1
+            or not isinstance(index.get("systems"), list)
+            or not isinstance(index.get("modules"), list)
+        ):
             raise CatalogError("接口目录索引格式无效")
+
+        systems: list[dict[str, object]] = []
+        system_ids: set[str] = set()
+        for system in index["systems"]:
+            if not isinstance(system, dict):
+                raise CatalogError("系统目录格式无效")
+            system_id = str(system.get("id", ""))
+            if not system_id or system_id in system_ids:
+                raise CatalogError("系统 ID 缺失或重复")
+            for field in ("navigationUrl", "credentialRequestUrl"):
+                parsed = urlparse(str(system.get(field, "")))
+                if parsed.scheme != "https" or not parsed.netloc:
+                    raise CatalogError(f"系统网址无效：{system_id}")
+            if not isinstance(system.get("credentialSteps"), list):
+                raise CatalogError(f"Cookie 获取步骤无效：{system_id}")
+            system_ids.add(system_id)
+            systems.append(system)
 
         modules: list[dict[str, object]] = []
         for item in index["modules"]:
@@ -56,8 +77,10 @@ class ApiCatalog:
             module = self._read_json(source_path)
             if module.get("schemaVersion") != 1 or module.get("id") != item.get("id"):
                 raise CatalogError(f"接口模块标识不一致：{source}")
+            if str(module.get("systemId", "")) not in system_ids:
+                raise CatalogError(f"接口模块所属系统不存在：{source}")
             modules.append(module)
-        return {"schemaVersion": 1, "modules": modules}
+        return {"schemaVersion": 1, "systems": systems, "modules": modules}
 
     def _index_endpoints(self) -> dict[str, EndpointRecord]:
         indexed: dict[str, EndpointRecord] = {}
@@ -107,7 +130,7 @@ class ApiCatalog:
                     if not isinstance(parameter, dict):
                         raise CatalogError(f"接口参数格式无效：{full_id}")
                     name = str(parameter.get("name", ""))
-                    if not name or name in names or parameter.get("in") not in {"query", "form"}:
+                    if not name or name in names or parameter.get("in") not in {"query", "form", "json", "workflow"}:
                         raise CatalogError(f"接口参数名称或位置无效：{full_id}")
                     names.add(name)
                 indexed[full_id] = EndpointRecord(full_id, module, endpoint)

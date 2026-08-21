@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-default-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OA 已阅助手（HTTP版）</title>
+    <script src="./theme.js"></script>
+    <link rel="stylesheet" href="./libs/bootstrap.min.css">
+    <link rel="stylesheet" href="./theme.css">
+    <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+    <div class="workspace-shell">
+        <header class="workspace-header">
+            <div>
+                <h1>OA 已阅助手（HTTP版）</h1>
+                <p id="statusMessage">等待验证 OA 登录凭据</p>
+            </div>
+            <div class="header-actions">
+                <span id="statusBadge" class="status-badge is-waiting_credentials">待验证</span>
+                <button id="themeToggle" type="button" class="btn btn-outline-secondary btn-sm">主题</button>
+            </div>
+        </header>
+
+        <main class="workspace-grid">
+            <section class="work-panel credential-panel" aria-labelledby="credentialHeading">
+                <div class="panel-heading">
+                    <h2 id="credentialHeading">1. 登录凭据</h2>
+                    <span id="sessionStatus">尚未验证</span>
+                </div>
+                <div class="credential-layout">
+                    <div>
+                        <label class="form-label" for="credentials">cURL 或 Cookie Header</label>
+                        <textarea id="credentials" class="form-control" rows="4" autocomplete="off" spellcheck="false"></textarea>
+                    </div>
+                    <button id="verifyButton" type="button" class="btn btn-primary">验证凭据</button>
+                </div>
+                <dl class="summary-grid session-summary">
+                    <div><dt>验证状态</dt><dd id="sessionVerified">未验证</dd></div>
+                    <div><dt>验证时间</dt><dd id="sessionVerifiedAt">-</dd></div>
+                    <div><dt>Cookie 数量</dt><dd id="cookieCount">0</dd></div>
+                    <div><dt>执行方式</dt><dd>纯 HTTP 逐条处理</dd></div>
+                </dl>
+            </section>
+
+            <section class="work-panel scan-panel" aria-labelledby="scanHeading">
+                <div class="panel-heading">
+                    <h2 id="scanHeading">2. 待办扫描</h2>
+                    <button id="scanButton" type="button" class="btn btn-outline-secondary" disabled>扫描全部待办</button>
+                </div>
+                <dl class="summary-grid scan-summary">
+                    <div><dt>全部待办</dt><dd id="scanTotal">0</dd></div>
+                    <div><dt>同类公文</dt><dd id="eligibleCount">0</dd></div>
+                    <div><dt>不同类型跳过</dt><dd id="skippedCount">0</dd></div>
+                    <div><dt>扫描状态</dt><dd id="scanState">未扫描</dd></div>
+                </dl>
+                <div class="table-viewport category-viewport">
+                    <table class="data-table category-table">
+                        <thead>
+                            <tr><th>模块</th><th>名称</th><th class="number-column">数量</th><th>动作</th><th>示例标题</th></tr>
+                        </thead>
+                        <tbody id="categoryRows">
+                            <tr class="empty-row"><td colspan="5">尚无扫描结果</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section class="work-panel run-panel" aria-labelledby="runHeading">
+                <div class="panel-heading">
+                    <h2 id="runHeading">3. 已阅执行</h2>
+                    <span id="progressText">0 / 0</span>
+                </div>
+                <div class="run-controls">
+                    <div class="mode-switch" role="group" aria-label="执行模式">
+                        <input class="btn-check" type="radio" name="runMode" id="finiteMode" value="finite">
+                        <label class="btn btn-outline-secondary" for="finiteMode">指定数量</label>
+                        <input class="btn-check" type="radio" name="runMode" id="allMode" value="all" checked>
+                        <label class="btn btn-outline-secondary" for="allMode">无限模式</label>
+                    </div>
+                    <div>
+                        <label class="form-label" for="maxCount">本次数量</label>
+                        <input id="maxCount" class="form-control" type="number" min="1" step="1" value="10">
+                    </div>
+                </div>
+                <p id="targetPreview" class="target-preview">本次将处理 0 条同类公文</p>
+                <div class="stage-actions">
+                    <button id="runButton" type="button" class="btn btn-success" disabled>开始已阅</button>
+                    <button id="stopButton" type="button" class="btn btn-danger" disabled>终止</button>
+                </div>
+                <div class="progress" role="progressbar" aria-label="已阅进度" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+                    <div id="progressBar" class="progress-bar" style="width: 0%"></div>
+                </div>
+                <dl class="summary-grid run-summary">
+                    <div><dt>本批总数</dt><dd id="runTotal">0</dd></div>
+                    <div><dt>已完成</dt><dd id="completedCount">0</dd></div>
+                    <div><dt>成功</dt><dd id="successCount">0</dd></div>
+                    <div><dt>失败</dt><dd id="failedCount">0</dd></div>
+                </dl>
+                <div class="current-record">
+                    <span>当前标题</span>
+                    <strong id="currentRecord">-</strong>
+                </div>
+            </section>
+
+            <section class="work-panel results-panel" aria-labelledby="resultsHeading">
+                <div class="panel-heading">
+                    <h2 id="resultsHeading">逐条已阅结果</h2>
+                    <span id="resultsCount">0 条</span>
+                </div>
+                <div id="resultsViewport" class="table-viewport result-viewport">
+                    <table id="resultsTable" class="data-table result-table">
+                        <thead>
+                            <tr><th>标题</th><th>模块</th><th>模块名称</th><th>状态</th><th>结果</th></tr>
+                        </thead>
+                        <tbody id="resultRows">
+                            <tr class="empty-row"><td colspan="5">尚无已阅结果</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+
+            <section class="work-panel log-panel" aria-labelledby="logHeading">
+                <div class="panel-heading"><h2 id="logHeading">活动日志</h2></div>
+                <ol id="logList" class="log-list" aria-live="polite">
+                    <li class="is-muted">尚无运行记录</li>
+                </ol>
+            </section>
+        </main>
+    </div>
+    <script type="module" src="./app.mjs"></script>
+</body>
+</html>

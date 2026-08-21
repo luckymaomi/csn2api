@@ -56,6 +56,8 @@ describe("tool index data", () => {
     expect(homepage).toContain('data-default-theme="light"');
     expect(homepage).toContain('id="homeThemeToggle"');
     expect(homepage).toContain('src="../theme.js"');
+    expect(homepage).toContain("csn2api");
+    expect(homepage).toContain("https://github.com/luckymaomi/csn2api");
     expect(homepage).not.toContain('id="searchInput"');
     expect(homepage).not.toContain('id="categorySwitch"');
     expect(homepage).not.toContain("./manuals.html");
@@ -64,6 +66,15 @@ describe("tool index data", () => {
     expect(renderer).toContain('class="tool-card-surface"');
     expect(renderer).toContain('class="tool-status-switch"');
     expect(renderer).toContain('aria-disabled="true"');
+  });
+
+  it("uses the csn2api repository identity in package and standalone delivery metadata", () => {
+    const packageJson = JSON.parse(fs.readFileSync(resolveFromRoot("package.json"), "utf8"));
+    const exporter = fs.readFileSync(resolveFromRoot("scripts", "tool-exports.mts"), "utf8");
+
+    expect(packageJson.name).toBe("csn2api");
+    expect(exporter).toContain('const manifestPath = "csn2api-tool.json"');
+    expect(exporter).toContain('format: "csn2api-standalone-tool"');
   });
 
 });

@@ -1,5 +1,41 @@
 {
   "schemaVersion": 1,
+  "systems": [
+    {
+      "id": "flight-portal",
+      "name": "飞行门户 IEB",
+      "shortName": "IEB",
+      "navigationUrl": "https://ieb.csair.com/index/index",
+      "credentialRequestUrl": "https://ieb.csair.com/newieb/flytime/showFlytimeManyQuery",
+      "credentialInputLabel": "IEB Cookie Header 或 Copy as cURL",
+      "credentialPlaceholder": "粘贴 IEB 已登录请求的完整 Copy as cURL 或 Cookie Header",
+      "credentialSteps": [
+        "打开飞行门户 IEB 网址并完成登录。",
+        "打开 F12 Network，刷新页面或执行任意已登录业务操作。",
+        "选择一条 ieb.csair.com 的已登录请求，右键 Copy > Copy as cURL。",
+        "把完整 cURL 粘贴到 Cookie 管理并点击验证。"
+      ],
+      "credentialNote": "JSESSIONID 与 iebJSid 均为 HttpOnly，普通 document.cookie 无法完整读取；也可粘贴包含这两个字段的 Cookie Header。",
+      "validationRequestId": "flight-stats.query-page"
+    },
+    {
+      "id": "oa",
+      "name": "OA 协同办公",
+      "shortName": "OA",
+      "navigationUrl": "https://work.csair.com/oaw/work/my-dealt-with/schedule-list?sourceType=wait",
+      "credentialRequestUrl": "https://work.csair.com/oai/work/box/query/waiting",
+      "credentialInputLabel": "OA Copy as cURL 或 Cookie Header",
+      "credentialPlaceholder": "优先粘贴 OA 待办 query/waiting 请求的完整 Copy as cURL",
+      "credentialSteps": [
+        "打开 OA 待办网址并完成登录，确认待办列表已经显示。",
+        "打开 F12 Network，筛选 query/waiting 后刷新待办列表。",
+        "选择 POST /oai/work/box/query/waiting，右键 Copy > Copy as cURL。",
+        "把完整 cURL 粘贴到 Cookie 管理并点击验证。"
+      ],
+      "credentialNote": "OA 优先使用 waiting 请求的完整 cURL，以同时取得当前 Cookie、浏览器 User-Agent 和待办 JSON 模板；本地执行器只解析文本，不执行 cURL。",
+      "validationRequestId": "oa-read.user-info"
+    }
+  ],
   "modules": [
     {
       "id": "flight-stats",
@@ -18,6 +54,12 @@
       "name": "飞行人员信息查询接口",
       "description": "基础信息、技术等级、运行资格和训练检查记录的只读请求事实",
       "source": "./personnel-info.json"
+    },
+    {
+      "id": "oa-read",
+      "name": "OA 公文已阅接口",
+      "description": "全量待办数量与按任意正整数逐条执行公文已阅的组合工作流",
+      "source": "./oa-read.json"
     }
   ]
 }

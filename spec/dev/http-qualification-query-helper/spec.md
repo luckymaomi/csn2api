@@ -2,7 +2,7 @@
 
 ## 产品边界
 
-`http-qualification-query-helper` 是 IEB 飞行人员信息只读查询 APP，入口名称为“飞行人员信息查询（皇帝版）”。它不修改门户数据；用户自行提供已登录门户的 Cookie Header 或 Copy as cURL。APP 使用单个 `requests.Session` 严格串行查询，不启动 Playwright，服务只监听 `127.0.0.1`。
+`http-qualification-query-helper` 是 IEB 飞行人员信息只读查询 APP，入口名称为“飞行人员信息查询（皇帝版）”。它不修改门户数据；用户自行提供已登录门户的 Cookie Header 或 Copy as cURL。APP 使用单个 `requests.Session` 按人员顺序逐条查询，不启动 Playwright，服务只监听 `127.0.0.1`。
 
 ## 已验证 HTTP 契约
 
@@ -22,7 +22,7 @@
 - 数值员工号左补零到六位；重复员工号只处理第一次，无效行作为输入错误保留。
 - 人员查询必须按员工号唯一归属，姓名非空时同时核对姓名。单人失败写入结果后继续下一人。
 - 数据健康检查只报告有效/无效数量，不替代“开始查询”按钮，不强制拦截有效输入。
-- 所有人严格串行，停止只阻止后续人员，不打断已发出的当前 HTTP 请求。
+- 所有人按输入顺序逐条查询，停止只阻止后续人员，不打断已发出的当前 HTTP 请求。
 
 ## 输出
 
@@ -38,7 +38,7 @@
 - `input_data.py`：Excel 与粘贴输入归一化。
 - `portal_client.py`：Session、请求构造、登录判断、人员归属和 HTML/JSON 解析。
 - `exporter.py`：Excel、JSON、原子保存和文本报告。
-- `runner.py`：严格串行、逐人事件和停止边界。
+- `runner.py`：逐人执行、逐人事件和停止边界。
 - `manager.py`：内存 Session、线程、阶段、结果和下载路径。
 - `server.py`：loopback API 和静态资源。
 - `start.py`：本地启动入口。
@@ -49,7 +49,7 @@
 
 - `POST /api/session/verify`：验证 `credentials`，不回显凭据。
 - `POST /api/check-data`：检查 Excel Base64 或粘贴输入。
-- `POST /api/run`：复用当前 Session 开始严格串行查询。
+- `POST /api/run`：复用当前 Session 开始逐人查询。
 - `POST /api/start`：agent 全链路入口，可导入新凭据或复用当前 Session。
 - `POST /api/stop`：请求停止后续派发。
 - `GET /api/status`：返回阶段、进度、日志与逐人结果。

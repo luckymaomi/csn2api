@@ -2,7 +2,7 @@
 
 ## 1. 定位
 
-`http-lock-entry-helper` 是与 `lock-entry-helper` 并列的独立本地 Python APP。旧工具继续使用 Playwright；新工具只使用用户自行提供的 IEB 已登录会话，通过 `requests.Session` 串行调用非生产任务 HTTP 接口，不实现登录、不启动浏览器，也不从旧工具目录导入运行时代码。
+`http-lock-entry-helper` 是与 `lock-entry-helper` 并列的独立本地 Python APP。旧工具继续使用 Playwright；新工具只使用用户自行提供的 IEB 已登录会话，通过 `requests.Session` 按输入顺序逐条调用非生产任务 HTTP 接口，不实现登录、不启动浏览器，也不从旧工具目录导入运行时代码。
 
 页面名称为“锁班皇帝（新）”，技术目录使用 `http-` 前缀。原始入口为 `startapp.py`，智能入口为 `startsmartapp.py`，两者都只监听 `127.0.0.1` 的随机端口。
 
@@ -131,7 +131,7 @@ lockEndHourAndMinute=HH:mm
 6. 原提交 Body 只重放一次。
 7. 重提仍冲突或失败时停止当前原始记录，不解锁第二条。
 
-正常新提交默认不会被自动通过、撤销或否决。工作台可勾选“提交成功后直接通过并锁班”：每个片段仍串行先提交、保存待审批结果，再调用通过接口并复查状态；未勾选时保持原有待审批行为。通过失败时明确报告“待审批记录已生成，但通过并锁班失败”，不吞掉第一步结果。
+正常新提交默认不会被自动通过、撤销或否决。工作台可勾选“提交成功后直接通过并锁班”：每个片段仍依次提交、保存待审批结果，再调用通过接口并复查状态；未勾选时保持原有待审批行为。通过失败时明确报告“待审批记录已生成，但通过并锁班失败”，不吞掉第一步结果。
 
 ## 9. 状态、结果与 API
 
@@ -163,7 +163,7 @@ POST /api/start
 | `routing.py` | 智能分段、区间重叠和唯一候选 |
 | `portal_client.py` | Session、HTTP、响应解析、查询和状态动作 |
 | `result_store.py` | 原子即时结果 Excel |
-| `runner.py` | 串行执行、中断和单次冲突恢复 |
+| `runner.py` | 逐条执行、中断和单次冲突恢复 |
 | `manager.py` | Session、批次线程、状态和下载 |
 | `server.py` | loopback API 与静态页面 |
 | `web/` | 人工分步、输入、结果、日志和滚动跟随 |

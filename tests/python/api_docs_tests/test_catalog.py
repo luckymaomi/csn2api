@@ -11,11 +11,11 @@ class CatalogTests(unittest.TestCase):
     def setUp(self) -> None:
         self.catalog = ApiCatalog(CATALOG_ROOT)
 
-    def test_catalog_exposes_flight_portal_business_apis(self) -> None:
+    def test_catalog_exposes_cross_system_business_apis(self) -> None:
         modules = self.catalog.as_dict()["modules"]
         self.assertEqual(
             [module["name"] for module in modules],
-            ["飞行经历查询接口", "飞行人员锁班接口", "飞行人员信息查询接口"],
+            ["飞行经历查询接口", "飞行人员锁班接口", "飞行人员信息查询接口", "OA 公文已阅接口"],
         )
         self.assertEqual(
             list(self.catalog.endpoints),
@@ -27,6 +27,8 @@ class CatalogTests(unittest.TestCase):
                 "personnel-info.operation",
                 "personnel-info.training-records",
                 "personnel-info.training-experiences",
+                "oa-read.count",
+                "oa-read.read",
             ],
         )
         personnel = modules[2]
@@ -34,6 +36,10 @@ class CatalogTests(unittest.TestCase):
             [group["name"] for group in personnel["groups"]],
             ["基础信息", "技术等级", "运行资格", "训练检查记录"],
         )
+        systems = self.catalog.as_dict()["systems"]
+        self.assertEqual([system["id"] for system in systems], ["flight-portal", "oa"])
+        self.assertEqual(systems[0]["navigationUrl"], "https://ieb.csair.com/index/index")
+        self.assertEqual(systems[1]["credentialRequestUrl"], "https://work.csair.com/oai/work/box/query/waiting")
 
     def test_internal_request_facts_are_preserved_without_becoming_endpoints(self) -> None:
         modules = self.catalog.as_dict()["modules"]
@@ -78,6 +84,24 @@ class CatalogTests(unittest.TestCase):
             "page", "staffId", "fuzzyQuery", "newMachineId", "trainName",
         })
         self.assertEqual(experience["path"], "/newieb/basics/trainResultList")
+
+    def test_oa_catalog_keeps_count_and_progressive_read_workflows(self) -> None:
+        count_endpoint = self.catalog.get_endpoint("oa-read.count")
+        read = self.catalog.get_endpoint("oa-read.read")
+
+        self.assertEqual(count_endpoint.endpoint["executionKind"], "local-workflow")
+        self.assertEqual(count_endpoint.endpoint["parameters"], [])
+        self.assertEqual(read.endpoint["executionKind"], "local-workflow")
+        self.assertTrue(read.endpoint["progressive"])
+        count = read.endpoint["parameters"][0]
+        self.assertEqual(count["name"], "count")
+        self.assertEqual(count["minimum"], 1)
+        have_read = self.catalog.get_internal_request("oa-read.have-read")
+        self.assertEqual(have_read.url, "https://work.csair.com/oai/doc/pc/form/sw/haveRead")
+        self.assertEqual(
+            set(have_read.endpoint["parameters"]),
+            {"approveOpinionType=null", "approveOpinionContent=null", "docId", "docType", "flowStepId"},
+        )
 
     def test_friendly_controls_keep_derived_portal_fields_documented(self) -> None:
         endpoint = self.catalog.get_endpoint("lock-entry.submit").endpoint

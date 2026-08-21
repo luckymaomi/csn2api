@@ -1,4 +1,4 @@
-# 飞行门户接口 Agent 工作规约
+# csn2api Agent 工作规约
 
 本文件是仓库地图和最高约束。具体开发方法看 `.agents/skills/`，具体业务事实看 `spec/`。
 
@@ -21,16 +21,16 @@
 
 ## 产品边界
 
-- 本项目品牌为“飞行门户接口”，仓库名为 `ieb`。
-- 首页业务工具只有 `http-lock-entry-helper`、`http-flight-stats-helper` 和 `http-qualification-query-helper`。
-- API 文档位于 `public/tool/app/api-docs/`，只记录锁班、飞行经历和飞行人员信息三类 IEB 接口。
-- 三个工作台与 API 文档必须保持独立可运行，不依赖其他本地仓库。
-- SOC 随机置位只作为独立维护 skill 保留，不属于 IEB 首页工具；SOC 与 IEB 不共享页面、Cookie 或接口事实。
+- 本项目品牌和仓库名均为 `csn2api`；飞行门户 IEB 是接入的业务系统，其应用名称、域名、Cookie 和接口事实不随仓库品牌改名。
+- 首页业务工具由 `src/tool/tools-data.ts` 登记，不在 Agent 规约中固定工具数量或穷举当前清单。
+- API 文档位于 `public/tool/app/api-docs/`，通过 catalog 按系统持续接入已确认的 HTTP 接口事实和明确标记的本地组合工作流。
+- 每个工作台与 API 文档必须保持独立可运行，不依赖其他本地仓库；不同系统不得共享 Cookie、Session 或接口事实。
+- SOC 随机置位只作为独立维护 skill 保留，不属于 csn2api 首页工具；SOC 与 IEB 不共享页面、Cookie 或接口事实。
 
 ## Skills
 
 - 中大型开发、跨模块重构、工具下线、测试结构整理或生产级验收时，先读 `.agents/skills/plan/SKILL.md` 并维护根目录 `plan.md`。
-- 新增或修改工具、业务规则、spec、测试或构建时，读 `.agents/skills/ieb-dev/SKILL.md`。
+- 新增或修改工具、业务规则、spec、测试或构建时，读 `.agents/skills/csn2api-dev/SKILL.md`。
 - 涉及页面 UI、表格、筛选区、结果区或主题时，读 `.agents/skills/ui-clarity/SKILL.md`。
 - 涉及 Excel 读取、导出、表头映射或日期解析时，读 `.agents/skills/excel-dev/SKILL.md`。
 - 涉及 IEB Cookie/cURL、Network 请求、纯 HTTP 查询或状态动作时，读 `.agents/skills/flight-portal-http-probe/SKILL.md`。
@@ -41,10 +41,10 @@
 ## 安全与生产边界
 
 - Cookie、cURL、真实身份、记录 ID、原始响应、截图和临时结果不得进入 Git、fixture、日志或静态文件。
-- 三个 IEB 工作台只监听 `127.0.0.1`，凭据只保存在本地后端内存。
+- 本地 HTTP 工作台与 API 文档执行器只监听 `127.0.0.1`，凭据只保存在本地后端内存和当前页面生命周期。
 - 飞行经历和飞行人员信息是只读查询；锁班提交、通过、撤销、解锁和否决是写操作。
 - 生产写操作必须取得 owner 对当前对象、日期、类型、备注和动作的明确授权；过去授权不延续。
-- 当前三个工作台保持严格串行，不新增并发入口。
+- 批量工作台的执行顺序、停止和恢复边界以对应 spec 为准；没有 owner 明确要求和真实证据时不新增并发入口。
 - 登录失效、响应契约变化、归属不唯一或业务结果不明确时停止当前动作，不无限重试或猜字段。
 
 ## Spec、测试与完成标准
@@ -70,13 +70,14 @@
 - 浏览器自动化问题要区分输入解析、页面值和实际提交值；本仓库当前产品不依赖 Playwright。
 - 内网不可访问时，以用户提供的 HTML、截图、日志和本地代码为事实来源。
 - `start_index.py` 和各 APP 本地入口是否长期运行由 owner 决定。agent 为验证临时启动后必须终止本轮进程并确认端口释放。
+- OA 已阅工作台由 owner 自行启动。agent 默认不直接启动或留下后台进程；确需临时启动验证时，必须在交付前关闭并确认端口释放。
 - 前端视觉由 owner 人工检查；agent 负责构建、测试和静态连通性验证。
 
 ## 仓库入口
 
 - TypeScript 源码在 `src/`，静态页面和 Python APP 在 `public/`，构建产物在 `dist/`。
 - 首页工具清单在 `src/tool/tools-data.ts`，首页在 `public/tool/index.html`。
-- API 文档在 `public/tool/app/api-docs/`，三个工作台分别位于 `public/tool/app/http-*/`。
+- API 文档在 `public/tool/app/api-docs/`，HTTP 工作台分别位于 `public/tool/app/http-*/`。
 - API catalog JSON 是接口请求与响应契约的唯一事实源。
 - 开发规格在 `spec/dev/<tool>/`，用户手册在 `spec/user/<tool>/manual.md`，测试在 `tests/`。
 

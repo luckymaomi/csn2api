@@ -19,7 +19,7 @@ const distRoot = resolveDistRoot();
 const execFileAsync = promisify(execFile);
 
 function resolveDistRoot(): string {
-  const requestedRoot = process.env.IEB_DIST_ROOT;
+  const requestedRoot = process.env.CSN2API_DIST_ROOT;
   if (!requestedRoot) return path.join(projectRoot, "dist");
 
   const resolvedRoot = path.resolve(requestedRoot);
@@ -29,9 +29,9 @@ function resolveDistRoot(): string {
   if (
     relativePath.startsWith("..")
     || path.isAbsolute(relativePath)
-    || !topLevelDirectory.startsWith("ieb-build-")
+    || !topLevelDirectory.startsWith("csn2api-build-")
   ) {
-    throw new Error("IEB_DIST_ROOT 只允许使用专用的系统临时目录。");
+    throw new Error("CSN2API_DIST_ROOT 只允许使用专用的系统临时目录。");
   }
   return resolvedRoot;
 }
@@ -41,6 +41,7 @@ const pageEntries = [
   { source: "src/tool/app/http-flight-stats-helper/shell.ts", output: "tool/app/http-flight-stats-helper/app", page: "tool/app/http-flight-stats-helper/index.html" },
   { source: "src/tool/app/api-docs/main.ts", output: "tool/app/api-docs/app", page: "tool/app/api-docs/index.html" },
   { source: "src/tool/app/http-lock-entry-helper/shell.ts", output: "tool/app/http-lock-entry-helper/app", page: "tool/app/http-lock-entry-helper/index.html" },
+  { source: "src/tool/app/http-oa-read-helper/shell.ts", output: "tool/app/http-oa-read-helper/app", page: "tool/app/http-oa-read-helper/index.html" },
   { source: "src/tool/app/http-qualification-query-helper/shell.ts", output: "tool/app/http-qualification-query-helper/app", page: "tool/app/http-qualification-query-helper/index.html" }
 ] as const;
 
@@ -174,7 +175,7 @@ async function buildPageEntries(): Promise<void> {
 }
 
 async function copyPythonWorkbenchAssets() {
-  for (const toolEntry of ["http-flight-stats-helper", "http-lock-entry-helper", "http-qualification-query-helper"]) {
+  for (const toolEntry of ["http-flight-stats-helper", "http-lock-entry-helper", "http-oa-read-helper", "http-qualification-query-helper"]) {
     const workbenchRoot = path.join(distRoot, "tool", "app", toolEntry, "web");
     const libraryRoot = path.join(workbenchRoot, "libs");
     await fs.mkdir(libraryRoot, { recursive: true });

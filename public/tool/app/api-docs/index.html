@@ -34,10 +34,7 @@
                     <span>Cookie 管理</span>
                 </button>
                 <div class="sidebar-divider"></div>
-                <details id="systemDisclosure" class="system-disclosure" open>
-                    <summary><span>飞行门户</span></summary>
-                    <div id="systemEndpointList" class="system-endpoint-list"></div>
-                </details>
+                <div id="systemNavigation" class="system-navigation"></div>
             </nav>
         </aside>
 
@@ -45,33 +42,15 @@
             <div class="document-loading">正在读取接口目录</div>
         </article>
 
-        <aside class="request-console" aria-label="本地单次调试">
-            <section id="sessionPanel" class="console-panel credential-section">
-                <div class="console-heading">
-                    <div><span class="console-kicker">飞行门户</span><h2>Cookie 管理</h2></div>
-                    <button id="clearSessionButton" class="text-button" type="button" disabled>清除</button>
-                </div>
-                <label class="field-label" for="credentialInput">Cookie Header 或 Copy as cURL</label>
-                <textarea id="credentialInput" rows="8" autocomplete="off" spellcheck="false" placeholder="粘贴完整 Cookie Header 或 Copy as cURL" disabled></textarea>
-                <button id="loadSessionButton" class="primary-button full-button" type="button" disabled>验证 Cookie</button>
-                <div id="credentialStatus" class="credential-status" data-state="idle">
-                    <strong id="credentialStatusText">Cookie 未验证</strong>
-                    <span id="credentialStatusDetail">验证后每 1-60 秒自动检查一次</span>
-                </div>
-                <div id="savedCredentialPanel" class="saved-credential-panel" hidden>
-                    <div class="saved-credential-heading">
-                        <label class="field-label" for="savedCredentialText">当前页 Cookie</label>
-                        <button id="copyCredentialButton" class="text-button" type="button">复制</button>
-                    </div>
-                    <textarea id="savedCredentialText" class="saved-credential-text" rows="4" readonly spellcheck="false"></textarea>
-                    <span class="saved-credential-note">刷新页面或清除 Cookie 后立即删除</span>
-                </div>
-            </section>
+        <aside class="request-console" aria-label="本地接口调试">
+            <div id="sessionPanel" class="session-panel-view">
+                <div id="sessionPanels" class="session-panel-stack" aria-label="各系统 Cookie 管理"></div>
+            </div>
 
             <div id="endpointConsole" hidden>
                 <div class="session-strip">
                     <div>
-                        <span class="session-label">飞行门户会话</span>
+                        <span id="endpointSessionLabel" class="session-label">接口会话</span>
                         <strong id="sessionState">Cookie 未验证</strong>
                         <span id="sessionDetail" class="session-detail">验证后自动保持登录状态</span>
                     </div>
@@ -79,7 +58,7 @@
                 </div>
 
                 <section class="console-panel request-panel">
-                    <div class="console-heading"><h2>单次调试参数</h2></div>
+                    <div class="console-heading"><h2>调试参数</h2></div>
                     <form id="parameterForm" class="parameter-form"></form>
                     <button id="sendRequestButton" class="send-button full-button" type="button" disabled>发送真实请求</button>
                 </section>

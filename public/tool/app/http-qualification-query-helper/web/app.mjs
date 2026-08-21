@@ -229,7 +229,7 @@ function renderState(state) {
   elements.sessionStatus.textContent = session.verified ? "已验证" : "尚未验证";
   elements.sessionVerified.textContent = session.verified ? "有效" : "未验证";
   elements.sessionVerifiedAt.textContent = session.verifiedAt || "-";
-  elements.queryMode.textContent = state.queryMode || "严格串行";
+  elements.queryMode.textContent = state.queryMode || "按输入顺序逐人查询";
   elements.verifyButton.disabled = !state.canVerify;
   elements.credentials.disabled = !state.canVerify;
   elements.dataCheckButton.disabled = !state.canCheckData;

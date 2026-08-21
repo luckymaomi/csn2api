@@ -19,7 +19,7 @@ describe("HTTP qualification query delivery", () => {
     expect(workbench).toContain("数据健康检查");
     expect(workbench).toContain("开始查询");
     expect(workbench).toContain("逐人查询结果");
-    expect(workbench).toContain("严格串行");
+    expect(workbench).toContain("按输入顺序逐人查询");
     expect(requirements).toContain("requests");
     expect(requirements).toContain("beautifulsoup4");
     expect(requirements).not.toContain("playwright");

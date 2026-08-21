@@ -40,3 +40,9 @@ plan.md
 
 # 本地门户会话凭据，禁止进入版本库
 .cookie
+
+# 本地 OA HTTP 探针、会话凭据和持久化浏览器配置，禁止进入版本库
+/cookie.txt
+/oa_http_probe.py
+/oa_http_read_contracts.json
+/.oa-http-probe-profile/

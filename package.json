@@ -1,5 +1,5 @@
 {
-  "name": "ieb",
+  "name": "csn2api",
   "private": true,
   "scripts": {
     "prebuild": "npm run sync:readme",

@@ -47,7 +47,7 @@ class RunManager:
             "phase": "waiting_credentials",
             "message": "等待验证登录凭据",
             "mode": self.mode,
-            "modeLabel": "智能串行" if self.mode == "smart" else "原始串行",
+            "modeLabel": "智能模式" if self.mode == "smart" else "原始模式",
             "session": {
                 "verified": False,
                 "verifiedAt": "",
@@ -258,7 +258,7 @@ class RunManager:
             self._state.update(
                 {
                     "phase": "running",
-                    "message": f"开始串行录入 {len(records)} 条有效数据",
+                    "message": f"开始录入 {len(records)} 条有效数据",
                     "runId": run_id,
                     "progress": {"total": len(records), "completed": 0, "success": 0, "failed": 0, "current": ""},
                     "results": [],

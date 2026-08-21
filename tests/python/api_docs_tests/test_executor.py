@@ -60,6 +60,44 @@ TECHNICAL_RESULT_HTML = """
 </div>
 """
 
+OA_USER_INFO = json.dumps({"code": 200, "data": {"displayName": "示例用户"}}, ensure_ascii=False)
+OA_WAITING = json.dumps({
+    "code": 200,
+    "data": {
+        "resultMyBoxItems": [
+            {
+                "fileId": "doc-1",
+                "fileTitle": "示例公文一",
+                "fileTypeId": "type-1",
+                "stepItemId": "step-1",
+                "moduleMainCategoryCode": "DOC",
+                "moduleSubCategoryCode": "official-document",
+                "moduleSubCategoryName": "公文",
+            },
+            {
+                "fileId": "other-1",
+                "fileTitle": "示例异类待办",
+                "fileTypeId": "other-type",
+                "stepItemId": "other-step",
+                "moduleMainCategoryCode": "OTHER",
+                "moduleSubCategoryCode": "workflow",
+                "moduleSubCategoryName": "其他流程",
+            },
+            {
+                "fileId": "doc-2",
+                "fileTitle": "示例公文二",
+                "fileTypeId": "type-2",
+                "stepItemId": "step-2",
+                "moduleMainCategoryCode": "DOC",
+                "moduleSubCategoryCode": "official-document",
+                "moduleSubCategoryName": "公文",
+            },
+        ],
+        "totalRecordCount": 3,
+    },
+}, ensure_ascii=False)
+OA_SUCCESS = json.dumps({"code": 200, "message": "ok"}, ensure_ascii=False)
+
 
 class FakeCookies:
     def __init__(self) -> None:
@@ -232,6 +270,90 @@ class ExecutorTests(unittest.TestCase):
         self.assertEqual(session.requests[1]["method"], "GET")
         self.assertIn("showFlytimeManyQuery", str(session.requests[1]["url"]))
         self.assertIsNone(session.requests[1]["data"])
+
+    def test_oa_count_workflow_scans_all_pages_and_returns_summary(self) -> None:
+        executor, _session = self.create_executor([
+            FakeResponse(OA_USER_INFO, url="https://work.example.test/user", content_type="application/json"),
+            FakeResponse(OA_WAITING, url="https://work.example.test/waiting", content_type="application/json"),
+        ])
+        credentials = (
+            "curl 'https://work.csair.com/oai/work/box/query/waiting' "
+            "-H 'User-Agent: Example Browser' "
+            "-H 'Cookie: SESSION=oa-session; ROUTE-SESSION=oa-route' "
+            "--data-raw '{\"moduleMainCategoryId\":-5,\"offsetPageIndex\":0}'"
+        )
+
+        executor.load_credentials(credentials, "oa")
+        result = executor.execute("oa-read.count", {})
+
+        self.assertEqual(result["data"]["summary"], {
+            "total": 3,
+            "eligible": 2,
+            "skipped": 1,
+        })
+        self.assertEqual(result["data"]["tables"][0]["rows"], [
+            {"模块": "DOC/official-document", "数量": 2, "处理方式": "可执行已阅"},
+            {"模块": "OTHER/workflow", "数量": 1, "处理方式": "跳过"},
+        ])
+
+    def test_oa_read_workflow_reports_each_result_progressively_and_serially(self) -> None:
+        executor, session = self.create_executor([
+            FakeResponse(OA_USER_INFO, url="https://work.example.test/user", content_type="application/json"),
+            FakeResponse(OA_WAITING, url="https://work.example.test/waiting", content_type="application/json"),
+            FakeResponse(OA_SUCCESS, url="https://work.example.test/read-1", content_type="application/json"),
+            FakeResponse(OA_SUCCESS, url="https://work.example.test/read-2", content_type="application/json"),
+        ])
+        credentials = (
+            "curl 'https://work.csair.com/oai/work/box/query/waiting' "
+            "-H 'User-Agent: Example Browser' "
+            "-H 'Cookie: SESSION=oa-session; ROUTE-SESSION=oa-route' "
+            "--data-raw '{\"moduleMainCategoryId\":-5,\"offsetPageIndex\":0}'"
+        )
+
+        loaded = executor.load_credentials(credentials, "oa")
+        progress: list[dict[str, object]] = []
+        result = executor.execute("oa-read.read", {"count": 5000}, progress.append)
+
+        self.assertTrue(loaded["ready"])
+        self.assertEqual(session.headers["User-Agent"], "Example Browser")
+        self.assertEqual(result["data"]["summary"], {
+            "scanned": 3,
+            "eligible": 2,
+            "skipped": 1,
+            "requested": 5000,
+            "target": 2,
+            "success": 2,
+            "failed": 0,
+        })
+        self.assertEqual([
+            len(snapshot["data"]["tables"][0]["rows"])  # type: ignore[index]
+            for snapshot in progress
+        ], [0, 1, 2])
+        self.assertEqual(
+            [request["url"] for request in session.requests],
+            [
+                self.catalog.get_internal_request("oa-read.user-info").url,
+                self.catalog.get_internal_request("oa-read.waiting-query").url,
+                self.catalog.get_internal_request("oa-read.have-read").url,
+                self.catalog.get_internal_request("oa-read.have-read").url,
+            ],
+        )
+        self.assertEqual(session.requests[1]["json"], {
+            "offsetPageIndex": 0,
+            "pageMode": "page",
+            "resultCountPerPage": 100,
+        })
+        self.assertEqual(session.requests[2]["json"], {
+            "approveOpinionType": None,
+            "approveOpinionContent": None,
+            "docId": "doc-1",
+            "docType": "type-1",
+            "flowStepId": "step-1",
+        })
+        self.assertEqual(session.requests[3]["json"]["docId"], "doc-2")
+        statuses = executor.all_session_statuses()
+        self.assertFalse(statuses["flight-portal"]["ready"])
+        self.assertTrue(statuses["oa"]["ready"])
 
     def test_keepalive_interval_stays_within_requested_range(self) -> None:
         values = [random_keepalive_interval() for _ in range(200)]

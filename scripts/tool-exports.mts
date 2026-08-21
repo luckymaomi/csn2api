@@ -100,9 +100,9 @@ async function buildToolExport(options: ToolExportOptions, definition: ToolExpor
   for (const [dataPath, content] of generatedData) embeddedAssets.set(dataPath, content);
   addZipText(zip, addedFiles, "standalone-runtime.js", createStandaloneRuntime(embeddedAssets));
 
-  const manifestPath = "ieb-tool.json";
+  const manifestPath = "csn2api-tool.json";
   const manifest = {
-    format: "ieb-standalone-tool",
+    format: "csn2api-standalone-tool",
     schemaVersion: 1,
     entry: definition.entry,
     name: definition.name,

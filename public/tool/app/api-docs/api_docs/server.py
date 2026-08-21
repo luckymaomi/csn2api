@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import copy
 import json
 import mimetypes
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import unquote, urlparse
+from threading import Lock, Thread
+from urllib.parse import parse_qs, unquote, urlparse
+from uuid import uuid4
 
 from .catalog import ApiCatalog
 from .executor import ApiExecutor
@@ -13,6 +16,72 @@ from .executor import ApiExecutor
 
 class ApiDocsServer(ThreadingHTTPServer):
     daemon_threads = True
+
+
+class ExecutionTaskStore:
+    def __init__(self, executor: ApiExecutor, catalog: ApiCatalog) -> None:
+        self.executor = executor
+        self.catalog = catalog
+        self.lock = Lock()
+        self.tasks: dict[str, dict[str, object]] = {}
+        self.active_systems: dict[str, str] = {}
+
+    def start(self, endpoint_id: str, parameters: dict[str, object]) -> dict[str, object]:
+        record = self.catalog.get_endpoint(endpoint_id)
+        if record.endpoint.get("progressive") is not True:
+            raise ValueError("当前接口不支持渐进执行")
+        system_id = str(record.module.get("systemId", ""))
+        with self.lock:
+            if system_id in self.active_systems:
+                raise ValueError("当前系统已有任务正在执行")
+            task_id = uuid4().hex
+            self.tasks[task_id] = {
+                "taskId": task_id,
+                "endpointId": endpoint_id,
+                "state": "running",
+                "result": None,
+            }
+            self.active_systems[system_id] = task_id
+        Thread(
+            target=self._run,
+            args=(task_id, system_id, endpoint_id, parameters),
+            name=f"api-docs-{system_id}-execution",
+            daemon=True,
+        ).start()
+        return self.status(task_id)
+
+    def status(self, task_id: str) -> dict[str, object]:
+        with self.lock:
+            task = self.tasks.get(task_id)
+            if task is None:
+                raise ValueError("本地任务不存在")
+            return copy.deepcopy(task)
+
+    def _run(
+        self,
+        task_id: str,
+        system_id: str,
+        endpoint_id: str,
+        parameters: dict[str, object],
+    ) -> None:
+        def report(result: dict[str, object]) -> None:
+            with self.lock:
+                self.tasks[task_id]["result"] = copy.deepcopy(result)
+
+        try:
+            result = self.executor.execute(endpoint_id, parameters, report)
+        except Exception as error:
+            with self.lock:
+                self.tasks[task_id]["state"] = "failed"
+                self.tasks[task_id]["error"] = str(error)
+        else:
+            with self.lock:
+                self.tasks[task_id]["state"] = "completed"
+                self.tasks[task_id]["result"] = copy.deepcopy(result)
+        finally:
+            with self.lock:
+                if self.active_systems.get(system_id) == task_id:
+                    self.active_systems.pop(system_id, None)
 
 
 def create_server(
@@ -23,6 +92,7 @@ def create_server(
     app_directory = app_directory.resolve()
     catalog = executor.catalog if executor is not None else ApiCatalog(app_directory / "catalog")
     request_executor = executor or ApiExecutor(catalog)
+    execution_tasks = ExecutionTaskStore(request_executor, catalog)
     shared_static_root = app_directory.parents[2] if len(app_directory.parents) >= 3 else app_directory
 
     def shared_asset(relative_path: str) -> Path:
@@ -30,7 +100,7 @@ def create_server(
         return packaged if packaged.is_file() else shared_static_root / relative_path
 
     class Handler(BaseHTTPRequestHandler):
-        server_version = "IebApiDocs/1.0"
+        server_version = "Csn2ApiDocs/1.0"
 
         def log_message(self, _format: str, *_args: object) -> None:
             return
@@ -100,10 +170,17 @@ def create_server(
         def do_GET(self) -> None:  # noqa: N802
             path = urlparse(self.path).path
             if path == "/api/health":
-                self._send_json({"available": True, "session": request_executor.session_status()})
+                self._send_json({"available": True, "sessions": request_executor.all_session_statuses()})
                 return
             if path == "/api/catalog":
                 self._send_json(catalog.as_dict())
+                return
+            if path.startswith("/api/execute/"):
+                try:
+                    task_id = unquote(path.removeprefix("/api/execute/"))
+                    self._send_json(execution_tasks.status(task_id))
+                except Exception as error:
+                    self._send_json({"error": str(error)}, HTTPStatus.BAD_REQUEST)
                 return
             if path == "/api/options/lock-types":
                 try:
@@ -122,15 +199,20 @@ def create_server(
             try:
                 payload = self._read_json()
                 if path == "/api/session":
-                    result = request_executor.load_credentials(str(payload.get("credentials", "") or ""))
+                    result = request_executor.load_credentials(
+                        str(payload.get("credentials", "") or ""),
+                        str(payload.get("systemId", "") or ""),
+                    )
                 elif path == "/api/execute":
                     parameters = payload.get("parameters", {})
                     if not isinstance(parameters, dict):
                         raise ValueError("接口参数必须是 JSON 对象")
-                    result = request_executor.execute(
-                        str(payload.get("endpointId", "") or ""),
-                        parameters,
-                    )
+                    endpoint_id = str(payload.get("endpointId", "") or "")
+                    if payload.get("progressive") is True:
+                        result = execution_tasks.start(endpoint_id, parameters)
+                        self._send_json(result, HTTPStatus.ACCEPTED)
+                        return
+                    result = request_executor.execute(endpoint_id, parameters)
                 else:
                     self._send_json({"error": "接口不存在"}, HTTPStatus.NOT_FOUND)
                     return
@@ -139,12 +221,15 @@ def create_server(
                 self._send_json({"error": str(error)}, HTTPStatus.BAD_REQUEST)
 
         def do_DELETE(self) -> None:  # noqa: N802
-            if urlparse(self.path).path != "/api/session":
+            parsed = urlparse(self.path)
+            if parsed.path != "/api/session":
                 self._send_json({"error": "接口不存在"}, HTTPStatus.NOT_FOUND)
                 return
-            request_executor.clear_credentials()
-            self._send_json(request_executor.session_status())
+            system_id = str(parse_qs(parsed.query).get("systemId", [""])[0] or "")
+            request_executor.clear_credentials(system_id or None)
+            self._send_json({"sessions": request_executor.all_session_statuses()})
 
     server = ApiDocsServer(("127.0.0.1", port), Handler)
     server.executor = request_executor  # type: ignore[attr-defined]
+    server.execution_tasks = execution_tasks  # type: ignore[attr-defined]
     return server

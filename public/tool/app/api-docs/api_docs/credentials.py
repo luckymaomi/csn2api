@@ -1,9 +1,13 @@
 from __future__ import annotations
 
+import json
 import re
+from urllib.parse import urlsplit
 
 
 REQUIRED_COOKIE_NAMES = ("JSESSIONID", "iebJSid")
+COOKIE_NAME_PATTERN = re.compile(r"^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$")
+MAX_USER_AGENT_LENGTH = 512
 
 
 def _extract_cookie_text(source: str) -> str:
@@ -50,6 +54,19 @@ def parse_credentials(source: str) -> dict[str, str]:
     return cookies
 
 
+def parse_all_credentials(source: str) -> dict[str, str]:
+    cookie_text = _extract_cookie_text(source)
+    cookies: dict[str, str] = {}
+    for part in cookie_text.split(";"):
+        name, separator, value = part.strip().partition("=")
+        name = name.strip()
+        if separator and name and COOKIE_NAME_PATTERN.fullmatch(name):
+            cookies[name] = value.strip()
+    if not cookies or not any(cookies.values()):
+        raise ValueError("Cookie Header 中没有有效 Cookie")
+    return cookies
+
+
 def format_credentials(cookies: dict[str, str]) -> str:
     return "; ".join(
         f"{name}={cookies[name]}"
@@ -58,6 +75,54 @@ def format_credentials(cookies: dict[str, str]) -> str:
     )
 
 
+def format_all_credentials(cookies: dict[str, str]) -> str:
+    return "; ".join(f"{name}={value}" for name, value in cookies.items() if value)
+
+
 def credential_summary(cookies: dict[str, str]) -> dict[str, object]:
     names = [name for name in REQUIRED_COOKIE_NAMES if cookies.get(name)]
     return {"ready": len(names) == len(REQUIRED_COOKIE_NAMES), "cookieNames": names, "cookieCount": len(names)}
+
+
+def all_credential_summary(cookies: dict[str, str]) -> dict[str, object]:
+    names = [name for name, value in cookies.items() if value]
+    return {"ready": bool(names), "cookieNames": names, "cookieCount": len(names)}
+
+
+def parse_browser_user_agent(source: str) -> str:
+    text = str(source or "")
+    candidates: list[str] = []
+    for match in re.finditer(r"(?is)(?:-H|--header)\s+\^?(['\"])(.*?)\^?\1", text):
+        name, separator, value = match.group(2).partition(":")
+        if separator and name.strip().lower() == "user-agent":
+            candidates.append(value)
+    option = re.search(r"(?is)(?:-A|--user-agent)\s+\^?(['\"])(.*?)\^?\1", text)
+    if option:
+        candidates.append(option.group(2))
+    header_line = re.search(r"(?im)^\s*user-agent\s*:\s*(.+?)\s*$", text)
+    if header_line:
+        candidates.append(header_line.group(1))
+    for candidate in candidates:
+        value = candidate.strip().strip("'\"")
+        if value and len(value) <= MAX_USER_AGENT_LENGTH and "\r" not in value and "\n" not in value:
+            return value
+    return ""
+
+
+def parse_waiting_template(source: str) -> dict[str, object] | None:
+    text = str(source or "")
+    urls = re.findall(r"https://[^\s'\"]+", text, flags=re.IGNORECASE)
+    if not any(
+        urlsplit(url).hostname == "work.csair.com"
+        and urlsplit(url).path == "/oai/work/box/query/waiting"
+        for url in urls
+    ):
+        return None
+    body_match = re.search(r"(?is)(?:--data-raw|--data|-d)\s+\^?(['\"])(.*?)\^?\1", text)
+    if not body_match:
+        return None
+    try:
+        payload = json.loads(body_match.group(2))
+    except json.JSONDecodeError:
+        return None
+    return payload if isinstance(payload, dict) else None

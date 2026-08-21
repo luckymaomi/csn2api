@@ -41,7 +41,7 @@ class RunManager:
         return {
             "phase": "waiting_credentials",
             "message": "等待验证登录 Cookie",
-            "queryMode": "严格串行",
+            "queryMode": "按输入顺序逐人查询",
             "session": {"verified": False, "verifiedAt": "", "cookieCount": 0},
             "checks": {
                 "data": {
@@ -231,7 +231,7 @@ class RunManager:
             self._state.update(
                 {
                     "phase": "running",
-                    "message": f"开始严格串行查询 {len(records)} 人",
+                    "message": f"开始查询 {len(records)} 人",
                     "runId": run_id,
                     "progress": {"total": len(records), "completed": 0, "success": 0, "failed": 0, "current": ""},
                     "results": [],

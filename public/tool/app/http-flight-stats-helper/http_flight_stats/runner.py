@@ -60,7 +60,7 @@ class BatchRunner:
                 "completed": 0,
                 "success": 0,
                 "failed": 0,
-                "current": "正在逐人查询（严格串行）",
+                "current": "正在逐人查询",
             }
         )
         for index, record in enumerate(records):
@@ -90,7 +90,7 @@ class BatchRunner:
                     "completed": len(outcomes),
                     "success": success,
                     "failed": len(outcomes) - success,
-                    "current": "" if len(outcomes) == total else "正在逐人查询（严格串行）",
+                    "current": "" if len(outcomes) == total else "正在逐人查询",
                 }
             )
 

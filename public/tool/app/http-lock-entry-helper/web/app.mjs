@@ -199,7 +199,7 @@ function render(state) {
   const percent = total ? Math.min(100, Math.round((completed / total) * 100)) : 0;
   currentMode = state.mode || currentMode;
 
-  elements.modeLabel.textContent = state.modeLabel || "串行工作台";
+  elements.modeLabel.textContent = state.modeLabel || "录入工作台";
   elements.smartOptions.hidden = currentMode !== "smart";
   elements.statusMessage.textContent = state.message || "";
   elements.statusBadge.textContent = phaseLabels[phase] || phase;

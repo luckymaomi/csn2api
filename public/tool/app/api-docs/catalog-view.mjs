@@ -55,83 +55,164 @@ function exampleValues(parameter, supplied) {
     return String(suppliedValue).split(/[,，\n]+/).map((item) => item.trim()).filter(Boolean);
 }
 
+function exampleJsonValue(parameter, supplied) {
+    const value = supplied[parameter.name] ?? parameter.default;
+    if (value === null) return null;
+    if (parameter.type === "number" && String(value ?? "").trim() !== "") {
+        const numeric = Number(value);
+        return Number.isSafeInteger(numeric) ? numeric : String(value);
+    }
+    return exampleValue(parameter, supplied);
+}
+
+function cookieExample(module) {
+    const cookies = module.cookies || [];
+    return cookies.length
+        ? cookies.map((cookie) => `${cookie.name}=<value>`).join("; ")
+        : "<current-system-cookie>";
+}
+
+function parameterLocation(value) {
+    return ({ query: "Query", form: "Form", json: "JSON", workflow: "本地工作流" })[value] || value;
+}
+
 export function buildCurlExample(record, supplied) {
     const { module, endpoint } = record;
+    if (endpoint.executionKind === "local-workflow") {
+        const parameters = Object.fromEntries(
+            (endpoint.parameters || []).map((parameter) => [parameter.name, exampleJsonValue(parameter, supplied)])
+        );
+        const body = JSON.stringify({
+            endpointId: record.fullId,
+            parameters,
+            ...(endpoint.progressive ? { progressive: true } : {})
+        });
+        const lines = [
+            `curl --request POST ${shellSingleQuote("http://127.0.0.1:<port>/api/execute")} \\`,
+            `  --header ${shellSingleQuote("Content-Type: application/json")} \\`,
+            `  --data-raw ${shellSingleQuote(body)}`
+        ];
+        if (endpoint.progressive) {
+            lines.push(
+                "",
+                "# 从启动响应取得 taskId 后，重复读取快照直到 state 不再是 running",
+                `curl ${shellSingleQuote("http://127.0.0.1:<port>/api/execute/<taskId>")}`
+            );
+        }
+        return lines.join("\n");
+    }
     const query = [];
     const form = [];
+    const jsonBody = {};
     (endpoint.parameters || []).forEach((parameter) => {
-        const target = parameter.in === "query" ? query : form;
-        exampleValues(parameter, supplied).forEach((value) => target.push([parameter.name, value]));
+        if (parameter.in === "json") {
+            jsonBody[parameter.name] = exampleJsonValue(parameter, supplied);
+        } else {
+            const target = parameter.in === "query" ? query : form;
+            exampleValues(parameter, supplied).forEach((value) => target.push([parameter.name, value]));
+        }
     });
     const queryText = query.length
         ? `?${query.map(([name, value]) => `${encodeURIComponent(name)}=${encodeURIComponent(value)}`).join("&")}`
         : "";
     const lines = [
         `curl --request ${endpoint.method} ${shellSingleQuote(module.baseUrl + endpoint.path + queryText)}`,
-        `  --header ${shellSingleQuote("Cookie: JSESSIONID=<value>; iebJSid=<value>")}`
+        `  --header ${shellSingleQuote(`Cookie: ${cookieExample(module)}`)}`
     ];
     [...(module.commonHeaders || []), ...(endpoint.headers || [])]
         .forEach((header) => lines.push(`  --header ${shellSingleQuote(`${header.name}: ${header.value}`)}`));
     form.forEach(([name, value]) => lines.push(`  --data-urlencode ${shellSingleQuote(`${name}=${value}`)}`));
+    if (Object.keys(jsonBody).length) {
+        lines.push(`  --data-raw ${shellSingleQuote(JSON.stringify(jsonBody))}`);
+    }
     return lines.map((line, index) => index === lines.length - 1 ? line : `${line} \\`).join("\n");
 }
 
 export function buildPythonExample(record, supplied) {
     const { module, endpoint } = record;
+    if (endpoint.executionKind === "local-workflow") {
+        const parameters = Object.fromEntries(
+            (endpoint.parameters || []).map((parameter) => [parameter.name, exampleJsonValue(parameter, supplied)])
+        );
+        const requestBody = {
+            endpointId: record.fullId,
+            parameters,
+            ...(endpoint.progressive ? { progressive: true } : {})
+        };
+        const formattedBody = JSON.stringify(requestBody, null, 4).replaceAll("\n", "\n    ");
+        if (endpoint.progressive) {
+            return `import time\nimport requests\n\nbase_url = "http://127.0.0.1:<port>"\ntask = requests.post(\n    f"{base_url}/api/execute",\n    json=${formattedBody},\n    timeout=30,\n).json()\nshown = 0\nwhile True:\n    rows = ((task.get("result") or {}).get("data") or {}).get("tables", [{}])[0].get("rows", [])\n    for row in rows[shown:]:\n        print(row)\n    shown = len(rows)\n    if task["state"] != "running":\n        break\n    time.sleep(0.3)\n    task = requests.get(f"{base_url}/api/execute/{task['taskId']}", timeout=30).json()\nprint(task)`;
+        }
+        return `import requests\n\nresponse = requests.post(\n    "http://127.0.0.1:<port>/api/execute",\n    json=${formattedBody},\n    timeout=None,\n)\nprint(response.status_code)\nprint(response.text)`;
+    }
     const params = [];
     const data = [];
+    const jsonBody = {};
     (endpoint.parameters || []).forEach((parameter) => {
-        const target = parameter.in === "query" ? params : data;
-        exampleValues(parameter, supplied).forEach((value) => target.push([parameter.name, value]));
+        if (parameter.in === "json") {
+            jsonBody[parameter.name] = exampleJsonValue(parameter, supplied);
+        } else {
+            const target = parameter.in === "query" ? params : data;
+            exampleValues(parameter, supplied).forEach((value) => target.push([parameter.name, value]));
+        }
     });
     const headers = Object.fromEntries(
         [...(module.commonHeaders || []), ...(endpoint.headers || [])]
             .map((header) => [header.name, header.value])
     );
-    headers.Cookie = "JSESSIONID=<value>; iebJSid=<value>";
+    headers.Cookie = cookieExample(module);
     const args = [
         `    ${JSON.stringify(module.baseUrl + endpoint.path)},`,
         `    headers=${JSON.stringify(headers, null, 4).replaceAll("\n", "\n    ")},`
     ];
     if (params.length) args.push(`    params=${JSON.stringify(params, null, 4).replaceAll("\n", "\n    ")},`);
     if (data.length) args.push(`    data=${JSON.stringify(data, null, 4).replaceAll("\n", "\n    ")},`);
+    if (Object.keys(jsonBody).length) args.push(`    json=${JSON.stringify(jsonBody, null, 4).replaceAll("\n", "\n    ")},`);
     args.push("    timeout=30,", ")");
     return `import requests\n\nresponse = requests.${endpoint.method.toLowerCase()}(\n${args.join("\n")}\nprint(response.status_code)\nprint(response.text)`;
 }
 
-export function renderCookieDocument(modules) {
-    const module = modules.find((item) => item.id === "flight-stats") || modules[0] || {};
-    const cookies = module.cookies || [];
-    const validationRequest = (module.internalRequests || []).find((request) => request.id === "query-page") || {};
+function validationRequest(system, modules) {
+    const [moduleId, requestId] = String(system.validationRequestId || "").split(".");
+    const module = modules.find((item) => item.id === moduleId) || {};
+    const request = (module.internalRequests || []).find((item) => item.id === requestId) || {};
+    return { module, request };
+}
+
+function systemCookieGuide(system, modules) {
+    const systemModules = modules.filter((module) => module.systemId === system.id);
+    const cookies = systemModules[0]?.cookies || [];
+    const validation = validationRequest(system, modules);
+    return `<section class="doc-section cookie-system-guide">
+        <div class="section-heading-row"><h2>${escapeHtml(system.name)}</h2><span class="scope-badge">${escapeHtml(system.shortName || system.name)}</span></div>
+        <div class="address-block">
+            <div class="address-row"><span class="address-label">登录入口</span><a href="${escapeHtml(system.navigationUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(system.navigationUrl)}</a></div>
+            <div class="address-row"><span class="address-label">抓取请求</span><a href="${escapeHtml(system.credentialRequestUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(system.credentialRequestUrl)}</a></div>
+        </div>
+        <h3>认证字段</h3>
+        ${table(["Cookie", "要求", "技术事实"], cookies.map((cookie) => [
+            `<code>${escapeHtml(cookie.name)}</code>`,
+            cookie.required ? `<span class="required">必填</span>` : "按当前请求保留",
+            escapeHtml(cookie.description || "")
+        ]))}
+        <h3>获取方法</h3>
+        <ol class="fact-list ordered">${(system.credentialSteps || []).map((step) => `<li>${escapeHtml(step)}</li>`).join("")}</ol>
+        <p class="fact-note cookie-guide-note">${escapeHtml(system.credentialNote || "")}</p>
+        <h3>会话验证请求</h3>
+        ${table(["方法", "请求地址", "有效响应"], [[
+            `<span class="method${validation.request.method === "POST" ? " is-post" : ""}">${escapeHtml(validation.request.method || "")}</span>`,
+            `<code>${escapeHtml((validation.module.baseUrl || "") + (validation.request.path || ""))}</code>`,
+            escapeHtml(validation.request.response || "")
+        ]])}
+    </section>`;
+}
+
+export function renderCookieDocument(systems, modules) {
     return `
-        <div class="breadcrumb">飞行门户 / 身份验证</div>
-        <div class="endpoint-title-row"><h1>Cookie 管理</h1><span class="scope-badge">飞行门户</span></div>
-        <p class="endpoint-summary">API 文档本地执行器统一使用一份飞行门户登录凭据。凭据只保存在当前页面和 Python 进程内存中，刷新即清除，不与独立业务 APP 共享。</p>
-        <section class="doc-section first-section">
-            <h2>认证字段</h2>
-            ${table(["Cookie", "要求", "技术事实"], cookies.map((cookie) => [
-                `<code>${escapeHtml(cookie.name)}</code>`,
-                cookie.required ? `<span class="required">必填</span>` : "可选",
-                escapeHtml(cookie.description || "")
-            ]))}
-        </section>
-        <section class="doc-section">
-            <h2>获取方式</h2>
-            <ol class="fact-list ordered">
-                <li>在浏览器中登录飞行门户并打开 F12 Network。</li>
-                <li>选择任意已登录请求，执行 Copy as cURL。</li>
-                <li>将完整 cURL 或 Cookie Header 粘贴到右侧并验证。</li>
-            </ol>
-            <p class="fact-note">两个关键 Cookie 均为 HttpOnly，普通 <code>document.cookie</code> 不能完整导出。</p>
-        </section>
-        <section class="doc-section">
-            <h2>会话验证请求</h2>
-            ${table(["方法", "请求地址", "有效响应"], [[
-                `<span class="method">${escapeHtml(validationRequest.method || "")}</span>`,
-                `<code>${escapeHtml((module.baseUrl || "") + (validationRequest.path || ""))}</code>`,
-                escapeHtml(validationRequest.response || "")
-            ]])}
-        </section>
+        <div class="breadcrumb">HTTP 系统 / 身份验证</div>
+        <div class="endpoint-title-row"><h1>Cookie 管理</h1><span class="scope-badge">按系统隔离</span></div>
+        <p class="endpoint-summary">IEB 与 OA 分别维护自己的 Cookie、Session 和保活请求。凭据只保存在当前页面和 Python 进程内存中，刷新即清除，不在系统之间共享。</p>
+        ${systems.map((system) => systemCookieGuide(system, modules)).join("")}
         <section class="doc-section">
             <h2>机器可读目录</h2>
             <p class="machine-source"><a href="./catalog/index.json" target="_blank" rel="noopener noreferrer"><code>./catalog/index.json</code></a><span>接口模块索引，与页面展示和本地执行器同源。</span></p>
@@ -172,6 +253,7 @@ function internalRequestList(module) {
 
 export function renderEndpointDocument(record, codeLanguage, supplied) {
     const { module, endpoint } = record;
+    const system = record.system || { name: module.systemId };
     const cookies = module.cookies || [];
     const headers = [...(module.commonHeaders || []), ...(endpoint.headers || [])];
     const statuses = endpoint.response?.statuses || [];
@@ -181,7 +263,7 @@ export function renderEndpointDocument(record, codeLanguage, supplied) {
         : buildCurlExample(record, supplied);
     const parameters = endpoint.parameters || [];
     return `
-        <div class="breadcrumb">飞行门户 / ${escapeHtml(module.name)}</div>
+        <div class="breadcrumb">${escapeHtml(system.name)} / ${escapeHtml(module.name)}</div>
         <div class="endpoint-title-row">
             <h1>${escapeHtml(endpoint.name)}</h1>
             <span class="risk-badge${endpoint.risk === "write" ? " is-write" : ""}">${endpoint.risk === "write" ? "写操作" : "只读"}</span>
@@ -194,9 +276,9 @@ export function renderEndpointDocument(record, codeLanguage, supplied) {
                 <a href="${escapeHtml(module.navigationUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(module.navigationUrl)}</a>
             </div>
             <div class="address-row">
-                <span class="address-label">HTTP 请求</span>
+                <span class="address-label">${endpoint.executionKind === "local-workflow" ? "本地执行" : "HTTP 请求"}</span>
                 <span class="method${endpoint.method === "POST" ? " is-post" : ""}">${escapeHtml(endpoint.method)}</span>
-                <code>${escapeHtml(module.baseUrl + endpoint.path)}</code>
+                <code>${escapeHtml(endpoint.executionKind === "local-workflow" ? "/api/execute" : module.baseUrl + endpoint.path)}</code>
             </div>
             <div class="address-row">
                 <span class="address-label">机器可读 JSON</span>
@@ -227,7 +309,7 @@ export function renderEndpointDocument(record, codeLanguage, supplied) {
             <h2>请求参数</h2>
             ${table(["名称", "位置", "控件 / 类型", "要求", "默认或来源", "说明"], parameters.map((parameter) => [
                 `<code>${escapeHtml(parameter.name)}</code>`,
-                escapeHtml(parameter.in === "query" ? "Query" : "Form"),
+                escapeHtml(parameterLocation(parameter.in)),
                 escapeHtml(parameter.type || "text"),
                 requirement(parameter),
                 `<code>${escapeHtml(parameterValue(parameter))}</code>`,

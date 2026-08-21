@@ -1,18 +1,17 @@
 ---
-name: ieb-dev
-description: 飞行门户接口仓库内新增或修改工具的一般开发流程，覆盖三个 HTTP 工具、API 文档、本地 Python 执行器、spec、测试和构建收尾。
+name: csn2api-dev
+description: csn2api 仓库内新增、接入或修改工具的一般开发流程，覆盖业务工作台、API 文档、本地 Python 执行器、spec、测试和构建收尾。
 ---
 
-# IEB Dev
+# csn2api Dev
 
 在本仓库新增或修改工具时使用本 skill。先读 AGENTS.md，再看同类型的目标工具和对应 spec，不从零臆造结构。
 
 ## 开发范围
 
-- 首页入口只登记 http-lock-entry-helper、http-flight-stats-helper、http-qualification-query-helper。
 - API 文档由 public/tool/app/api-docs/catalog/ 驱动，接口事实以 catalog 和 HTTP probe reference 为准。
 - Python 工具页面位于 public/tool/app/<tool>/，源码位于 src/tool/app/<tool>/，每个 APP 可独立分发。
-- SOC 随机置位只由 soc-positioning skill 维护，不加入 IEB 首页，也不与 IEB Cookie 或接口事实混用。
+- SOC 随机置位只由 soc-positioning skill 维护，不加入 csn2api 首页，也不与 IEB Cookie 或接口事实混用。
 
 ## 实现原则
 

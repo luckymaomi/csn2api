@@ -34,7 +34,7 @@ function fieldHtml(parameter, optionSources) {
         control = `<textarea id="${escapeHtml(id)}" data-parameter-name="${escapeHtml(parameter.name)}" placeholder="${escapeHtml(parameter.placeholder || "每行或逗号分隔")}"${required}>${escapeHtml(parameter.default || "")}</textarea>`;
     } else {
         const type = ["date", "month", "time", "datetime-local", "number"].includes(parameter.type) ? parameter.type : "text";
-        control = `<input id="${escapeHtml(id)}" data-parameter-name="${escapeHtml(parameter.name)}" type="${type}" value="${escapeHtml(parameter.default || "")}" placeholder="${escapeHtml(parameter.placeholder || "")}"${parameter.maxlength ? ` maxlength="${escapeHtml(parameter.maxlength)}"` : ""}${required}>`;
+        control = `<input id="${escapeHtml(id)}" data-parameter-name="${escapeHtml(parameter.name)}" type="${type}" value="${escapeHtml(parameter.default || "")}" placeholder="${escapeHtml(parameter.placeholder || "")}"${parameter.minimum !== undefined ? ` min="${escapeHtml(parameter.minimum)}"` : ""}${parameter.maxlength ? ` maxlength="${escapeHtml(parameter.maxlength)}"` : ""}${required}>`;
     }
     return `<div class="parameter-field"${attributes}>${label}${control}<p class="parameter-description">${escapeHtml(parameter.description || "")}</p></div>`;
 }
