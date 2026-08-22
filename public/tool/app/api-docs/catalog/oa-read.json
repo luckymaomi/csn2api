@@ -103,7 +103,6 @@
     }
   ],
   "technicalNotes": [
-    "OA 与 IEB 使用不同域名、Cookie、Session 和保活请求，不共享任何运行时凭据。",
     "完整 waiting cURL 中的 Cookie、User-Agent 和 JSON 模板由本地执行器结构化解析，cURL 文本不会作为命令执行。",
     "全量扫描移除 moduleMainCategoryId 页面筛选，并按服务端总数、空页、短页或不再出现新记录收敛，不设置固定页数上限。",
     "只有 DOC/official-document 进入已阅队列，其他模块只计入跳过数量。",
