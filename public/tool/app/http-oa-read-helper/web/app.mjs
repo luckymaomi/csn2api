@@ -1,3 +1,4 @@
+import { createKeepAliveTimer, renderKeepAlive } from "./session_keepalive.mjs";
 const elements = {
   statusMessage: document.querySelector("#statusMessage"),
   statusBadge: document.querySelector("#statusBadge"),
@@ -7,6 +8,10 @@ const elements = {
   sessionStatus: document.querySelector("#sessionStatus"),
   sessionVerified: document.querySelector("#sessionVerified"),
   sessionVerifiedAt: document.querySelector("#sessionVerifiedAt"),
+  keepAliveRing: document.querySelector("#keepAliveRing"),
+  keepAliveCountdown: document.querySelector("#keepAliveCountdown"),
+  keepAliveStatus: document.querySelector("#keepAliveStatus"),
+  keepAliveDetail: document.querySelector("#keepAliveDetail"),
   cookieCount: document.querySelector("#cookieCount"),
   scanButton: document.querySelector("#scanButton"),
   scanTotal: document.querySelector("#scanTotal"),
@@ -34,6 +39,7 @@ const elements = {
   logList: document.querySelector("#logList"),
 };
 
+const keepAliveTimer = createKeepAliveTimer();
 const phaseLabels = {
   waiting_credentials: "待验证",
   verifying_credentials: "验证中",
@@ -139,6 +145,7 @@ function render(state) {
   elements.sessionStatus.textContent = session.verified ? "当前 Session 可用" : "尚未验证";
   elements.sessionVerified.textContent = session.verified ? "有效" : "未验证";
   elements.sessionVerifiedAt.textContent = session.verifiedAt || "-";
+  renderKeepAlive({ ring: elements.keepAliveRing, countdown: elements.keepAliveCountdown, status: elements.keepAliveStatus, detail: elements.keepAliveDetail }, session, keepAliveTimer);
   elements.cookieCount.textContent = String(session.cookieCount || 0);
 
   elements.verifyButton.disabled = !state.canVerify;

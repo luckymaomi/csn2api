@@ -6,7 +6,8 @@ import random
 import re
 import time
 from datetime import date, datetime
-from typing import Iterable
+from threading import RLock
+from typing import Callable, Iterable
 
 import requests
 from bs4 import BeautifulSoup, Tag
@@ -15,6 +16,7 @@ from .credentials import parse_credentials
 from .metadata import normalize_lock_type, normalize_text, parse_portal_metadata
 from .models import EmployeeIdentity, LockTypeMetadata, PortalMetadata, SubmitResult
 from .routing import available_days_for_year, parse_quota_rows
+from .session_keepalive import SessionKeepAlive, random_keepalive_interval
 
 
 BASE_URL = "https://ieb.csair.com"
@@ -148,10 +150,17 @@ class PortalClient:
         session: requests.Session | object | None = None,
         base_url: str = BASE_URL,
         timeout: int = 30,
+        keepalive_interval_factory: Callable[[], int] = random_keepalive_interval,
     ):
         self.session = session or requests.Session()
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
+        self.request_lock = RLock()
+        self.keepalive = SessionKeepAlive(
+            keepalive_interval_factory,
+            timeout,
+            "http-lock-entry-cookie-keepalive",
+        )
         self.metadata: PortalMetadata | None = None
         self.verified_at = ""
         self.session.headers.update(
@@ -178,24 +187,27 @@ class PortalClient:
         return response
 
     def _get(self, path: str, *, params: dict[str, str] | None = None) -> object:
-        try:
-            response = self.session.get(self._url(path), params=params, timeout=self.timeout)
-        except requests.RequestException as error:
-            raise PortalError(f"无法连接飞行门户：{error.__class__.__name__}") from error
-        return self._check_response(response)
+        with self.request_lock:
+            try:
+                response = self.session.get(self._url(path), params=params, timeout=self.timeout)
+            except requests.RequestException as error:
+                raise PortalError(f"无法连接飞行门户：{error.__class__.__name__}") from error
+            return self._check_response(response)
 
     def _post(self, path: str, *, data: object) -> object:
-        try:
-            response = self.session.post(self._url(path), data=data, timeout=self.timeout)
-        except requests.RequestException as error:
-            raise PortalError(f"飞行门户请求失败：{error.__class__.__name__}") from error
-        return self._check_response(response)
+        with self.request_lock:
+            try:
+                response = self.session.post(self._url(path), data=data, timeout=self.timeout)
+            except requests.RequestException as error:
+                raise PortalError(f"飞行门户请求失败：{error.__class__.__name__}") from error
+            return self._check_response(response)
 
     def load_credentials(self, source: str) -> PortalMetadata:
         cookies = parse_credentials(source)
-        self.session.cookies.clear()
-        for name, value in cookies.items():
-            self.session.cookies.set(name, value, domain="ieb.csair.com", path="/")
+        self.clear_credentials()
+        with self.request_lock:
+            for name, value in cookies.items():
+                self.session.cookies.set(name, value, domain="ieb.csair.com", path="/")
         response = self._get(ENTRY_PATH, params={"random": _random_value()})
         html = str(response.text or "")
         soup = BeautifulSoup(html, "html.parser")
@@ -205,6 +217,23 @@ class PortalClient:
         self.metadata = parse_portal_metadata(html)
         self.verified_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         return self.metadata
+
+    def check_session(self) -> None:
+        self.require_metadata()
+        response = self._get(ENTRY_PATH, params={"random": _random_value()})
+        soup = BeautifulSoup(str(getattr(response, "text", "") or ""), "html.parser")
+        if soup.select_one("#nonproductionTaskImportForm") is None or soup.select_one("#lockType") is None:
+            raise PortalSessionExpired("登录凭据已失效，请重新从已登录门户复制凭据")
+
+    def invalidate_credentials(self) -> None:
+        with self.request_lock:
+            self.metadata = None
+            self.verified_at = ""
+            self.session.cookies.clear()
+
+    def clear_credentials(self) -> None:
+        self.keepalive.stop()
+        self.invalidate_credentials()
 
     def require_metadata(self) -> PortalMetadata:
         if self.metadata is None:
@@ -567,3 +596,10 @@ class PortalClient:
         if remaining:
             raise PortalError("通过后目标仍出现在待审批列表")
         return message
+
+    def close(self) -> None:
+        self.clear_credentials()
+        with self.request_lock:
+            close = getattr(self.session, "close", None)
+            if callable(close):
+                close()

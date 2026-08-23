@@ -3,7 +3,8 @@ from __future__ import annotations
 import re
 import time
 from datetime import datetime
-from typing import Any
+from threading import RLock
+from typing import Any, Callable
 from urllib.parse import urlparse
 
 import requests
@@ -11,6 +12,7 @@ from bs4 import BeautifulSoup, Tag
 
 from .credentials import credential_summary, parse_credentials
 from .models import QueryRecord, QueryResult
+from .session_keepalive import SessionKeepAlive, random_keepalive_interval
 
 
 BASE_URL = "https://ieb.csair.com"
@@ -265,10 +267,17 @@ class PortalClient:
         session: requests.Session | object | None = None,
         base_url: str = BASE_URL,
         timeout: int = 30,
+        keepalive_interval_factory: Callable[[], int] = random_keepalive_interval,
     ):
         self.session = session or requests.Session()
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
+        self.request_lock = RLock()
+        self.keepalive = SessionKeepAlive(
+            keepalive_interval_factory,
+            timeout,
+            "http-qualification-query-cookie-keepalive",
+        )
         self.cookies: dict[str, str] = {}
         self.verified_at = ""
         self.session.headers.update(
@@ -296,11 +305,12 @@ class PortalClient:
         return response
 
     def _get(self, path: str, *, params: object) -> object:
-        try:
-            response = self.session.get(self._url(path), params=params, timeout=self.timeout)
-        except requests.RequestException as error:
-            raise PortalError(f"无法连接飞行门户：{error.__class__.__name__}") from error
-        return self._check_response(response)
+        with self.request_lock:
+            try:
+                response = self.session.get(self._url(path), params=params, timeout=self.timeout)
+            except requests.RequestException as error:
+                raise PortalError(f"无法连接飞行门户：{error.__class__.__name__}") from error
+            return self._check_response(response)
 
     def _post(
         self,
@@ -309,17 +319,19 @@ class PortalClient:
         data: dict[str, str] | None = None,
         files: dict[str, tuple[None, str]] | None = None,
     ) -> object:
-        try:
-            response = self.session.post(self._url(path), data=data, files=files, timeout=self.timeout)
-        except requests.RequestException as error:
-            raise PortalError(f"飞行门户请求失败：{error.__class__.__name__}") from error
-        return self._check_response(response)
+        with self.request_lock:
+            try:
+                response = self.session.post(self._url(path), data=data, files=files, timeout=self.timeout)
+            except requests.RequestException as error:
+                raise PortalError(f"飞行门户请求失败：{error.__class__.__name__}") from error
+            return self._check_response(response)
 
     def load_credentials(self, source: str) -> dict[str, object]:
         cookies = parse_credentials(source)
-        self.session.cookies.clear()
-        for name, value in cookies.items():
-            self.session.cookies.set(name, value, domain="ieb.csair.com", path="/")
+        self.clear_credentials()
+        with self.request_lock:
+            for name, value in cookies.items():
+                self.session.cookies.set(name, value, domain="ieb.csair.com", path="/")
         response = self._get(VERIFY_PATH, params={"random": str(time.time_ns())})
         soup = BeautifulSoup(str(getattr(response, "text", "") or ""), "html.parser")
         if soup.select_one("#showEmpProfileCompositeListPageForm") is None:
@@ -328,6 +340,13 @@ class PortalClient:
         self.cookies = cookies
         self.verified_at = datetime.now().isoformat(timespec="seconds")
         return {**credential_summary(cookies), "verifiedAt": self.verified_at}
+
+    def check_session(self) -> None:
+        self.require_credentials()
+        response = self._get(VERIFY_PATH, params={"random": str(time.time_ns())})
+        soup = BeautifulSoup(str(getattr(response, "text", "") or ""), "html.parser")
+        if soup.select_one("#showEmpProfileCompositeListPageForm") is None:
+            raise PortalSessionExpired("登录凭据已失效，请重新从已登录门户复制凭据")
 
     def require_credentials(self) -> None:
         if not self.cookies:
@@ -399,10 +418,15 @@ class PortalClient:
             training_experience_rows=experience_rows,
         )
 
+    def invalidate_credentials(self) -> None:
+        with self.request_lock:
+            self.cookies = {}
+            self.verified_at = ""
+            self.session.cookies.clear()
+
     def clear_credentials(self) -> None:
-        self.cookies = {}
-        self.verified_at = ""
-        self.session.cookies.clear()
+        self.keepalive.stop()
+        self.invalidate_credentials()
 
     def close(self) -> None:
         self.clear_credentials()

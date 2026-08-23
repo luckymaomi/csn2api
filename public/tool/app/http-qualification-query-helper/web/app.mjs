@@ -1,3 +1,4 @@
+import { createKeepAliveTimer, renderKeepAlive } from "./session_keepalive.mjs";
 const elements = {
   statusMessage: document.querySelector("#statusMessage"),
   statusBadge: document.querySelector("#statusBadge"),
@@ -7,6 +8,10 @@ const elements = {
   sessionStatus: document.querySelector("#sessionStatus"),
   sessionVerified: document.querySelector("#sessionVerified"),
   sessionVerifiedAt: document.querySelector("#sessionVerifiedAt"),
+  keepAliveRing: document.querySelector("#keepAliveRing"),
+  keepAliveCountdown: document.querySelector("#keepAliveCountdown"),
+  keepAliveStatus: document.querySelector("#keepAliveStatus"),
+  keepAliveDetail: document.querySelector("#keepAliveDetail"),
   queryMode: document.querySelector("#queryMode"),
   excelPanel: document.querySelector("#excelPanel"),
   pastePanel: document.querySelector("#pastePanel"),
@@ -35,6 +40,7 @@ const elements = {
   logList: document.querySelector("#logList"),
 };
 
+const keepAliveTimer = createKeepAliveTimer();
 const phaseLabels = {
   waiting_credentials: "待验证",
   verifying_credentials: "验证中",
@@ -229,6 +235,7 @@ function renderState(state) {
   elements.sessionStatus.textContent = session.verified ? "已验证" : "尚未验证";
   elements.sessionVerified.textContent = session.verified ? "有效" : "未验证";
   elements.sessionVerifiedAt.textContent = session.verifiedAt || "-";
+  renderKeepAlive({ ring: elements.keepAliveRing, countdown: elements.keepAliveCountdown, status: elements.keepAliveStatus, detail: elements.keepAliveDetail }, session, keepAliveTimer);
   elements.queryMode.textContent = state.queryMode || "按输入顺序逐人查询";
   elements.verifyButton.disabled = !state.canVerify;
   elements.credentials.disabled = !state.canVerify;

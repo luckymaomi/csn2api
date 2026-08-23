@@ -1,3 +1,4 @@
+import { createKeepAliveTimer, renderKeepAlive } from "./session_keepalive.mjs";
 const elements = {
   modeLabel: document.querySelector("#modeLabel"),
   statusMessage: document.querySelector("#statusMessage"),
@@ -8,6 +9,10 @@ const elements = {
   sessionStatus: document.querySelector("#sessionStatus"),
   sessionVerified: document.querySelector("#sessionVerified"),
   sessionVerifiedAt: document.querySelector("#sessionVerifiedAt"),
+  keepAliveRing: document.querySelector("#keepAliveRing"),
+  keepAliveCountdown: document.querySelector("#keepAliveCountdown"),
+  keepAliveStatus: document.querySelector("#keepAliveStatus"),
+  keepAliveDetail: document.querySelector("#keepAliveDetail"),
   sessionTypeCount: document.querySelector("#sessionTypeCount"),
   sessionTypeVersion: document.querySelector("#sessionTypeVersion"),
   excelPanel: document.querySelector("#excelPanel"),
@@ -40,6 +45,7 @@ const elements = {
   logList: document.querySelector("#logList"),
 };
 
+const keepAliveTimer = createKeepAliveTimer();
 const phaseLabels = {
   waiting_credentials: "待验证",
   verifying_credentials: "验证中",
@@ -205,6 +211,7 @@ function render(state) {
   elements.statusBadge.textContent = phaseLabels[phase] || phase;
   elements.statusBadge.className = `status-badge is-${phase}`;
   renderSession(session);
+  renderKeepAlive({ ring: elements.keepAliveRing, countdown: elements.keepAliveCountdown, status: elements.keepAliveStatus, detail: elements.keepAliveDetail }, session, keepAliveTimer);
 
   elements.verifyButton.disabled = !state.canVerify;
   elements.dataCheckButton.disabled = !state.canCheckData;

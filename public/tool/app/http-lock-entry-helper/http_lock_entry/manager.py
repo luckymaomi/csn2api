@@ -14,6 +14,7 @@ from typing import Callable
 from .input_data import read_input
 from .models import InputPayload, WorkbenchMode
 from .portal_client import PortalClient, PortalSessionExpired
+from .session_keepalive import random_keepalive_interval
 from .result_store import ResultStore
 from .runner import BatchRunner
 
@@ -30,10 +31,14 @@ class RunManager:
         client: PortalClient | None = None,
         runner_factory: RunnerFactory = BatchRunner,
         store_factory: StoreFactory = ResultStore,
+        keepalive_interval_factory: Callable[[], int] = random_keepalive_interval,
     ):
         self.app_directory = app_directory.resolve()
         self.mode = mode
-        self.client = client or PortalClient()
+        self.client = client or PortalClient(keepalive_interval_factory=keepalive_interval_factory)
+        keepalive = getattr(self.client, "keepalive", None)
+        if keepalive is not None and client is not None:
+            keepalive.interval_factory = keepalive_interval_factory
         self.runner_factory = runner_factory
         self.store_factory = store_factory
         self._lock = threading.RLock()
@@ -53,6 +58,7 @@ class RunManager:
                 "verifiedAt": "",
                 "typeCount": 0,
                 "typeVersion": "",
+                "keepAlive": self.client.keepalive.status(False) if hasattr(self.client, "keepalive") else {},
             },
             "progress": {"total": 0, "completed": 0, "success": 0, "failed": 0, "current": ""},
             "checks": {"data": {"checked": False, "ok": False, "validCount": 0, "invalidCount": 0, "errors": []}},
@@ -63,6 +69,37 @@ class RunManager:
 
     def _is_running(self) -> bool:
         return bool(self._thread and self._thread.is_alive())
+
+    def _start_keepalive(self) -> None:
+        keepalive = getattr(self.client, "keepalive", None)
+        check = getattr(self.client, "check_session", None)
+        if keepalive is None or not callable(check):
+            return
+        keepalive.record_success()
+        keepalive.start(
+            check,
+            lambda error: isinstance(error, PortalSessionExpired),
+            self._handle_keepalive_expired,
+        )
+
+    def _stop_keepalive(self) -> None:
+        keepalive = getattr(self.client, "keepalive", None)
+        if keepalive is not None:
+            keepalive.stop()
+
+    def _handle_keepalive_expired(self) -> None:
+        invalidate = getattr(self.client, "invalidate_credentials", None)
+        if callable(invalidate):
+            invalidate()
+        with self._lock:
+            self._stop_event.set()
+            session = self._state.get("session")
+            if isinstance(session, dict):
+                session["verified"] = False
+                session["verifiedAt"] = ""
+            self._state["phase"] = "session_expired"
+            self._state["message"] = "保活检查发现登录凭据已失效，已停止后续请求"
+            self._append_log("error", str(self._state["message"]))
 
     def _append_log(self, level: str, message: str) -> None:
         self._state["logs"].append(
@@ -89,6 +126,10 @@ class RunManager:
     def snapshot(self) -> dict[str, object]:
         with self._lock:
             state = copy.deepcopy(self._state)
+            session = state.get("session")
+            keepalive = getattr(self.client, "keepalive", None)
+            if isinstance(session, dict) and keepalive is not None:
+                session["keepAlive"] = keepalive.status(bool(session.get("verified")))
             self._controls(state)
             return state
 
@@ -108,6 +149,7 @@ class RunManager:
             self._state["phase"] = "verifying_credentials"
             self._state["message"] = "正在验证登录凭据"
             self._append_log("info", "正在连接飞行门户并验证登录凭据")
+        self._stop_keepalive()
         try:
             metadata = self.client.load_credentials(credential_text)
         except Exception as error:
@@ -134,6 +176,7 @@ class RunManager:
                 "typeCount": len(metadata.lock_types),
                 "typeVersion": self._metadata_version(),
             }
+            self._start_keepalive()
             self._state["phase"] = "credentials_ready"
             self._state["message"] = "登录凭据有效，等待数据检查或开始录入"
             self._append_log("success", f"凭据验证成功，已加载 {len(metadata.lock_types)} 个当前锁班类型")
@@ -318,6 +361,7 @@ class RunManager:
             thread = self._thread
         if thread and thread.is_alive():
             thread.join(timeout=5)
-        close = getattr(self.client.session, "close", None)
+        self._stop_keepalive()
+        close = getattr(self.client, "close", None)
         if callable(close):
             close()

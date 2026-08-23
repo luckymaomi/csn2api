@@ -6,11 +6,13 @@ import threading
 import uuid
 from datetime import datetime
 from pathlib import Path
+from typing import Callable
 
 from .exporter import NativeExportStore
 from .models import ExportSummary, QualificationGroup
-from .portal_client import PortalClient
+from .portal_client import PortalClient, PortalSessionExpired
 from .runner import ExportRunner
+from .session_keepalive import random_keepalive_interval
 
 
 SECRET_PATTERN = re.compile(r"(?i)(JSESSIONID|iebJSid)\s*=\s*[^;\s]+")
@@ -22,9 +24,17 @@ def _safe_error(error: Exception) -> str:
 
 
 class RunManager:
-    def __init__(self, output_directory: Path, client: PortalClient | None = None) -> None:
+    def __init__(
+        self,
+        output_directory: Path,
+        client: PortalClient | None = None,
+        keepalive_interval_factory: Callable[[], int] = random_keepalive_interval,
+    ) -> None:
         self.output_directory = Path(output_directory)
-        self.client = client or PortalClient()
+        self.client = client or PortalClient(keepalive_interval_factory=keepalive_interval_factory)
+        keepalive = getattr(self.client, "keepalive", None)
+        if keepalive is not None and client is not None:
+            keepalive.interval_factory = keepalive_interval_factory
         self._lock = threading.RLock()
         self._thread: threading.Thread | None = None
         self._stop_event = threading.Event()
@@ -32,11 +42,14 @@ class RunManager:
         self._downloads: dict[str, Path] = {}
         self._state = self._initial_state()
 
-    @staticmethod
-    def _initial_state() -> dict[str, object]:
+    def _initial_state(self) -> dict[str, object]:
         return {
             "phase": "waiting_credentials",
-            "session": {"verified": False},
+            "session": {
+                "verified": False,
+                "verifiedAt": "",
+                "keepAlive": self.client.keepalive.status(False) if hasattr(self.client, "keepalive") else {},
+            },
             "groups": [],
             "items": [],
             "progress": {"total": 0, "completed": 0, "success": 0, "failed": 0},
@@ -48,6 +61,32 @@ class RunManager:
 
     def _running(self) -> bool:
         return self._thread is not None and self._thread.is_alive()
+
+    def _start_keepalive(self) -> None:
+        keepalive = getattr(self.client, "keepalive", None)
+        check = getattr(self.client, "check_session", None)
+        if keepalive is None or not callable(check):
+            return
+        keepalive.record_success()
+        keepalive.start(check, lambda error: isinstance(error, PortalSessionExpired), self._handle_keepalive_expired)
+
+    def _stop_keepalive(self) -> None:
+        keepalive = getattr(self.client, "keepalive", None)
+        if keepalive is not None:
+            keepalive.stop()
+
+    def _handle_keepalive_expired(self) -> None:
+        invalidate = getattr(self.client, "invalidate_credentials", None)
+        if callable(invalidate):
+            invalidate()
+        with self._lock:
+            self._stop_event.set()
+            session = self._state.get("session")
+            if isinstance(session, dict):
+                session["verified"] = False
+            self._state["phase"] = "session_expired"
+            self._state["error"] = "保活检查发现登录凭据已失效，已停止后续导出"
+            self._log("error", self._state["error"])
 
     def _log(self, level: str, message: str) -> None:
         logs = self._state["logs"]
@@ -61,7 +100,12 @@ class RunManager:
 
     def snapshot(self) -> dict[str, object]:
         with self._lock:
-            return copy.deepcopy(self._state)
+            state = copy.deepcopy(self._state)
+            session = state.get("session")
+            keepalive = getattr(self.client, "keepalive", None)
+            if isinstance(session, dict) and keepalive is not None:
+                session["keepAlive"] = keepalive.status(bool(session.get("verified")))
+            return state
 
     def verify_credentials(self, source: str) -> dict[str, object]:
         with self._lock:
@@ -69,6 +113,7 @@ class RunManager:
                 raise RuntimeError("导出任务进行中，不能重新验证凭据")
             self._state["phase"] = "verifying"
             self._state["error"] = ""
+        self._stop_keepalive()
         try:
             summary, groups = self.client.load_credentials(source)
         except Exception as error:
@@ -92,6 +137,7 @@ class RunManager:
                 for group in groups
             ]
             self._state["items"] = self._new_item_states(groups)
+            self._start_keepalive()
             self._log("success", f"已加载 {summary['qualificationCount']} 个资质子类")
             return self.snapshot()
 
@@ -233,4 +279,5 @@ class RunManager:
         thread = self._thread
         if thread is not None and thread.is_alive():
             thread.join(timeout=10)
+        self._stop_keepalive()
         self.client.close()

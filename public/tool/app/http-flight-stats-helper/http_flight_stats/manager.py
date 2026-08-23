@@ -10,8 +10,9 @@ from typing import Callable
 from .exporter import ResultExporter, describe_scope, normalize_scope
 from .input_data import read_input
 from .models import Event, InputPayload, QueryRecord
-from .portal_client import PortalClient
+from .portal_client import PortalClient, PortalSessionExpired
 from .runner import BatchRunner
+from .session_keepalive import random_keepalive_interval
 
 
 RunnerFactory = Callable[..., BatchRunner]
@@ -25,9 +26,13 @@ class RunManager:
         client: PortalClient | None = None,
         runner_factory: RunnerFactory = BatchRunner,
         exporter_factory: ExporterFactory = ResultExporter,
+        keepalive_interval_factory: Callable[[], int] = random_keepalive_interval,
     ):
         self.app_directory = app_directory.resolve()
-        self.client = client or PortalClient()
+        self.client = client or PortalClient(keepalive_interval_factory=keepalive_interval_factory)
+        keepalive = getattr(self.client, "keepalive", None)
+        if keepalive is not None and client is not None:
+            keepalive.interval_factory = keepalive_interval_factory
         self.runner_factory = runner_factory
         self.exporter_factory = exporter_factory
         self._lock = threading.RLock()
@@ -36,13 +41,17 @@ class RunManager:
         self._paths: dict[str, Path] = {}
         self._state = self._initial_state()
 
-    @staticmethod
-    def _initial_state() -> dict[str, object]:
+    def _initial_state(self) -> dict[str, object]:
         return {
             "phase": "waiting_credentials",
             "message": "等待验证登录凭据",
             "queryMode": "按输入顺序逐人查询",
-            "session": {"verified": False, "verifiedAt": "", "cookieCount": 0},
+            "session": {
+                "verified": False,
+                "verifiedAt": "",
+                "cookieCount": 0,
+                "keepAlive": self.client.keepalive.status(False) if hasattr(self.client, "keepalive") else {},
+            },
             "checks": {
                 "data": {
                     "checked": False,
@@ -61,6 +70,30 @@ class RunManager:
     def _is_running(self) -> bool:
         return bool(self._thread and self._thread.is_alive())
 
+    def _start_keepalive(self) -> None:
+        keepalive = getattr(self.client, "keepalive", None)
+        check = getattr(self.client, "check_session", None)
+        if keepalive is None or not callable(check):
+            return
+        keepalive.record_success()
+        keepalive.start(check, lambda error: isinstance(error, PortalSessionExpired), self._handle_keepalive_expired)
+
+    def _stop_keepalive(self) -> None:
+        keepalive = getattr(self.client, "keepalive", None)
+        if keepalive is not None:
+            keepalive.stop()
+
+    def _handle_keepalive_expired(self) -> None:
+        invalidate = getattr(self.client, "invalidate_credentials", None)
+        if callable(invalidate):
+            invalidate()
+        with self._lock:
+            self._stop_event.set()
+            self._set_unverified()
+            self._state["phase"] = "session_expired"
+            self._state["message"] = "保活检查发现登录凭据已失效，已停止后续查询"
+            self._append_log("error", str(self._state["message"]))
+
     def _append_log(self, level: str, message: str) -> None:
         self._state["logs"].append(  # type: ignore[union-attr]
             {"level": level, "message": message, "time": datetime.now().strftime("%H:%M:%S")}
@@ -72,6 +105,10 @@ class RunManager:
     def snapshot(self) -> dict[str, object]:
         with self._lock:
             state = copy.deepcopy(self._state)
+            session = state.get("session")
+            keepalive = getattr(self.client, "keepalive", None)
+            if isinstance(session, dict) and keepalive is not None:
+                session["keepAlive"] = keepalive.status(bool(session.get("verified")))
             running = self._is_running()
             verified = bool(state["session"]["verified"])  # type: ignore[index]
             state.update(
@@ -92,6 +129,7 @@ class RunManager:
             self._state["phase"] = "verifying_credentials"
             self._state["message"] = "正在验证登录凭据"
             self._append_log("info", "正在连接飞行门户并验证查询页面")
+        self._stop_keepalive()
         try:
             summary = self.client.load_credentials(credential_text)
         except Exception as error:
@@ -108,6 +146,7 @@ class RunManager:
                 "verifiedAt": summary["verifiedAt"],
                 "cookieCount": summary["cookieCount"],
             }
+            self._start_keepalive()
             self._state["phase"] = "credentials_ready"
             self._state["message"] = "登录凭据有效，查询接口已就绪"
             self._append_log("success", "凭据验证成功，纯 HTTP 查询接口已就绪")
@@ -298,4 +337,5 @@ class RunManager:
             thread = self._thread
         if thread and thread.is_alive():
             thread.join(timeout=5)
+        self._stop_keepalive()
         self.client.close()

@@ -1,3 +1,4 @@
+import { createKeepAliveTimer, renderKeepAlive } from "./session_keepalive.mjs";
 const elements = {
   statusMessage: document.querySelector("#statusMessage"),
   statusBadge: document.querySelector("#statusBadge"),
@@ -7,6 +8,10 @@ const elements = {
   sessionStatus: document.querySelector("#sessionStatus"),
   sessionVerified: document.querySelector("#sessionVerified"),
   sessionVerifiedAt: document.querySelector("#sessionVerifiedAt"),
+  keepAliveRing: document.querySelector("#keepAliveRing"),
+  keepAliveCountdown: document.querySelector("#keepAliveCountdown"),
+  keepAliveStatus: document.querySelector("#keepAliveStatus"),
+  keepAliveDetail: document.querySelector("#keepAliveDetail"),
   groupCount: document.querySelector("#groupCount"),
   qualificationCount: document.querySelector("#qualificationCount"),
   exportAllButton: document.querySelector("#exportAllButton"),
@@ -25,6 +30,7 @@ const elements = {
   logList: document.querySelector("#logList"),
 };
 
+const keepAliveTimer = createKeepAliveTimer();
 const phaseLabels = {
   waiting_credentials: "待验证",
   verifying: "验证中",
@@ -208,6 +214,7 @@ function renderState(state) {
   elements.sessionStatus.textContent = session.verified ? "已验证" : "尚未验证";
   elements.sessionVerified.textContent = session.verified ? "有效" : "未验证";
   elements.sessionVerifiedAt.textContent = session.verifiedAt || "-";
+  renderKeepAlive({ ring: elements.keepAliveRing, countdown: elements.keepAliveCountdown, status: elements.keepAliveStatus, detail: elements.keepAliveDetail }, session, keepAliveTimer);
   elements.groupCount.textContent = `${groups.length} 类`;
   elements.qualificationCount.textContent = `${session.qualificationCount || 0} 项`;
   elements.loadedCount.textContent = groups.length ? `${groups.length} 类 / ${session.qualificationCount || 0} 项` : "尚未加载";

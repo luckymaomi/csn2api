@@ -49,6 +49,8 @@
 - `server.py`：loopback HTTP API 与静态资源。
 - `web/`：人工工作台。
 
+验证成功后，APP 内独立保活线程每 30-60 秒调用飞行经历查询页的只读会话检查；保活与逐人查询共用请求锁但职责分离，会话失效时停止后续查询。
+
 ## API
 
 - `POST /api/session/verify`：验证 `credentials`，不回显凭据。

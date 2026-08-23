@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import copy
 from datetime import datetime
+from threading import RLock
 from typing import Callable
 
 import requests
@@ -15,6 +16,7 @@ from .credentials import (
     parse_waiting_payload,
 )
 from .models import ELIGIBLE_CATEGORY, ScanSnapshot, WaitingRecord
+from .session_keepalive import SessionKeepAlive, random_keepalive_interval
 
 
 BASE_URL = "https://work.csair.com"
@@ -114,9 +116,16 @@ class PortalClient:
         self,
         session_factory: Callable[[], requests.Session] = requests.Session,
         timeout_seconds: int = 30,
+        keepalive_interval_factory: Callable[[], int] = random_keepalive_interval,
     ) -> None:
         self.session_factory = session_factory
         self.timeout_seconds = timeout_seconds
+        self.request_lock = RLock()
+        self.keepalive = SessionKeepAlive(
+            keepalive_interval_factory,
+            timeout_seconds,
+            "http-oa-read-cookie-keepalive",
+        )
         self._session: requests.Session | object | None = None
         self._waiting_payload_template: dict[str, object] | None = None
         self.verified_at = ""
@@ -147,6 +156,7 @@ class PortalClient:
         cookies = parse_credentials(source)
         browser_headers = parse_browser_headers(source)
         waiting_payload = parse_waiting_payload(source)
+        self.clear_credentials()
         session = self.session_factory()
         self._configure_session(session, cookies, browser_headers)
         try:
@@ -165,17 +175,28 @@ class PortalClient:
         except Exception:
             session.close()  # type: ignore[attr-defined]
             raise
-        if self._session is not None:
-            self._session.close()  # type: ignore[attr-defined]
-        self._session = session
-        self._waiting_payload_template = waiting_payload
-        self.verified_at = datetime.now().isoformat(timespec="seconds")
+        with self.request_lock:
+            self._session = session
+            self._waiting_payload_template = waiting_payload
+            self.verified_at = datetime.now().isoformat(timespec="seconds")
         return {**credential_summary(cookies), "verifiedAt": self.verified_at}
 
     def _active_session(self) -> object:
         if self._session is None:
             raise PortalSessionExpired("请先验证 OA 登录凭据")
         return self._session
+
+    def check_session(self) -> None:
+        with self.request_lock:
+            try:
+                response = self._active_session().get(  # type: ignore[attr-defined]
+                    f"{BASE_URL}{USER_INFO_PATH}",
+                    timeout=self.timeout_seconds,
+                    allow_redirects=False,
+                )
+            except requests.RequestException as error:
+                raise PortalError("OA 保活请求失败") from error
+            _business_payload(response, "验证 OA 凭据")
 
     def _waiting_payload(self, offset_page_index: int) -> dict[str, object]:
         payload = copy.deepcopy(self._waiting_payload_template) if self._waiting_payload_template else {
@@ -191,15 +212,16 @@ class PortalClient:
         return payload
 
     def _query_waiting_page(self, offset_page_index: int) -> tuple[list[WaitingRecord], int | None]:
-        try:
-            response = self._active_session().post(  # type: ignore[attr-defined]
-                f"{BASE_URL}{WAITING_QUERY_PATH}",
-                json=self._waiting_payload(offset_page_index),
-                timeout=self.timeout_seconds,
-                allow_redirects=False,
-            )
-        except requests.RequestException as error:
-            raise PortalError("查询 OA 待办失败") from error
+        with self.request_lock:
+            try:
+                response = self._active_session().post(  # type: ignore[attr-defined]
+                    f"{BASE_URL}{WAITING_QUERY_PATH}",
+                    json=self._waiting_payload(offset_page_index),
+                    timeout=self.timeout_seconds,
+                    allow_redirects=False,
+                )
+            except requests.RequestException as error:
+                raise PortalError("查询 OA 待办失败") from error
         payload = _business_payload(response, "查询 OA 待办")
         contract = _find_page_contract(payload)
         if contract is None:
@@ -244,20 +266,29 @@ class PortalClient:
             "docType": record.file_type_id,
             "flowStepId": record.step_item_id,
         }
-        try:
-            response = self._active_session().post(  # type: ignore[attr-defined]
-                f"{BASE_URL}{HAVE_READ_PATH}",
-                json=request_body,
-                timeout=self.timeout_seconds,
-                allow_redirects=False,
-            )
-        except requests.RequestException as error:
-            raise PortalError("提交 OA 已阅失败") from error
+        with self.request_lock:
+            try:
+                response = self._active_session().post(  # type: ignore[attr-defined]
+                    f"{BASE_URL}{HAVE_READ_PATH}",
+                    json=request_body,
+                    timeout=self.timeout_seconds,
+                    allow_redirects=False,
+                )
+            except requests.RequestException as error:
+                raise PortalError("提交 OA 已阅失败") from error
         _business_payload(response, "提交 OA 已阅")
 
+    def invalidate_credentials(self) -> None:
+        with self.request_lock:
+            if self._session is not None:
+                self._session.close()  # type: ignore[attr-defined]
+                self._session = None
+            self._waiting_payload_template = None
+            self.verified_at = ""
+
+    def clear_credentials(self) -> None:
+        self.keepalive.stop()
+        self.invalidate_credentials()
+
     def close(self) -> None:
-        if self._session is not None:
-            self._session.close()  # type: ignore[attr-defined]
-            self._session = None
-        self._waiting_payload_template = None
-        self.verified_at = ""
+        self.clear_credentials()

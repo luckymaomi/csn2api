@@ -9,8 +9,9 @@ from pathlib import Path
 from typing import Callable
 
 from .models import ScanSnapshot
-from .portal_client import PortalClient
+from .portal_client import PortalClient, PortalSessionExpired
 from .runner import BatchRunner, Event
+from .session_keepalive import random_keepalive_interval
 
 
 RunnerFactory = Callable[..., BatchRunner]
@@ -23,9 +24,13 @@ class RunManager:
         app_directory: Path,
         client: PortalClient | object | None = None,
         runner_factory: RunnerFactory = BatchRunner,
+        keepalive_interval_factory: Callable[[], int] = random_keepalive_interval,
     ) -> None:
         self.app_directory = app_directory.resolve()
-        self.client = client or PortalClient()
+        self.client = client or PortalClient(keepalive_interval_factory=keepalive_interval_factory)
+        keepalive = getattr(self.client, "keepalive", None)
+        if keepalive is not None and client is not None:
+            keepalive.interval_factory = keepalive_interval_factory
         self.runner_factory = runner_factory
         self._lock = threading.RLock()
         self._thread: threading.Thread | None = None
@@ -33,12 +38,16 @@ class RunManager:
         self._scan_snapshot: ScanSnapshot | None = None
         self._state = self._initial_state()
 
-    @staticmethod
-    def _initial_state() -> dict[str, object]:
+    def _initial_state(self) -> dict[str, object]:
         return {
             "phase": "waiting_credentials",
             "message": "等待验证 OA 登录凭据",
-            "session": {"verified": False, "verifiedAt": "", "cookieCount": 0},
+            "session": {
+                "verified": False,
+                "verifiedAt": "",
+                "cookieCount": 0,
+                "keepAlive": self.client.keepalive.status(False) if hasattr(self.client, "keepalive") else {},
+            },
             "scan": {
                 "scanned": False,
                 "current": False,
@@ -54,6 +63,32 @@ class RunManager:
 
     def _is_running(self) -> bool:
         return bool(self._thread and self._thread.is_alive())
+
+    def _start_keepalive(self) -> None:
+        keepalive = getattr(self.client, "keepalive", None)
+        check = getattr(self.client, "check_session", None)
+        if keepalive is None or not callable(check):
+            return
+        keepalive.record_success()
+        keepalive.start(check, lambda error: isinstance(error, PortalSessionExpired), self._handle_keepalive_expired)
+
+    def _stop_keepalive(self) -> None:
+        keepalive = getattr(self.client, "keepalive", None)
+        if keepalive is not None:
+            keepalive.stop()
+
+    def _handle_keepalive_expired(self) -> None:
+        invalidate = getattr(self.client, "invalidate_credentials", None)
+        if callable(invalidate):
+            invalidate()
+        with self._lock:
+            self._stop_event.set()
+            session = self._state.get("session")
+            if isinstance(session, dict):
+                session["verified"] = False
+            self._state["phase"] = "session_expired"
+            self._state["message"] = "保活检查发现 OA 登录凭据已失效，已停止后续请求"
+            self._append_log("error", str(self._state["message"]))
 
     def _append_log(self, level: str, message: str) -> None:
         logs = self._state["logs"]
@@ -87,6 +122,10 @@ class RunManager:
     def snapshot(self) -> dict[str, object]:
         with self._lock:
             state = copy.deepcopy(self._state)
+            session = state.get("session")
+            keepalive = getattr(self.client, "keepalive", None)
+            if isinstance(session, dict) and keepalive is not None:
+                session["keepAlive"] = keepalive.status(bool(session.get("verified")))
             self._controls(state)
             return state
 
@@ -102,6 +141,7 @@ class RunManager:
             self._scan_snapshot = None
             self._state["scan"] = self._initial_state()["scan"]
             self._state["results"] = []
+        self._stop_keepalive()
 
         try:
             summary = self.client.load_credentials(credential_text)  # type: ignore[attr-defined]
@@ -122,6 +162,7 @@ class RunManager:
                 "verifiedAt": summary.get("verifiedAt", ""),
                 "cookieCount": summary.get("cookieCount", 0),
             }
+            self._start_keepalive()
             self._state["phase"] = "credentials_ready"
             self._state["message"] = "OA 登录凭据有效，可以扫描待办"
             self._append_log("success", "OA 登录凭据验证成功")
@@ -133,6 +174,7 @@ class RunManager:
                 raise RuntimeError("已阅运行中，不能清除当前 Session")
             if self._state.get("phase") in FOREGROUND_PHASES:
                 raise RuntimeError("凭据验证或扫描正在进行，不能清除当前 Session")
+            self._stop_keepalive()
             self.client.close()  # type: ignore[attr-defined]
             self._scan_snapshot = None
             self._state = self._initial_state()
@@ -231,7 +273,16 @@ class RunManager:
             scan = self._state.get("scan")
             if isinstance(scan, dict):
                 scan["current"] = False
-            if result.stopped:
+            if result.session_expired:
+                self._stop_keepalive()
+                self.client.clear_credentials()  # type: ignore[attr-defined]
+                session = self._state.get("session")
+                if isinstance(session, dict):
+                    session["verified"] = False
+                self._state["phase"] = "session_expired"
+                self._state["message"] = result.error or "OA 登录凭据已失效，已停止后续请求"
+                self._append_log("error", self._state["message"])
+            elif result.stopped:
                 self._state["phase"] = "terminated"
                 self._state["message"] = "已在记录边界终止；重新扫描后可以继续"
                 self._append_log("warning", "批次已终止")
@@ -290,4 +341,5 @@ class RunManager:
         thread = self._thread
         if thread and thread.is_alive():
             thread.join(timeout=5)
+        self._stop_keepalive()
         self.client.close()  # type: ignore[attr-defined]

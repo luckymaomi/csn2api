@@ -43,6 +43,8 @@
 - `server.py`：loopback API 和静态资源。
 - `start.py`：本地启动入口。
 
+验证成功后，APP 内独立保活线程每 30-60 秒调用技术资料查询页的只读会话检查；保活与人员查询共用请求锁但不混入查询 Runner，会话失效时停止后续查询。
+
 结果目录为 `public/tool/app/http-qualification-query-helper/results/`，必须保持 Git 忽略且不进入独立 ZIP。
 
 ## API

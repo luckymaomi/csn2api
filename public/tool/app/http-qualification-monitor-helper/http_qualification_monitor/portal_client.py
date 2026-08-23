@@ -5,13 +5,15 @@ import json
 import re
 import zipfile
 from datetime import datetime
-from typing import Any
+from threading import RLock
+from typing import Any, Callable
 from urllib.parse import urlparse
 
 import requests
 
 from .credentials import REQUIRED_COOKIE_NAMES, credential_summary, parse_credentials
 from .models import QualificationGroup, QualificationItem
+from .session_keepalive import SessionKeepAlive, random_keepalive_interval
 
 
 BASE_URL = "https://ieb.csair.com"
@@ -125,10 +127,17 @@ class PortalClient:
         session: requests.Session | object | None = None,
         base_url: str = BASE_URL,
         timeout: int = 60,
+        keepalive_interval_factory: Callable[[], int] = random_keepalive_interval,
     ) -> None:
         self.session = session or requests.Session()
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
+        self.request_lock = RLock()
+        self.keepalive = SessionKeepAlive(
+            keepalive_interval_factory,
+            timeout,
+            "http-qualification-monitor-cookie-keepalive",
+        )
         self.verified = False
         self.verified_at = ""
         self.session.headers.update(
@@ -142,24 +151,26 @@ class PortalClient:
         )
 
     def _get(self, path: str, params: dict[str, str]) -> object:
-        try:
-            response = self.session.get(f"{self.base_url}{path}", params=params, timeout=self.timeout)
-            response.raise_for_status()
-        except requests.RequestException as error:
-            raise PortalError(f"无法连接飞行门户：{error.__class__.__name__}") from error
-        except Exception as error:
-            status = getattr(locals().get("response"), "status_code", "未知")
-            raise PortalError(f"飞行门户 HTTP 请求失败（状态 {status}）") from error
-        if _is_login_response(response):
-            self.clear_credentials()
-            raise PortalSessionExpired("登录凭据已失效，请重新复制已登录请求")
-        return response
+        with self.request_lock:
+            try:
+                response = self.session.get(f"{self.base_url}{path}", params=params, timeout=self.timeout)
+                response.raise_for_status()
+            except requests.RequestException as error:
+                raise PortalError(f"无法连接飞行门户：{error.__class__.__name__}") from error
+            except Exception as error:
+                status = getattr(locals().get("response"), "status_code", "未知")
+                raise PortalError(f"飞行门户 HTTP 请求失败（状态 {status}）") from error
+            if _is_login_response(response):
+                self.invalidate_credentials()
+                raise PortalSessionExpired("登录凭据已失效，请重新复制已登录请求")
+            return response
 
     def load_credentials(self, source: str) -> tuple[dict[str, object], list[QualificationGroup]]:
         cookies = parse_credentials(source)
         self.clear_credentials()
-        for name in REQUIRED_COOKIE_NAMES:
-            self.session.cookies.set(name, cookies[name], domain="ieb.csair.com", path="/")
+        with self.request_lock:
+            for name in REQUIRED_COOKIE_NAMES:
+                self.session.cookies.set(name, cookies[name], domain="ieb.csair.com", path="/")
         try:
             response = self._get(CLASSIFICATION_PATH, {})
             try:
@@ -179,6 +190,11 @@ class PortalClient:
         }
         return summary, groups
 
+    def check_session(self) -> None:
+        self.require_credentials()
+        payload = self._get(CLASSIFICATION_PATH, {}).json()  # type: ignore[attr-defined]
+        parse_classification_tree(payload)
+
     def require_credentials(self) -> None:
         if not self.verified:
             raise PortalSessionExpired("请先验证登录凭据")
@@ -188,10 +204,15 @@ class PortalClient:
         response = self._get(EXPORT_PATH, build_export_params(qualification_code))
         return validate_ooxml(bytes(getattr(response, "content", b"") or b""))
 
+    def invalidate_credentials(self) -> None:
+        with self.request_lock:
+            self.verified = False
+            self.verified_at = ""
+            self.session.cookies.clear()
+
     def clear_credentials(self) -> None:
-        self.verified = False
-        self.verified_at = ""
-        self.session.cookies.clear()
+        self.keepalive.stop()
+        self.invalidate_credentials()
 
     def close(self) -> None:
         self.clear_credentials()

@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 import time
 from datetime import datetime
+from threading import RLock
 from typing import Callable
 from urllib.parse import urlparse
 
@@ -11,6 +12,7 @@ from bs4 import BeautifulSoup
 
 from .credentials import credential_summary, parse_credentials
 from .models import QueryRecord, TableResult
+from .session_keepalive import SessionKeepAlive, random_keepalive_interval
 
 
 BASE_URL = "https://ieb.csair.com"
@@ -97,9 +99,16 @@ class PortalClient:
         self,
         session_factory: Callable[[], requests.Session] = requests.Session,
         timeout_seconds: int = 30,
+        keepalive_interval_factory: Callable[[], int] = random_keepalive_interval,
     ):
         self.session_factory = session_factory
         self.timeout_seconds = timeout_seconds
+        self.request_lock = RLock()
+        self.keepalive = SessionKeepAlive(
+            keepalive_interval_factory,
+            timeout_seconds,
+            "http-flight-stats-cookie-keepalive",
+        )
         self.cookies: dict[str, str] = {}
         self.verified_at = ""
         self._verify_session: requests.Session | None = None
@@ -120,6 +129,7 @@ class PortalClient:
 
     def load_credentials(self, source: str) -> dict[str, object]:
         cookies = parse_credentials(source)
+        self.clear_credentials()
         session = self.session_factory()
         self._configure_session(session, cookies)
         try:
@@ -135,12 +145,25 @@ class PortalClient:
         if response.status_code != 200 or form is None or form.get("action") != QUERY_PATH:
             session.close()
             raise PortalError("当前登录态无法打开飞行经历查询页面")
-        if self._verify_session is not None:
-            self._verify_session.close()
-        self.cookies = cookies
-        self.verified_at = datetime.now().isoformat(timespec="seconds")
-        self._verify_session = session
+        with self.request_lock:
+            self.cookies = cookies
+            self.verified_at = datetime.now().isoformat(timespec="seconds")
+            self._verify_session = session
         return {**credential_summary(cookies), "verifiedAt": self.verified_at}
+
+    def check_session(self) -> None:
+        with self.request_lock:
+            session = self._query_session()
+            try:
+                response = session.get(f"{BASE_URL}{QUERY_PAGE_PATH}", timeout=self.timeout_seconds)
+            except requests.RequestException as error:
+                raise PortalError("门户保活请求失败") from error
+            if _is_login_response(response):
+                raise PortalSessionExpired("登录凭据已失效，请重新复制")
+            soup = BeautifulSoup(str(response.text or ""), "html.parser")
+            form = soup.select_one("#showflyTimeExperienceQueryForm")
+            if response.status_code != 200 or form is None or form.get("action") != QUERY_PATH:
+                raise PortalSessionExpired("登录凭据已失效，请重新复制")
 
     def require_credentials(self) -> None:
         if not self.cookies:
@@ -153,27 +176,33 @@ class PortalClient:
         return self._verify_session
 
     def query(self, record: QueryRecord) -> TableResult:
-        session = self._query_session()
-        try:
-            response = session.get(
-                f"{BASE_URL}{QUERY_PATH}",
-                params=build_query_params(record),
-                timeout=self.timeout_seconds,
-            )
-        except requests.RequestException as error:
-            raise PortalError("门户查询请求失败") from error
-        if _is_login_response(response):
-            raise PortalSessionExpired("登录凭据已失效，请重新复制")
-        if response.status_code != 200:
-            raise PortalError(f"门户查询返回 HTTP {response.status_code}")
-        return parse_result_table(str(response.text or ""), record.employee_id, record.name)
+        with self.request_lock:
+            session = self._query_session()
+            try:
+                response = session.get(
+                    f"{BASE_URL}{QUERY_PATH}",
+                    params=build_query_params(record),
+                    timeout=self.timeout_seconds,
+                )
+            except requests.RequestException as error:
+                raise PortalError("门户查询请求失败") from error
+            if _is_login_response(response):
+                raise PortalSessionExpired("登录凭据已失效，请重新复制")
+            if response.status_code != 200:
+                raise PortalError(f"门户查询返回 HTTP {response.status_code}")
+            return parse_result_table(str(response.text or ""), record.employee_id, record.name)
+
+    def invalidate_credentials(self) -> None:
+        with self.request_lock:
+            self.cookies = {}
+            self.verified_at = ""
+            if self._verify_session is not None:
+                self._verify_session.close()
+                self._verify_session = None
 
     def clear_credentials(self) -> None:
-        self.cookies = {}
-        self.verified_at = ""
-        if self._verify_session is not None:
-            self._verify_session.close()
-            self._verify_session = None
+        self.keepalive.stop()
+        self.invalidate_credentials()
 
     def close(self) -> None:
         self.clear_credentials()

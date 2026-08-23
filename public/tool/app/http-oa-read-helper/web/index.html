@@ -41,7 +41,16 @@
                     <div><dt>Cookie 数量</dt><dd id="cookieCount">0</dd></div>
                     <div><dt>执行方式</dt><dd>纯 HTTP 逐条处理</dd></div>
                 </dl>
-            </section>
+           </section>
+                <div class="keepalive-summary" data-keepalive-widget>
+                    <div class="keepalive-ring" id="keepAliveRing" hidden>
+                        <span id="keepAliveCountdown">--</span>
+                    </div>
+                    <div class="keepalive-copy">
+                        <strong id="keepAliveStatus">保活未启动</strong>
+                        <span id="keepAliveDetail">验证后启动独立保活检查</span>
+                    </div>
+                </div>
 
             <section class="work-panel scan-panel" aria-labelledby="scanHeading">
                 <div class="panel-heading">

@@ -46,7 +46,16 @@
                     <div><dt>请求类型</dt><dd>纯 HTTP</dd></div>
                     <div><dt>查询方式</dt><dd id="queryMode">按输入顺序逐人查询</dd></div>
                 </dl>
-            </section>
+           </section>
+                <div class="keepalive-summary" data-keepalive-widget>
+                    <div class="keepalive-ring" id="keepAliveRing" hidden>
+                        <span id="keepAliveCountdown">--</span>
+                    </div>
+                    <div class="keepalive-copy">
+                        <strong id="keepAliveStatus">保活未启动</strong>
+                        <span id="keepAliveDetail">验证后启动独立保活检查</span>
+                    </div>
+                </div>
 
             <section class="work-panel input-panel" aria-labelledby="inputHeading">
                 <div class="panel-heading">
