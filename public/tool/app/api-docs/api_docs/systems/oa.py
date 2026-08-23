@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import copy
 import json
+import random
 import time
 from collections import Counter
 from dataclasses import dataclass
@@ -20,6 +21,10 @@ from ..credentials import (
 )
 from .errors import ExecutionError, SessionExpiredError
 from .session_keepalive import SessionKeepAlive
+
+
+def random_keepalive_interval() -> int:
+    return random.randint(30, 60)
 
 
 ELIGIBLE_CATEGORY = "DOC/official-document"
@@ -128,6 +133,18 @@ def _find_total(value: object) -> int | None:
     return None
 
 
+def _parse_current_identity(payload: dict[str, object]) -> dict[str, str]:
+    data = payload.get("data")
+    login_user = data.get("loginUserInfo") if isinstance(data, dict) else None
+    if not isinstance(login_user, dict):
+        raise ExecutionError("OA 会话响应缺少当前使用人")
+    staff_number = " ".join(str(login_user.get("empId") or "").split())
+    name = " ".join(str(login_user.get("empName") or "").split())
+    if not staff_number or not name:
+        raise ExecutionError("OA 会话响应缺少员工号或姓名")
+    return {"staffNumber": staff_number, "name": name}
+
+
 class OaAdapter:
     """维护 OA 独立会话，并执行待办查询和按数量已阅工作流。"""
 
@@ -136,13 +153,14 @@ class OaAdapter:
         catalog: ApiCatalog,
         session_factory: Callable[[], requests.Session] = requests.Session,
         timeout_seconds: int = 30,
-        keepalive_interval_factory: Callable[[], int] = lambda: 30,
+        keepalive_interval_factory: Callable[[], int] = random_keepalive_interval,
     ) -> None:
         self.catalog = catalog
         self.session_factory = session_factory
         self.timeout_seconds = timeout_seconds
         self.session: requests.Session | None = None
         self.cookies: dict[str, str] = {}
+        self.identity: dict[str, str] | None = None
         self.waiting_template: dict[str, object] | None = None
         self.request_lock = RLock()
         self.keepalive = SessionKeepAlive(
@@ -191,6 +209,7 @@ class OaAdapter:
         with self.request_lock:
             return {
                 **all_credential_summary(self.cookies),
+                "identity": dict(self.identity) if self.identity else None,
                 "keepAlive": self.keepalive.status(bool(self.cookies)),
             }
 
@@ -208,7 +227,7 @@ class OaAdapter:
 
     def _execute_count_workflow(self, record: EndpointRecord) -> dict[str, object]:
         started = time.perf_counter()
-        records = self._scan_waiting()
+        records = self._scan_waiting(record.full_id)
         category_counts = Counter(item.category for item in records)
         rows = [
             {
@@ -243,7 +262,7 @@ class OaAdapter:
     ) -> dict[str, object]:
         started = time.perf_counter()
         requested = self._integer(supplied.get("count", ""), "已阅数量")
-        records = self._scan_waiting()
+        records = self._scan_waiting(record.full_id)
         eligible = [item for item in records if item.eligible]
         targets = eligible[:requested]
         results: list[dict[str, object]] = []
@@ -263,7 +282,7 @@ class OaAdapter:
 
         for item in targets:
             try:
-                self._mark_read(item)
+                self._mark_read(record.full_id, item)
             except Exception as error:
                 failed += 1
                 results.append(item.public_result("失败", str(error)))
@@ -322,12 +341,12 @@ class OaAdapter:
             "body": json.dumps(body, ensure_ascii=False),
         }
 
-    def _scan_waiting(self) -> list[WaitingRecord]:
+    def _scan_waiting(self, endpoint_id: str) -> list[WaitingRecord]:
         records: list[WaitingRecord] = []
         seen: set[tuple[str, str]] = set()
         page_index = 0
         while True:
-            _response, _payload, page_records, total = self._query_waiting_page(page_index, PAGE_SIZE)
+            _response, _payload, page_records, total = self._query_waiting_page(endpoint_id, page_index, PAGE_SIZE)
             if not page_records:
                 break
             added = 0
@@ -346,10 +365,11 @@ class OaAdapter:
 
     def _query_waiting_page(
         self,
+        endpoint_id: str,
         page_index: int,
         page_size: int,
     ) -> tuple[requests.Response, dict[str, object], list[WaitingRecord], int | None]:
-        request = self.catalog.get_internal_request("oa-read.waiting-query")
+        request = self.catalog.get_execution_request(endpoint_id, "scan-waiting")
         body = copy.deepcopy(self.waiting_template) if self.waiting_template else {}
         body.pop("moduleMainCategoryId", None)
         body.update({
@@ -365,8 +385,8 @@ class OaAdapter:
         total = local_total if local_total is not None else _find_total(payload)
         return response, payload, [WaitingRecord.from_payload(item) for item in rows], total
 
-    def _mark_read(self, record: WaitingRecord) -> None:
-        request = self.catalog.get_internal_request("oa-read.have-read")
+    def _mark_read(self, endpoint_id: str, record: WaitingRecord) -> None:
+        request = self.catalog.get_execution_request(endpoint_id, "mark-read")
         self._request_business(
             request,
             json_body={
@@ -380,8 +400,14 @@ class OaAdapter:
         )
 
     def _check_session(self) -> None:
-        request = self.catalog.get_internal_request("oa-read.user-info")
-        self._request_business(request, action="验证 OA Cookie")
+        purpose = "keepAlive" if self.keepalive.status(bool(self.cookies)).get("running") else "validation"
+        request = self.catalog.get_session_request("oa", purpose)
+        _response, payload = self._request_business(request, action="验证 OA Cookie")
+        identity_request = self.catalog.get_session_request("oa", "identity")
+        if identity_request.full_id == request.full_id:
+            identity = _parse_current_identity(payload)
+            with self.request_lock:
+                self.identity = identity
 
     def _request_business(
         self,
@@ -445,6 +471,7 @@ class OaAdapter:
 
     def _clear_session_state(self) -> None:
         self.cookies = {}
+        self.identity = None
         self.waiting_template = None
         if self.session is not None:
             self.session.close()

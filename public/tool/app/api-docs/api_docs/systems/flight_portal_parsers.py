@@ -29,6 +29,17 @@ def validate_query_page(html: str, status_code: int, expected_action: str) -> No
         raise ExecutionError("Cookie 验证页没有返回有效的飞行经历查询表单")
 
 
+def parse_current_identity(html: str, status_code: int) -> dict[str, str]:
+    soup = BeautifulSoup(str(html or ""), "html.parser")
+    name_node = soup.select_one("#personalInfo .name-txt")
+    staff_node = soup.select_one(".detailInfo .empid span[title]")
+    name = _element_text(name_node) if isinstance(name_node, Tag) else ""
+    staff_number = _text(staff_node.get("title")) if isinstance(staff_node, Tag) else ""
+    if status_code != 200 or not re.fullmatch(r"\d{6}", staff_number) or not name:
+        raise ExecutionError("IEB 登录首页没有返回可识别的当前使用人")
+    return {"staffNumber": staff_number, "name": name}
+
+
 def parse_lock_types(html: str) -> list[dict[str, str]]:
     soup = BeautifulSoup(str(html or ""), "html.parser")
     if soup.select_one("#nonproductionTaskImportForm") is None:
@@ -122,7 +133,8 @@ def _rows(root: Tag, columns: list[str]) -> list[dict[str, str]]:
             else:
                 values.append("")
                 column += 1
-        if not values or "没有相关信息" in " | ".join(values):
+        row_text = " | ".join(values)
+        if not values or re.search(r"(?:没有(?:找到)?相关信息|暂无相关信息|无相关信息)", row_text):
             continue
         if len(values) == len(columns) + 1 and re.fullmatch(r"\d{1,5}", values[0] or ""):
             values = values[1:]

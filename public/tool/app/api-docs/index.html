@@ -33,7 +33,6 @@
                     <span class="nav-symbol" aria-hidden="true">@</span>
                     <span>Cookie 管理</span>
                 </button>
-                <div class="sidebar-divider"></div>
                 <div id="systemNavigation" class="system-navigation"></div>
             </nav>
         </aside>
@@ -52,7 +51,11 @@
                     <div>
                         <span id="endpointSessionLabel" class="session-label">接口会话</span>
                         <strong id="sessionState">Cookie 未验证</strong>
+                        <span id="sessionIdentity" class="session-identity">当前使用人 未识别</span>
                         <span id="sessionDetail" class="session-detail">验证后自动保持登录状态</span>
+                    </div>
+                    <div id="endpointKeepAliveRing" class="keepalive-ring compact" hidden>
+                        <span id="endpointKeepAliveCountdown">--</span>
                     </div>
                     <button id="manageSessionButton" class="text-button" type="button">管理 Cookie</button>
                 </div>

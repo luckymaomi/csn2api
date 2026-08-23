@@ -35,6 +35,7 @@ class CatalogTests(unittest.TestCase):
         self.assertEqual([system["id"] for system in systems], ["flight-portal", "oa"])
         self.assertEqual(systems[0]["navigationUrl"], "https://ieb.csair.com/index/index")
         self.assertEqual(systems[1]["credentialRequestUrl"], "https://work.csair.com/oai/work/box/query/waiting")
+        self.assertEqual(self.catalog.as_dict()["schemaVersion"], 2)
 
     def test_qualification_monitor_exposes_29_fixed_query_contracts(self) -> None:
         records = [
@@ -58,33 +59,69 @@ class CatalogTests(unittest.TestCase):
             codes.append(parameters["qualType"]["default"])
         self.assertEqual(len(set(codes)), 29)
 
-    def test_internal_request_facts_are_preserved_without_becoming_endpoints(self) -> None:
-        modules = self.catalog.as_dict()["modules"]
-        flight_internal = {item["id"] for item in modules[0]["internalRequests"]}
-        lock_internal = {item["id"] for item in modules[1]["internalRequests"]}
-        self.assertEqual(flight_internal, {"query-page", "query"})
-        self.assertTrue({
-            "entry-page",
-            "employee-validation",
-            "quota",
-            "submit",
-            "query-page",
-            "query-first-page",
-            "query-next-page",
-            "approve",
-            "withdraw",
-            "unlock",
-            "reject",
-        }.issubset(lock_internal))
+    def test_request_roles_separate_sessions_execution_and_related_requests(self) -> None:
         serialized = json.dumps(self.catalog.as_dict(), ensure_ascii=False)
-        self.assertIn("showNonproductionTaskImportPage", serialized)
-        self.assertIn("importNonproductionTaskLockListToSoc", serialized)
-        query_page = self.catalog.get_internal_request("flight-stats.query-page")
-        employee_validation = self.catalog.get_internal_request("lock-entry.employee-validation")
-        self.assertEqual(query_page.endpoint["method"], "GET")
-        self.assertTrue(query_page.url.endswith("/newieb/flytime/showFlytimeManyQuery"))
-        self.assertEqual(employee_validation.endpoint["method"], "POST")
-        self.assertTrue(employee_validation.url.endswith("/newieb/nonproductionTask/vaildStaffNum"))
+        self.assertEqual(len(self.catalog.request_definitions), 19)
+
+        ieb_validation = self.catalog.get_session_request("flight-portal", "validation")
+        ieb_keepalive = self.catalog.get_session_request("flight-portal", "keepAlive")
+        oa_validation = self.catalog.get_session_request("oa", "validation")
+        oa_keepalive = self.catalog.get_session_request("oa", "keepAlive")
+        self.assertEqual(ieb_validation.full_id, "flight-stats.query-page")
+        self.assertEqual(ieb_keepalive.full_id, ieb_validation.full_id)
+        self.assertEqual(oa_validation.full_id, "oa-read.user-info")
+        self.assertEqual(oa_keepalive.full_id, oa_validation.full_id)
+
+        direct = [
+            record
+            for record in self.catalog.endpoints.values()
+            if record.endpoint["execution"]["kind"] == "direct-http"
+        ]
+        self.assertEqual(len(direct), 36)
+        for record in direct:
+            primary = [
+                step
+                for step in self.catalog.get_execution_steps(record.full_id)
+                if step["requestRef"] == "$endpoint"
+            ]
+            self.assertEqual(len(primary), 1)
+            self.assertEqual(primary[0]["role"], "primary")
+            self.assertEqual(primary[0]["cardinality"], "once")
+
+        self.assertEqual(
+            [step["id"] for step in self.catalog.get_execution_steps("lock-entry.submit")],
+            ["load-lock-types", "validate-employee", "submit"],
+        )
+        self.assertEqual(
+            self.catalog.get_execution_request("lock-entry.submit", "validate-employee").full_id,
+            "lock-entry.employee-validation",
+        )
+        self.assertEqual(
+            self.catalog.get_option_source("lock-types").full_id,
+            "lock-entry.entry-page",
+        )
+        lock_related = self.catalog.get_related_requests("lock-entry")
+        self.assertEqual(
+            {item["kind"] for item in lock_related},
+            {"option-source", "reference-query", "state-action"},
+        )
+        state_actions = {
+            item["requestRef"]
+            for item in lock_related
+            if item["kind"] == "state-action"
+        }
+        self.assertEqual(state_actions, {
+            "lock-entry.approve",
+            "lock-entry.withdraw",
+            "lock-entry.unlock",
+            "lock-entry.reject",
+        })
+        qualification_related = self.catalog.get_related_requests("qualification-monitor")
+        self.assertEqual(
+            {item["kind"] for item in qualification_related},
+            {"metadata", "option-source", "export"},
+        )
+        self.assertEqual(self.catalog.get_related_requests("personnel-info"), [])
 
     def test_personnel_info_keeps_verified_request_contracts(self) -> None:
         basic = self.catalog.get_endpoint("personnel-info.basic").endpoint
@@ -106,14 +143,22 @@ class CatalogTests(unittest.TestCase):
         count_endpoint = self.catalog.get_endpoint("oa-read.count")
         read = self.catalog.get_endpoint("oa-read.read")
 
-        self.assertEqual(count_endpoint.endpoint["executionKind"], "local-workflow")
+        self.assertEqual(count_endpoint.endpoint["execution"]["kind"], "local-workflow")
         self.assertEqual(count_endpoint.endpoint["parameters"], [])
-        self.assertEqual(read.endpoint["executionKind"], "local-workflow")
+        self.assertEqual(read.endpoint["execution"]["kind"], "local-workflow")
         self.assertTrue(read.endpoint["progressive"])
         count = read.endpoint["parameters"][0]
         self.assertEqual(count["name"], "count")
         self.assertEqual(count["minimum"], 1)
-        have_read = self.catalog.get_internal_request("oa-read.have-read")
+        self.assertEqual(
+            [step["id"] for step in self.catalog.get_execution_steps("oa-read.count")],
+            ["scan-waiting"],
+        )
+        self.assertEqual(
+            [step["id"] for step in self.catalog.get_execution_steps("oa-read.read")],
+            ["scan-waiting", "mark-read"],
+        )
+        have_read = self.catalog.get_execution_request("oa-read.read", "mark-read")
         self.assertEqual(have_read.url, "https://work.csair.com/oai/doc/pc/form/sw/haveRead")
         self.assertEqual(
             set(have_read.endpoint["parameters"]),
@@ -131,7 +176,6 @@ class CatalogTests(unittest.TestCase):
         for derived in ("dateSplitFlag", "lockDays", "lockTypeDesc", "chnName", "orgUnitName", "random"):
             self.assertIn(derived, controls)
             self.assertTrue(controls[derived]["fixed"])
-
 
 if __name__ == "__main__":
     unittest.main()

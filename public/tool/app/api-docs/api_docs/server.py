@@ -182,9 +182,10 @@ def create_server(
                 except Exception as error:
                     self._send_json({"error": str(error)}, HTTPStatus.BAD_REQUEST)
                 return
-            if path == "/api/options/lock-types":
+            if path.startswith("/api/options/"):
                 try:
-                    self._send_json({"options": request_executor.load_options("lock-types")})
+                    source = unquote(path.removeprefix("/api/options/"))
+                    self._send_json({"options": request_executor.load_options(source)})
                 except Exception as error:
                     self._send_json({"error": str(error)}, HTTPStatus.BAD_REQUEST)
                 return

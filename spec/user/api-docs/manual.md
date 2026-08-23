@@ -1,6 +1,6 @@
 # API 文档用户手册
 
-从工具首页顶栏打开“API 文档”。该入口不占用工具卡片；页面左侧按系统分组当前 catalog 中的接口，Cookie 管理统一展示 IEB 与 OA 的登录网址、建议抓取请求和获取步骤。
+从工具首页顶栏打开“API 文档”。该入口不占用工具卡片；页面左侧按飞行门户原生模块和 OA 系统分组当前 catalog 中的 GET/POST 接口，Cookie 管理统一展示 IEB 与 OA 的登录网址、建议抓取请求和获取步骤。系统和模块都可以用箭头展开或收起。
 
 ## Cookie
 
@@ -10,7 +10,7 @@ IEB：打开 `https://ieb.csair.com/index/index` 并登录，在 F12 Network 中
 
 OA：打开 `https://work.csair.com/oaw/work/my-dealt-with/schedule-list?sourceType=wait` 并登录，确认待办列表已显示；在 F12 Network 筛选 `query/waiting`，选择 `POST https://work.csair.com/oai/work/box/query/waiting` 并 Copy as cURL。优先粘贴完整 cURL，使本地执行器同时取得 Cookie、User-Agent 和待办 JSON 模板。
 
-验证成功后对应系统区域显示可复制的规范化 Cookie Header。刷新或重新打开会清除两套 Session；每个区域的“清除”只清该系统。页面不使用浏览器持久化存储保存凭据。
+验证成功后对应系统区域显示当前使用员工号和姓名、可复制的规范化 Cookie Header，并显示下一次只读保活请求的动态倒计时。保活间隔为 30-60 秒，倒计时归零后由本地执行器发送系统会话请求，成功后重新开始下一轮。刷新或重新打开会清除两套 Session；每个区域的“清除”只清该系统。页面不使用浏览器持久化存储保存凭据。
 
 ## 调试请求
 
@@ -26,4 +26,4 @@ OA 提供“获取全部 OA 数量”和“按数量点击 OA 已阅”两个入
 
 ## Markdown 导出
 
-点击“导出 Markdown”得到一个单文件文档，内容包括各系统认证网址和获取步骤、当前 catalog 模块、请求方法和地址、参数、响应契约、内部请求链路、技术说明及原始目录 JSON。导出不需要启动本地后端，也不包含粘贴的 Cookie、真实响应或人员数据，适合人类阅读和文本模型分析。
+点击“导出 Markdown”得到一个单文件文档，内容包括各系统会话验证与保活请求、当前模块、端点真实执行链路、模块相关请求、参数、响应契约、技术说明及原始目录 JSON。导出不需要启动本地后端，也不包含粘贴的 Cookie、真实响应或人员数据，适合人类阅读和文本模型分析。

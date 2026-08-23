@@ -48,10 +48,13 @@ describe("API docs Markdown export", () => {
     expect(markdown).toContain("每条完成后立即追加结果");
     expect(markdown).toContain("`staffNum`");
     expect(markdown).toContain("`lockDaysNum`");
-    expect(markdown).toContain("`/newieb/nonproductionTask/vaildStaffNum`");
-    expect(markdown).toContain("`/newieb/nonproductionTask/importNonproductionTaskLockListToSoc`");
+    expect(markdown).toContain("https://ieb.csair.com/newieb/nonproductionTask/vaildStaffNum");
+    expect(markdown).toContain("https://ieb.csair.com/newieb/nonproductionTask/importNonproductionTaskLockListToSoc");
     expect(markdown).toContain("## 附录：机器可读原始目录");
-    expect(markdown).toContain('"schemaVersion": 1');
-    expect(markdown).toContain('"internalRequests"');
+    expect(markdown).toContain('"schemaVersion": 2');
+    expect(markdown).not.toContain('"internalRequests"');
+    expect(markdown).toContain("真实执行链路");
+    expect(markdown).toContain("模块相关请求");
+    expect(markdown).toContain("`lock-entry.approve`");
   });
 });

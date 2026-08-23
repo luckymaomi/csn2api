@@ -1,8 +1,9 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "id": "qualification-monitor",
   "systemId": "flight-portal",
   "name": "资质监控按资质查询接口",
+  "navigationGroup": "资质报表",
   "description": "按资质子类分页查询当前监控记录。29 个入口共享生产查询路径，但各自固定 qualType。",
   "baseUrl": "https://ieb.csair.com",
   "navigationUrl": "https://ieb.csair.com/static/qualificationMonitorNew/searchByQualificationPage.html",
@@ -26,6 +27,12 @@
     "risk": "read",
     "method": "GET",
     "path": "/newieb/qualification/alarm/new/queryAlarmDetail",
+    "execution": {
+      "kind": "direct-http",
+      "steps": [
+        { "id": "request", "requestRef": "$endpoint", "role": "primary", "cardinality": "once" }
+      ]
+    },
     "response": {
       "format": "JSON PageInfo",
       "statuses": [
@@ -92,11 +99,12 @@
     { "id": "special-jcy", "groupId": "special", "name": "检查员/委任代表", "parameters": [{ "name": "qualType", "in": "query", "label": "资质代码", "type": "text", "default": "JCY", "fixed": true, "description": "检查员/委任代表" }] },
     { "id": "special-jdyx", "groupId": "special", "name": "极地运行", "parameters": [{ "name": "qualType", "in": "query", "label": "资质代码", "type": "text", "default": "JDYX", "fixed": true, "description": "极地运行" }] }
   ],
-  "internalRequests": [
+  "requestDefinitions": [
     {
       "id": "classification-tree",
       "name": "资质分类树",
       "purpose": "读取三类父项及当前全部子类，子类 msgCode 是分页查询和原生导出的 qualType。",
+      "risk": "read",
       "method": "GET",
       "path": "/newieb/qualification/alarm/new/queryQualificationTypeParent",
       "parameters": [],
@@ -106,6 +114,7 @@
       "id": "data-power",
       "name": "权限筛选选项",
       "purpose": "读取注册基地、运行基地和机队权限选项。",
+      "risk": "read",
       "method": "GET",
       "path": "/newieb/qualification/alarm/new/queryUserDataPower",
       "parameters": [],
@@ -115,6 +124,7 @@
       "id": "effective-models",
       "name": "有效机型选项",
       "purpose": "读取有效机型筛选列表。",
+      "risk": "read",
       "method": "GET",
       "path": "/newieb/qualification/alarm/new/queryFleetCd",
       "parameters": [],
@@ -124,11 +134,18 @@
       "id": "native-export",
       "name": "门户原生 Excel 导出",
       "purpose": "按单个 qualType 下载门户原生 OOXML。",
+      "risk": "read",
       "method": "GET",
       "path": "/newieb/qualification/alarm/new/exportQualificationInfoExcel",
       "parameters": ["qualType", "staffNum", "alarmType", "primaryBase", "manyStaffNum", "manyAlarmType", "base", "fleetCd", "allClear", "effective", "effectiveModel"],
       "response": "HTTP 200 的响应体是 OOXML ZIP。门户文件名和 MIME 可能不规范；GJQYDF、GJQYYYTX 的原生导出会排除部分 allClear=Y 记录。"
     }
+  ],
+  "relatedRequests": [
+    { "requestRef": "qualification-monitor.classification-tree", "kind": "metadata", "description": "读取三类父项及当前全部资质子类" },
+    { "requestRef": "qualification-monitor.data-power", "kind": "option-source", "sourceId": "qualification-data-power", "description": "提供注册基地、运行基地和机队权限筛选项" },
+    { "requestRef": "qualification-monitor.effective-models", "kind": "option-source", "sourceId": "qualification-effective-models", "description": "提供有效机型筛选项" },
+    { "requestRef": "qualification-monitor.native-export", "kind": "export", "description": "按单个资质代码下载门户原生 OOXML" }
   ],
   "technicalNotes": [
     "29 个 endpoint 共享 queryAlarmDetail 路径和 PageInfo 契约，各自固定 qualType，调用方不能覆盖。",

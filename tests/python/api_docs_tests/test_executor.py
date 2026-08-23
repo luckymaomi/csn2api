@@ -15,6 +15,11 @@ QUERY_PAGE_HTML = """
 <form id="showflyTimeExperienceQueryForm" action="/newieb/flytime/showFlytimeManyQueryList"></form>
 """
 
+IEB_HOME_HTML = """
+<div id="personalInfo"><span class="name-txt">测试人员</span></div>
+<div class="detailInfo"><div class="empid"><span title="900001"></span></div></div>
+"""
+
 ENTRY_HTML = """
 <div id="showNonproductionTaskImportPage">
   <form id="nonproductionTaskImportForm">
@@ -72,7 +77,7 @@ QUALIFICATION_PAGE_INFO = json.dumps({
     "hasNextPage": True,
 }, ensure_ascii=False)
 
-OA_USER_INFO = json.dumps({"code": 200, "data": {"displayName": "示例用户"}}, ensure_ascii=False)
+OA_USER_INFO = json.dumps({"code": 200, "data": {"loginUserInfo": {"empId": "900001", "empName": "示例用户"}}}, ensure_ascii=False)
 OA_WAITING = json.dumps({
     "code": 200,
     "data": {
@@ -173,31 +178,32 @@ class ExecutorTests(unittest.TestCase):
         return executor, session
 
     def test_cookie_validation_does_not_load_lock_types(self) -> None:
-        executor, session = self.create_executor([FakeResponse(QUERY_PAGE_HTML), FakeResponse(ENTRY_HTML)])
+        executor, session = self.create_executor([FakeResponse(QUERY_PAGE_HTML), FakeResponse(IEB_HOME_HTML), FakeResponse(ENTRY_HTML)])
         result = executor.load_credentials("JSESSIONID=session-value; iebJSid=browser-value")
         self.assertTrue(result["ready"])
+        self.assertEqual(result["identity"], {"staffNumber": "900001", "name": "测试人员"})
         self.assertEqual(
             result["credentials"],
             "JSESSIONID=session-value; iebJSid=browser-value",
         )
         self.assertNotIn("credentials", executor.session_status())
         self.assertNotIn("lockTypeCount", result)
-        self.assertEqual(len(session.requests), 1)
+        self.assertEqual(len(session.requests), 2)
         self.assertEqual(
             session.requests[0]["url"],
-            self.catalog.get_internal_request("flight-stats.query-page").url,
+            self.catalog.get_session_request("flight-portal", "validation").url,
         )
 
         options = executor.load_options("lock-types")
-        self.assertEqual(len(session.requests), 2)
+        self.assertEqual(len(session.requests), 3)
         self.assertEqual(options[0]["value"], "BS_STUDY")
         self.assertEqual(
-            session.requests[1]["url"],
-            self.catalog.get_internal_request("lock-entry.entry-page").url,
+            session.requests[2]["url"],
+            self.catalog.get_option_source("lock-types").url,
         )
 
     def test_flight_query_returns_table_json_and_raw_body(self) -> None:
-        executor, session = self.create_executor([FakeResponse(QUERY_PAGE_HTML), FakeResponse(FLIGHT_RESULT_HTML)])
+        executor, session = self.create_executor([FakeResponse(QUERY_PAGE_HTML), FakeResponse(IEB_HOME_HTML), FakeResponse(FLIGHT_RESULT_HTML)])
         executor.load_credentials("JSESSIONID=session-value; iebJSid=browser-value")
         result = executor.execute("flight-stats.query", {
             "staffNum": "900001",
@@ -220,6 +226,7 @@ class ExecutorTests(unittest.TestCase):
         }, ensure_ascii=False)
         executor, session = self.create_executor([
             FakeResponse(QUERY_PAGE_HTML),
+            FakeResponse(IEB_HOME_HTML),
             FakeResponse(ENTRY_HTML),
             FakeResponse(identity, content_type="application/json"),
             FakeResponse(LOCK_RESULT_HTML),
@@ -246,12 +253,13 @@ class ExecutorTests(unittest.TestCase):
         self.assertIn(("lockDays", "1"), submit_data)
         self.assertEqual(
             session.requests[-2]["url"],
-            self.catalog.get_internal_request("lock-entry.employee-validation").url,
+            self.catalog.get_execution_request("lock-entry.submit", "validate-employee").url,
         )
 
     def test_personnel_info_executes_multipart_json_and_html_table_requests(self) -> None:
         executor, session = self.create_executor([
             FakeResponse(QUERY_PAGE_HTML),
+            FakeResponse(IEB_HOME_HTML),
             FakeResponse(BASIC_INFO_JSON, content_type="application/json"),
             FakeResponse(TECHNICAL_RESULT_HTML),
         ])
@@ -272,6 +280,7 @@ class ExecutorTests(unittest.TestCase):
     def test_qualification_query_uses_fixed_code_and_parses_page_info(self) -> None:
         executor, session = self.create_executor([
             FakeResponse(QUERY_PAGE_HTML),
+            FakeResponse(IEB_HOME_HTML),
             FakeResponse(QUALIFICATION_PAGE_INFO, content_type="application/json"),
         ])
         executor.load_credentials("JSESSIONID=session-value; iebJSid=browser-value")
@@ -301,16 +310,17 @@ class ExecutorTests(unittest.TestCase):
     def test_verified_cookie_is_kept_alive_with_read_only_query_page(self) -> None:
         request_event = threading.Event()
         executor, session = self.create_executor(
-            [FakeResponse(QUERY_PAGE_HTML), FakeResponse(QUERY_PAGE_HTML)],
+            [FakeResponse(QUERY_PAGE_HTML), FakeResponse(IEB_HOME_HTML), FakeResponse(QUERY_PAGE_HTML)],
             keepalive_interval=1,
             request_event=request_event,
         )
         result = executor.load_credentials("JSESSIONID=session-value; iebJSid=browser-value")
         self.assertTrue(result["keepAlive"]["running"])
+        request_event.clear()
         self.assertTrue(request_event.wait(timeout=2.5))
-        self.assertEqual(session.requests[1]["method"], "GET")
-        self.assertIn("showFlytimeManyQuery", str(session.requests[1]["url"]))
-        self.assertIsNone(session.requests[1]["data"])
+        self.assertEqual(session.requests[2]["method"], "GET")
+        self.assertIn("showFlytimeManyQuery", str(session.requests[2]["url"]))
+        self.assertIsNone(session.requests[2]["data"])
 
     def test_oa_count_workflow_scans_all_pages_and_returns_summary(self) -> None:
         executor, _session = self.create_executor([
@@ -356,6 +366,7 @@ class ExecutorTests(unittest.TestCase):
         result = executor.execute("oa-read.read", {"count": 5000}, progress.append)
 
         self.assertTrue(loaded["ready"])
+        self.assertEqual(loaded["identity"], {"staffNumber": "900001", "name": "示例用户"})
         self.assertEqual(session.headers["User-Agent"], "Example Browser")
         self.assertEqual(result["data"]["summary"], {
             "scanned": 3,
@@ -373,10 +384,10 @@ class ExecutorTests(unittest.TestCase):
         self.assertEqual(
             [request["url"] for request in session.requests],
             [
-                self.catalog.get_internal_request("oa-read.user-info").url,
-                self.catalog.get_internal_request("oa-read.waiting-query").url,
-                self.catalog.get_internal_request("oa-read.have-read").url,
-                self.catalog.get_internal_request("oa-read.have-read").url,
+                self.catalog.get_session_request("oa", "validation").url,
+                self.catalog.get_execution_request("oa-read.read", "scan-waiting").url,
+                self.catalog.get_execution_request("oa-read.read", "mark-read").url,
+                self.catalog.get_execution_request("oa-read.read", "mark-read").url,
             ],
         )
         self.assertEqual(session.requests[1]["json"], {
@@ -398,7 +409,7 @@ class ExecutorTests(unittest.TestCase):
 
     def test_keepalive_interval_stays_within_requested_range(self) -> None:
         values = [random_keepalive_interval() for _ in range(200)]
-        self.assertTrue(all(1 <= value <= 60 for value in values))
+        self.assertTrue(all(30 <= value <= 60 for value in values))
 
 
 if __name__ == "__main__":

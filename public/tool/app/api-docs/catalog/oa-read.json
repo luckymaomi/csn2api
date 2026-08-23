@@ -1,8 +1,9 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "id": "oa-read",
   "systemId": "oa",
   "name": "OA 公文已阅接口",
+  "navigationGroup": "OA",
   "description": "扫描全部 OA 待办数量，并按用户指定的任意正整数逐条处理当前可执行公文。",
   "baseUrl": "https://work.csair.com",
   "navigationUrl": "https://work.csair.com/oaw/work/my-dealt-with/schedule-list?sourceType=wait",
@@ -28,7 +29,18 @@
       "risk": "read",
       "method": "POST",
       "path": "/api/execute",
-      "executionKind": "local-workflow",
+      "execution": {
+        "kind": "local-workflow",
+        "steps": [
+          {
+            "id": "scan-waiting",
+            "requestRef": "oa-read.waiting-query",
+            "role": "page-loop",
+            "cardinality": "one-or-more",
+            "stopCondition": "达到服务端总数，或遇到空页、短页、无新增记录"
+          }
+        ]
+      },
       "parameters": [],
       "response": {
         "format": "Local workflow result",
@@ -52,7 +64,26 @@
       "risk": "write",
       "method": "POST",
       "path": "/api/execute",
-      "executionKind": "local-workflow",
+      "execution": {
+        "kind": "local-workflow",
+        "steps": [
+          {
+            "id": "scan-waiting",
+            "requestRef": "oa-read.waiting-query",
+            "role": "page-loop",
+            "cardinality": "one-or-more",
+            "stopCondition": "达到服务端总数，或遇到空页、短页、无新增记录"
+          },
+          {
+            "id": "mark-read",
+            "requestRef": "oa-read.have-read",
+            "role": "item-loop",
+            "cardinality": "zero-or-more",
+            "condition": "只处理本次选中的 DOC/official-document",
+            "stopCondition": "目标完成或首条失败"
+          }
+        ]
+      },
       "progressive": true,
       "parameters": [
         { "name": "count", "in": "workflow", "label": "已阅数量", "type": "number", "required": true, "default": "10", "minimum": 1, "description": "任意正整数；超过当前可处理公文数时自动收敛到全部" }
@@ -73,11 +104,12 @@
       }
     }
   ],
-  "internalRequests": [
+  "requestDefinitions": [
     {
       "id": "user-info",
       "name": "OA 会话验证",
       "purpose": "确认 Cookie 对应 OA 登录态仍有效，并作为当前页会话保活请求。",
+      "risk": "read",
       "method": "GET",
       "path": "/oai/work/login/userInfo",
       "parameters": [],
@@ -87,6 +119,7 @@
       "id": "waiting-query",
       "name": "OA 待办分页",
       "purpose": "按 0 基页码扫描全部待办；移除仪表盘 moduleMainCategoryId 筛选。",
+      "risk": "read",
       "method": "POST",
       "path": "/oai/work/box/query/waiting",
       "parameters": ["offsetPageIndex", "pageMode", "resultCountPerPage"],
@@ -96,6 +129,7 @@
       "id": "have-read",
       "name": "OA 公文已阅",
       "purpose": "对一条 DOC/official-document 公文提交已阅。",
+      "risk": "write",
       "method": "POST",
       "path": "/oai/doc/pc/form/sw/haveRead",
       "parameters": ["approveOpinionType=null", "approveOpinionContent=null", "docId", "docType", "flowStepId"],
@@ -106,7 +140,7 @@
     "完整 waiting cURL 中的 Cookie、User-Agent 和 JSON 模板由本地执行器结构化解析，cURL 文本不会作为命令执行。",
     "全量扫描移除 moduleMainCategoryId 页面筛选，并按服务端总数、空页、短页或不再出现新记录收敛，不设置固定页数上限。",
     "只有 DOC/official-document 进入已阅队列，其他模块只计入跳过数量。",
-    "获取全部 OA 数量与按数量已阅都会扫描全部分页；分页查询和单条 haveRead 只作为内部请求事实。",
+    "获取全部 OA 数量与按数量已阅都会扫描全部分页；分页查询和单条 haveRead 是对应端点的真实执行步骤。",
     "按数量已阅只要求 count 为正整数，不设置最大值；一条返回后再发送下一条，并把每条完成结果立即写入本地任务快照。",
     "HTTP 200 不是业务成功依据；登录失效、HTTP 异常或业务码异常时停止后续派发。"
   ]

@@ -4,7 +4,8 @@ import {
     buildPythonExample,
     escapeHtml,
     renderCookieDocument,
-    renderEndpointDocument
+    renderEndpointDocument,
+    renderModuleDocument
 } from "./catalog-view.mjs";
 import {
     collectParameters as collectParameterValues,
@@ -27,6 +28,7 @@ const state = {
     endpointRecords: new Map(),
     selectedView: "cookie",
     selectedId: "",
+    selectedModuleId: "",
     search: "",
     backendAvailable: false,
     activeExecution: null,
@@ -34,6 +36,7 @@ const state = {
     savedCredentials: new Map(),
     credentialDrafts: new Map(),
     options: new Map(),
+    keepAliveTimers: new Map(),
     codeLanguage: "curl"
 };
 
@@ -50,6 +53,7 @@ const elements = {
     endpointSessionLabel: document.getElementById("endpointSessionLabel"),
     sessionState: document.getElementById("sessionState"),
     sessionDetail: document.getElementById("sessionDetail"),
+    sessionIdentity: document.getElementById("sessionIdentity"),
     manageSessionButton: document.getElementById("manageSessionButton"),
     parameterForm: document.getElementById("parameterForm"),
     sendRequestButton: document.getElementById("sendRequestButton"),
@@ -99,7 +103,7 @@ async function loadCatalog() {
         (module.endpoints || []).forEach((endpoint) => {
             const fullId = `${module.id}.${endpoint.id}`;
             const system = state.systems.find((item) => item.id === module.systemId) || null;
-            state.endpointRecords.set(fullId, { module, endpoint, system, fullId });
+            state.endpointRecords.set(fullId, { module, endpoint, system, fullId, modules: state.modules });
         });
     });
 }
@@ -108,12 +112,16 @@ function selectedRecord() {
     return state.endpointRecords.get(state.selectedId) || null;
 }
 
+function selectedModule() {
+    return state.modules.find((module) => module.id === state.selectedModuleId) || null;
+}
+
 function systemById(systemId) {
     return state.systems.find((system) => system.id === systemId) || null;
 }
 
 function activeSystemId() {
-    return selectedRecord()?.module.systemId || state.systems[0]?.id || "";
+    return selectedRecord()?.module.systemId || selectedModule()?.systemId || state.systems[0]?.id || "";
 }
 
 function activeSessionStatus() {
@@ -129,8 +137,9 @@ function renderNavigation() {
     renderEndpointNavigation(
         elements.endpointList,
         state.systems,
+        state.modules,
         [...state.endpointRecords.values()],
-        state.selectedId,
+        { view: state.selectedView, moduleId: state.selectedModuleId, endpointId: state.selectedId },
         state.search,
     );
     elements.cookieNav?.classList.toggle("is-active", state.selectedView === "cookie");
@@ -169,14 +178,20 @@ function renderCodeExample() {
 
 function renderDocument() {
     if (!(elements.document instanceof HTMLElement)) return;
-    elements.document.innerHTML = state.selectedView === "cookie"
-        ? renderCookieDocument(state.systems, state.modules)
-        : renderEndpointDocument(selectedRecord(), state.codeLanguage, collectParameters());
+    if (state.selectedView === "cookie") {
+        elements.document.innerHTML = renderCookieDocument(state.systems, state.modules);
+    } else if (state.selectedView === "module") {
+        const module = selectedModule();
+        elements.document.innerHTML = renderModuleDocument(module, systemById(module?.systemId), state.modules);
+    } else {
+        elements.document.innerHTML = renderEndpointDocument(selectedRecord(), state.codeLanguage, collectParameters());
+    }
 }
 
 function applySessionStatus(systemId, status, notifyExpiry = false) {
     const wasReady = state.sessions.get(systemId)?.ready === true;
     state.sessions.set(systemId, status || null);
+    updateKeepAliveTimer(systemId, status);
     const ready = status?.ready === true;
     if (wasReady && !ready) {
         state.options.clear();
@@ -184,6 +199,42 @@ function applySessionStatus(systemId, status, notifyExpiry = false) {
     }
     if (!ready) setSavedCredentials(systemId, "");
     updateRuntimeControls();
+}
+
+function updateKeepAliveTimer(systemId, status) {
+    const keepAlive = status?.keepAlive || {};
+    const total = Number(keepAlive.nextIntervalSeconds || 0);
+    if (status?.ready !== true || keepAlive.running !== true || total <= 0) {
+        state.keepAliveTimers.delete(systemId);
+        return;
+    }
+    const stamp = String(keepAlive.lastCheckedAt || "");
+    const previous = state.keepAliveTimers.get(systemId);
+    if (!previous || previous.stamp !== stamp || previous.total !== total) {
+        state.keepAliveTimers.set(systemId, { stamp, total, startedAt: Date.now() });
+    }
+}
+
+function currentKeepAliveCountdown(systemId) {
+    const timer = state.keepAliveTimers.get(systemId);
+    if (!timer) return null;
+    return {
+        total: timer.total,
+        remaining: Math.max(0, timer.total - (Date.now() - timer.startedAt) / 1000),
+    };
+}
+
+function refreshKeepAliveCountdowns() {
+    state.systems.forEach((system) => updateSessionPanel(system.id));
+    const systemId = activeSystemId();
+    const status = state.sessions.get(systemId) || null;
+    renderSessionStatus({
+        sessionState: elements.sessionState,
+        sessionDetail: elements.sessionDetail,
+        sessionIdentity: elements.sessionIdentity,
+        keepAliveRing: document.getElementById("endpointKeepAliveRing"),
+        keepAliveCountdown: document.getElementById("endpointKeepAliveCountdown"),
+    }, status, systemById(systemId)?.name || systemId, currentKeepAliveCountdown(systemId));
 }
 
 function applySessionStatuses(statuses, notifyExpiry = false) {
@@ -209,8 +260,16 @@ function renderSessionPanels() {
             <textarea id="credential-${escapeHtml(system.id)}" rows="8" autocomplete="off" spellcheck="false" placeholder="${escapeHtml(system.credentialPlaceholder || "粘贴完整 Cookie Header 或 Copy as cURL")}" data-session-field="input" disabled></textarea>
             <button class="primary-button full-button" type="button" data-session-action="load" disabled>验证 Cookie</button>
             <div class="credential-status" data-session-field="status" data-state="idle">
-                <strong data-session-field="status-text">Cookie 未验证</strong>
-                <span data-session-field="status-detail">验证后每 1-60 秒自动检查一次</span>
+                <div class="keepalive-status-row">
+                    <div class="keepalive-ring" data-session-field="ring" hidden>
+                        <span data-session-field="countdown">--</span>
+                    </div>
+                    <div class="keepalive-status-copy">
+                        <strong data-session-field="status-text">Cookie 未验证</strong>
+                        <span class="session-identity" data-session-field="identity">当前使用人 未识别</span>
+                        <span data-session-field="status-detail">验证后每 30-60 秒自动检查一次</span>
+                    </div>
+                </div>
             </div>
             <div class="saved-credential-panel" data-session-field="saved-panel" hidden>
                 <div class="saved-credential-heading">
@@ -242,6 +301,9 @@ function sessionPanelElements(systemId) {
         credentialStatus: panel.querySelector('[data-session-field="status"]'),
         credentialStatusText: panel.querySelector('[data-session-field="status-text"]'),
         credentialStatusDetail: panel.querySelector('[data-session-field="status-detail"]'),
+        credentialIdentity: panel.querySelector('[data-session-field="identity"]'),
+        keepAliveRing: panel.querySelector('[data-session-field="ring"]'),
+        keepAliveCountdown: panel.querySelector('[data-session-field="countdown"]'),
         savedCredentialPanel: panel.querySelector('[data-session-field="saved-panel"]'),
         savedCredentialText: panel.querySelector('[data-session-field="saved-text"]'),
     };
@@ -259,7 +321,7 @@ function updateSessionPanel(systemId) {
     if (panelElements.clearSessionButton) panelElements.clearSessionButton.disabled = !state.backendAvailable || !ready;
     if (panelElements.savedCredentialText) panelElements.savedCredentialText.value = saved;
     if (panelElements.savedCredentialPanel) panelElements.savedCredentialPanel.hidden = !saved;
-    renderSessionStatus(panelElements, status, system.name);
+    renderSessionStatus(panelElements, status, system.name, currentKeepAliveCountdown(systemId));
 }
 
 function updateRuntimeControls() {
@@ -269,11 +331,17 @@ function updateRuntimeControls() {
     const ready = status?.ready === true;
     state.systems.forEach((item) => updateSessionPanel(item.id));
     if (elements.endpointSessionLabel) elements.endpointSessionLabel.textContent = `${system.name}会话`;
-    renderSessionStatus({ sessionState: elements.sessionState, sessionDetail: elements.sessionDetail }, status, system.name);
+    renderSessionStatus({
+        sessionState: elements.sessionState,
+        sessionDetail: elements.sessionDetail,
+        sessionIdentity: elements.sessionIdentity,
+        keepAliveRing: document.getElementById("endpointKeepAliveRing"),
+        keepAliveCountdown: document.getElementById("endpointKeepAliveCountdown"),
+    }, status, system.name, currentKeepAliveCountdown(systemId));
     updateParameterAvailability(elements.parameterForm, ready);
     if (elements.sendRequestButton) {
         elements.sendRequestButton.disabled = !ready || state.activeExecution !== null;
-        elements.sendRequestButton.textContent = selectedRecord()?.endpoint.executionKind === "local-workflow"
+        elements.sendRequestButton.textContent = selectedRecord()?.endpoint.execution?.kind === "local-workflow"
             ? selectedRecord()?.endpoint.name || "执行本地工作流"
             : "发送真实请求";
     }
@@ -282,12 +350,13 @@ function updateRuntimeControls() {
 function showSelectedView() {
     const cookieSelected = state.selectedView === "cookie";
     if (elements.sessionPanel) elements.sessionPanel.hidden = !cookieSelected;
-    if (elements.endpointConsole) elements.endpointConsole.hidden = cookieSelected;
+    if (elements.endpointConsole) elements.endpointConsole.hidden = state.selectedView !== "endpoint";
 }
 
 function selectCookie(systemId = "") {
     state.selectedView = "cookie";
     state.selectedId = "";
+    state.selectedModuleId = "";
     renderNavigation();
     showSelectedView();
     renderDocument();
@@ -297,11 +366,23 @@ function selectCookie(systemId = "") {
     }
 }
 
+function selectModule(moduleId) {
+    if (!state.modules.some((module) => module.id === moduleId)) return;
+    state.selectedView = "module";
+    state.selectedId = "";
+    state.selectedModuleId = moduleId;
+    renderNavigation();
+    showSelectedView();
+    renderDocument();
+    updateRuntimeControls();
+}
+
 async function selectEndpoint(endpointId) {
     if (!state.endpointRecords.has(endpointId)) return;
     followProgressiveResponse = true;
     state.selectedView = "endpoint";
     state.selectedId = endpointId;
+    state.selectedModuleId = selectedRecord()?.module.id || "";
     renderNavigation();
     showSelectedView();
     renderParameterForm();
@@ -549,6 +630,7 @@ async function initialize() {
         return;
     }
     await detectBackend();
+    window.setInterval(refreshKeepAliveCountdowns, 1000);
 }
 
 initialize();

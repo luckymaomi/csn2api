@@ -17,6 +17,7 @@ from .flight_portal_parsers import (
     parse_flight_result,
     parse_lock_result,
     parse_lock_types,
+    parse_current_identity,
     parse_personnel_basic,
     parse_personnel_html,
     parse_qualification_page_info,
@@ -26,7 +27,7 @@ from .session_keepalive import SessionKeepAlive
 
 
 def random_keepalive_interval() -> int:
-    return random.randint(1, 60)
+    return random.randint(30, 60)
 
 
 class FlightPortalAdapter:
@@ -45,6 +46,7 @@ class FlightPortalAdapter:
         self.keepalive_interval_factory = keepalive_interval_factory
         self.session: requests.Session | None = None
         self.cookies: dict[str, str] = {}
+        self.identity: dict[str, str] | None = None
         self.option_cache: dict[str, list[dict[str, str]]] = {}
         self.request_lock = RLock()
         self.keepalive = SessionKeepAlive(
@@ -70,7 +72,7 @@ class FlightPortalAdapter:
             self.cookies = cookies
             self.session = session
         try:
-            request = self.catalog.get_internal_request("flight-stats.query-page")
+            request = self.catalog.get_session_request("flight-portal", "validation")
             response = self._request(
                 str(request.endpoint["method"]),
                 request.url,
@@ -81,6 +83,15 @@ class FlightPortalAdapter:
                 response.status_code,
                 str(self.catalog.get_endpoint("flight-stats.query").endpoint["path"]),
             )
+            identity_request = self.catalog.get_session_request("flight-portal", "identity")
+            identity_response = self._request(
+                str(identity_request.endpoint["method"]),
+                identity_request.url,
+                headers=self._record_headers(identity_request),
+            )
+            identity = parse_current_identity(str(identity_response.text or ""), identity_response.status_code)
+            with self.request_lock:
+                self.identity = identity
         except Exception:
             self.clear_credentials()
             raise
@@ -101,6 +112,7 @@ class FlightPortalAdapter:
             summary = credential_summary(self.cookies)
             return {
                 **summary,
+                "identity": dict(self.identity) if self.identity else None,
                 "keepAlive": self.keepalive.status(bool(self.cookies)),
             }
 
@@ -109,7 +121,7 @@ class FlightPortalAdapter:
             raise ValueError("选项来源不存在")
         if source in self.option_cache:
             return self.option_cache[source]
-        request = self.catalog.get_internal_request("lock-entry.entry-page")
+        request = self.catalog.get_option_source(source)
         response = self._request(
             str(request.endpoint["method"]),
             request.url,
@@ -169,9 +181,10 @@ class FlightPortalAdapter:
         record: EndpointRecord,
         supplied: dict[str, object],
     ) -> requests.Response:
+        request = self.catalog.get_execution_request(record.full_id, "request")
         return self._request(
-            str(record.endpoint["method"]),
-            record.url,
+            str(request.endpoint["method"]),
+            request.url,
             params=self._build_catalog_parameters(record, supplied),
             headers=self._record_headers(record),
         )
@@ -181,11 +194,12 @@ class FlightPortalAdapter:
         record: EndpointRecord,
         supplied: dict[str, object],
     ) -> requests.Response:
-        if record.endpoint.get("method") != "GET":
+        request = self.catalog.get_execution_request(record.full_id, "request")
+        if request.endpoint.get("method") != "GET":
             raise ExecutionError("目录通用查询只允许 GET")
         return self._request(
             "GET",
-            record.url,
+            request.url,
             params=self._build_catalog_parameters(record, supplied),
             headers=self._record_headers(record),
         )
@@ -205,9 +219,10 @@ class FlightPortalAdapter:
             raise ValueError("所选锁班类型已不存在，请重新载入 Cookie")
         identity = self._validate_employee(staff_number)
         form = build_submit_form(supplied, option, identity, self._random_value)
+        request = self.catalog.get_execution_request(record.full_id, "submit")
         return self._request(
-            str(record.endpoint["method"]),
-            record.url,
+            str(request.endpoint["method"]),
+            request.url,
             data=form,
             headers=self._record_headers(record),
         )
@@ -216,9 +231,10 @@ class FlightPortalAdapter:
         staff_number = required(supplied, "staffNum", "员工号")
         headers = self._record_headers(record)
         headers.pop("Content-Type", None)
+        request = self.catalog.get_execution_request(record.full_id, "request")
         return self._request(
-            str(record.endpoint["method"]),
-            record.url,
+            str(request.endpoint["method"]),
+            request.url,
             files={"staffNum": (None, staff_number)},
             headers=headers,
         )
@@ -232,15 +248,16 @@ class FlightPortalAdapter:
         values = self._build_catalog_parameters(record, supplied)
         if not any(name == staff_field and value for name, value in values):
             values = [(staff_field, required(supplied, staff_field, "员工号")), *values]
+        request = self.catalog.get_execution_request(record.full_id, "request")
         return self._request(
-            str(record.endpoint["method"]),
-            record.url,
+            str(request.endpoint["method"]),
+            request.url,
             data=values,
             headers=self._record_headers(record),
         )
 
     def _validate_employee(self, staff_number: str) -> dict[str, str]:
-        request = self.catalog.get_internal_request("lock-entry.employee-validation")
+        request = self.catalog.get_execution_request("lock-entry.submit", "validate-employee")
         response = self._request(
             str(request.endpoint["method"]),
             request.url,
@@ -313,7 +330,7 @@ class FlightPortalAdapter:
             return response
 
     def _check_session(self) -> None:
-        request = self.catalog.get_internal_request("flight-stats.query-page")
+        request = self.catalog.get_session_request("flight-portal", "keepAlive")
         response = self._request(
             str(request.endpoint["method"]),
             request.url,
@@ -327,6 +344,7 @@ class FlightPortalAdapter:
 
     def _clear_session_state(self) -> None:
         self.cookies = {}
+        self.identity = None
         self.option_cache = {}
         if self.session is not None:
             self.session.close()

@@ -1,8 +1,9 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "id": "flight-stats",
   "systemId": "flight-portal",
   "name": "飞行经历查询接口",
+  "navigationGroup": "综合报表",
   "description": "按员工号和日期范围单次查询门户当前返回的全部飞行经历与起落数字段。",
   "baseUrl": "https://ieb.csair.com",
   "navigationUrl": "https://ieb.csair.com/newieb/flytime/showFlytimeManyQuery",
@@ -28,10 +29,16 @@
       "risk": "read",
       "method": "GET",
       "path": "/newieb/flytime/showFlytimeManyQueryList",
+      "execution": {
+        "kind": "direct-http",
+        "steps": [
+          { "id": "request", "requestRef": "$endpoint", "role": "primary", "cardinality": "once" }
+        ]
+      },
       "parameters": [
         { "name": "staffNum", "in": "query", "label": "员工号", "type": "text", "required": true, "placeholder": "六位员工号", "description": "结果按员工号唯一归属" },
-        { "name": "startStr", "in": "query", "label": "开始日期", "type": "date", "required": true, "description": "YYYY-MM-DD" },
-        { "name": "endStr", "in": "query", "label": "结束日期", "type": "date", "required": true, "description": "YYYY-MM-DD" },
+        { "name": "startStr", "in": "query", "label": "开始日期", "type": "date", "required": true, "placeholder": "YYYY-MM-DD", "description": "标准格式 YYYY-MM-DD，例如 2026-01-01" },
+        { "name": "endStr", "in": "query", "label": "结束日期", "type": "date", "required": true, "placeholder": "YYYY-MM-DD", "description": "标准格式 YYYY-MM-DD，例如 2026-08-23" },
         { "name": "activeStatusArray", "in": "query", "label": "在职状态", "type": "text", "default": "ZAIZHI", "fixed": true, "description": "页面固定值" },
         { "name": "dateType", "in": "query", "label": "日期类型", "type": "text", "default": "5", "fixed": true, "description": "页面按日查询值" },
         { "name": "exportType", "in": "query", "label": "导出类型", "type": "text", "default": "1", "fixed": true, "description": "页面固定值" },
@@ -75,24 +82,26 @@
       }
     }
   ],
-  "internalRequests": [
+  "requestDefinitions": [
+    {
+      "id": "identity-page",
+      "name": "当前登录人信息",
+      "purpose": "读取当前 IEB Session 对应的员工号和姓名。",
+      "risk": "read",
+      "method": "GET",
+      "path": "/index/index",
+      "parameters": [],
+      "response": "有效响应为 HTTP 200，最终路径不是 /login；员工号来自 .detailInfo .empid span[title]，姓名来自 #personalInfo .name-txt。"
+    },
     {
       "id": "query-page",
       "name": "会话验证与查询页",
       "purpose": "验证飞行门户 Cookie 登录态，并确认飞行经历查询表单及真实查询 action。",
+      "risk": "read",
       "method": "GET",
       "path": "/newieb/flytime/showFlytimeManyQuery",
       "parameters": [],
       "response": "有效响应为 HTTP 200，最终路径不是 /login，存在 #showflyTimeExperienceQueryForm，form action 为 /newieb/flytime/showFlytimeManyQueryList。"
-    },
-    {
-      "id": "query",
-      "name": "飞行经历查询",
-      "purpose": "按员工号和日期范围查询门户当前返回的全部飞行经历与起落数字段。",
-      "method": "GET",
-      "path": "/newieb/flytime/showFlytimeManyQueryList",
-      "parameters": ["staffNum", "startStr", "endStr", "activeStatusArray", "fleetCdArray1", "fleetCdArray", "chnDescArray", "primaryBaseArray", "baseArray", "dateType", "exportType", "singlefleetCdArray", "chnDescArray1", "page", "currentStr"],
-      "response": "HTML table。表头不得为空或重复，行宽必须与表头一致，目标员工号必须唯一匹配。"
     }
   ],
   "technicalNotes": [

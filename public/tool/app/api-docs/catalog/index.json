@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "systems": [
     {
       "id": "flight-portal",
@@ -16,7 +16,11 @@
         "把完整 cURL 粘贴到 Cookie 管理并点击验证。"
       ],
       "credentialNote": "JSESSIONID 与 iebJSid 均为 HttpOnly，普通 document.cookie 无法完整读取；也可粘贴包含这两个字段的 Cookie Header。",
-      "validationRequestId": "flight-stats.query-page"
+      "session": {
+        "validationRequestRef": "flight-stats.query-page",
+        "identityRequestRef": "flight-stats.identity-page",
+        "keepAliveRequestRef": "flight-stats.query-page"
+      }
     },
     {
       "id": "oa",
@@ -33,7 +37,11 @@
         "把完整 cURL 粘贴到 Cookie 管理并点击验证。"
       ],
       "credentialNote": "OA 优先使用 waiting 请求的完整 cURL，以同时取得当前 Cookie、浏览器 User-Agent 和待办 JSON 模板；本地执行器只解析文本，不执行 cURL。",
-      "validationRequestId": "oa-read.user-info"
+      "session": {
+        "validationRequestRef": "oa-read.user-info",
+        "identityRequestRef": "oa-read.user-info",
+        "keepAliveRequestRef": "oa-read.user-info"
+      }
     }
   ],
   "modules": [
@@ -46,7 +54,7 @@
     {
       "id": "lock-entry",
       "name": "飞行人员锁班接口",
-      "description": "单次提交非生产任务，保留完整门户内部请求链路",
+      "description": "单次提交非生产任务，并区分真实执行步骤与相关状态请求",
       "source": "./lock-entry.json"
     },
     {

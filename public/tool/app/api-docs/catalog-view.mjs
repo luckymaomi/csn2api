@@ -1,3 +1,9 @@
+import {
+    resolveEndpointExecution,
+    resolveModuleRelatedRequests,
+    resolveSystemSessionRequests
+} from "./catalog-normalize.mjs";
+
 export function escapeHtml(value) {
     return String(value ?? "")
         .replaceAll("&", "&amp;")
@@ -78,7 +84,7 @@ function parameterLocation(value) {
 
 export function buildCurlExample(record, supplied) {
     const { module, endpoint } = record;
-    if (endpoint.executionKind === "local-workflow") {
+    if (endpoint.execution?.kind === "local-workflow") {
         const parameters = Object.fromEntries(
             (endpoint.parameters || []).map((parameter) => [parameter.name, exampleJsonValue(parameter, supplied)])
         );
@@ -130,7 +136,7 @@ export function buildCurlExample(record, supplied) {
 
 export function buildPythonExample(record, supplied) {
     const { module, endpoint } = record;
-    if (endpoint.executionKind === "local-workflow") {
+    if (endpoint.execution?.kind === "local-workflow") {
         const parameters = Object.fromEntries(
             (endpoint.parameters || []).map((parameter) => [parameter.name, exampleJsonValue(parameter, supplied)])
         );
@@ -172,17 +178,95 @@ export function buildPythonExample(record, supplied) {
     return `import requests\n\nresponse = requests.${endpoint.method.toLowerCase()}(\n${args.join("\n")}\nprint(response.status_code)\nprint(response.text)`;
 }
 
-function validationRequest(system, modules) {
-    const [moduleId, requestId] = String(system.validationRequestId || "").split(".");
-    const module = modules.find((item) => item.id === moduleId) || {};
-    const request = (module.internalRequests || []).find((item) => item.id === requestId) || {};
-    return { module, request };
+const roleLabels = {
+    validation: "会话验证",
+    identity: "当前使用人",
+    keepAlive: "后台保活",
+    primary: "主请求",
+    prerequisite: "前置请求",
+    "page-loop": "分页循环",
+    "item-loop": "逐项循环",
+    postcondition: "结果核对"
+};
+
+const cardinalityLabels = {
+    once: "1 次",
+    "zero-or-one": "0 或 1 次",
+    "one-or-more": "1 次或多次",
+    "zero-or-more": "0 次或多次"
+};
+
+const relatedKindLabels = {
+    metadata: "模块元数据",
+    "option-source": "动态选项",
+    export: "原生导出",
+    "reference-query": "相关查询",
+    "state-action": "状态动作"
+};
+
+function requestParameters(request) {
+    return (request.parameters || []).map((parameter) => (
+        typeof parameter === "string" ? parameter : parameter.name
+    )).filter(Boolean);
+}
+
+function requestBadges(item) {
+    const badges = [];
+    (item.roles || []).forEach((role) => badges.push(roleLabels[role] || role));
+    if (item.role) badges.push(roleLabels[item.role] || item.role);
+    if (item.cardinality) badges.push(cardinalityLabels[item.cardinality] || item.cardinality);
+    if (item.kind) badges.push(relatedKindLabels[item.kind] || item.kind);
+    return badges;
+}
+
+function requestList(items) {
+    return `<div class="request-fact-list">${items.map((item, index) => {
+        const { module, request } = item;
+        const headers = [...(module.commonHeaders || []), ...(request.headers || [])];
+        const parameters = requestParameters(request);
+        const context = [
+            item.condition ? `触发条件：${item.condition}` : "",
+            item.stopCondition ? `停止条件：${item.stopCondition}` : "",
+            item.description ? `关系说明：${item.description}` : "",
+        ].filter(Boolean);
+        return `<article class="request-fact" data-request-ref="${escapeHtml(item.requestRef || "$endpoint")}">
+            <header class="request-fact-header">
+                <span class="request-order">${String(index + 1).padStart(2, "0")}</span>
+                <span class="request-identity"><strong>${escapeHtml(request.name)}</strong><code>${escapeHtml(item.requestRef || "$endpoint")}</code></span>
+                <span class="method${request.method === "POST" ? " is-post" : ""}">${escapeHtml(request.method)}</span>
+                <code class="request-url">${escapeHtml(module.baseUrl + request.path)}</code>
+                <span class="request-context-badges">${requestBadges(item).map((label) => `<span>${escapeHtml(label)}</span>`).join("")}</span>
+                ${request.risk === "write" ? `<span class="risk-badge is-write">写操作</span>` : ""}
+            </header>
+            <div class="request-fact-details">
+                ${context.length ? `<section class="request-context" aria-label="执行条件">${context.map((line) => `<p>${escapeHtml(line)}</p>`).join("")}</section>` : ""}
+                <section class="request-detail-block" aria-label="${escapeHtml(request.name)}请求 Headers">
+                    <h3>请求 Headers <span>${headers.length} 项</span></h3>
+                    ${table(["名称", "值", "说明"], headers.map((header) => [
+                        `<code>${escapeHtml(header.name)}</code>`,
+                        `<code>${escapeHtml(header.value)}</code>`,
+                        escapeHtml(header.description || "")
+                    ]))}
+                </section>
+                <section class="request-detail-block" aria-label="${escapeHtml(request.name)}请求参数">
+                    <h3>请求参数 <span>${parameters.length} 项</span></h3>
+                    ${parameters.length
+                        ? `<ul class="request-parameter-list">${parameters.map((parameter) => `<li><code>${escapeHtml(parameter)}</code></li>`).join("")}</ul>`
+                        : `<p class="request-empty-value">无请求参数</p>`}
+                </section>
+                <section class="request-detail-block request-contract" aria-label="${escapeHtml(request.name)}用途与响应契约">
+                    <div class="contract-item"><h3>用途</h3><p>${escapeHtml(request.purpose || request.summary || "执行当前业务接口")}</p></div>
+                    <div class="contract-item"><h3>响应契约</h3><p>${escapeHtml(request.response?.format || request.response || "按当前端点响应契约处理")}</p></div>
+                </section>
+            </div>
+        </article>`;
+    }).join("")}</div>`;
 }
 
 function systemCookieGuide(system, modules) {
     const systemModules = modules.filter((module) => module.systemId === system.id);
     const cookies = systemModules[0]?.cookies || [];
-    const validation = validationRequest(system, modules);
+    const sessionRequests = resolveSystemSessionRequests(system, modules);
     return `<section class="doc-section cookie-system-guide">
         <div class="section-heading-row"><h2>${escapeHtml(system.name)}</h2><span class="scope-badge">${escapeHtml(system.shortName || system.name)}</span></div>
         <div class="address-block">
@@ -198,12 +282,8 @@ function systemCookieGuide(system, modules) {
         <h3>获取方法</h3>
         <ol class="fact-list ordered">${(system.credentialSteps || []).map((step) => `<li>${escapeHtml(step)}</li>`).join("")}</ol>
         <p class="fact-note cookie-guide-note">${escapeHtml(system.credentialNote || "")}</p>
-        <h3>会话验证请求</h3>
-        ${table(["方法", "请求地址", "有效响应"], [[
-            `<span class="method${validation.request.method === "POST" ? " is-post" : ""}">${escapeHtml(validation.request.method || "")}</span>`,
-            `<code>${escapeHtml((validation.module.baseUrl || "") + (validation.request.path || ""))}</code>`,
-            escapeHtml(validation.request.response || "")
-        ]])}
+        <h3>会话请求</h3>
+        ${requestList(sessionRequests)}
     </section>`;
 }
 
@@ -215,36 +295,18 @@ export function renderCookieDocument(systems, modules) {
         ${systems.map((system) => systemCookieGuide(system, modules)).join("")}`;
 }
 
-function internalRequestList(module) {
-    return `<div class="internal-request-list">${(module.internalRequests || []).map((request, index) => `
-        <article class="internal-request" data-internal-request-id="${escapeHtml(request.id)}">
-            <header class="internal-request-header">
-                <span class="request-order">${String(index + 1).padStart(2, "0")}</span>
-                <span class="request-identity"><strong>${escapeHtml(request.name)}</strong><code>${escapeHtml(request.id)}</code></span>
-                <span class="method${request.method === "POST" ? " is-post" : ""}">${escapeHtml(request.method)}</span>
-                <code class="request-url">${escapeHtml(module.baseUrl + request.path)}</code>
-            </header>
-            <div class="internal-request-details">
-                <section class="request-detail-block" aria-label="${escapeHtml(request.name)}请求 Headers">
-                    <h3>请求 Headers <span>${[...(module.commonHeaders || []), ...(request.headers || [])].length} 项</span></h3>
-                    ${table(["名称", "值", "说明"], [...(module.commonHeaders || []), ...(request.headers || [])].map((header) => [
-                        `<code>${escapeHtml(header.name)}</code>`,
-                        `<code>${escapeHtml(header.value)}</code>`,
-                        escapeHtml(header.description || "")
-                    ]))}
-                </section>
-                <section class="request-detail-block" aria-label="${escapeHtml(request.name)}请求参数">
-                    <h3>请求参数 <span>${(request.parameters || []).length} 项</span></h3>
-                    ${(request.parameters || []).length
-                        ? `<ul class="request-parameter-list">${request.parameters.map((parameter) => `<li><code>${escapeHtml(parameter)}</code></li>`).join("")}</ul>`
-                        : `<p class="request-empty-value">无请求参数</p>`}
-                </section>
-                <section class="request-detail-block request-contract" aria-label="${escapeHtml(request.name)}用途与响应契约">
-                    <div class="contract-item"><h3>用途</h3><p>${escapeHtml(request.purpose || "")}</p></div>
-                    <div class="contract-item"><h3>响应契约</h3><p>${escapeHtml(request.response || "")}</p></div>
-                </section>
-            </div>
-        </article>`).join("")}</div>`;
+export function renderModuleDocument(module, system, modules) {
+    const related = resolveModuleRelatedRequests(module, modules);
+    const endpointCount = (module.endpoints || []).length;
+    return `
+        <div class="breadcrumb">${escapeHtml(system?.name || module.systemId)} / 模块概览</div>
+        <div class="endpoint-title-row"><h1>${escapeHtml(module.name)}</h1><span class="scope-badge">${endpointCount} 个接口</span></div>
+        <p class="endpoint-summary">${escapeHtml(module.description || "")}</p>
+        <section class="address-block" aria-label="模块地址">
+            <div class="address-row"><span class="address-label">门户导航</span><a href="${escapeHtml(module.navigationUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(module.navigationUrl)}</a></div>
+            <div class="address-row"><span class="address-label">基础地址</span><code>${escapeHtml(module.baseUrl)}</code></div>
+        </section>
+        ${related.length ? `<section class="doc-section"><h2>模块相关请求</h2>${requestList(related)}</section>` : ""}`;
 }
 
 export function renderEndpointDocument(record, codeLanguage, supplied) {
@@ -258,6 +320,9 @@ export function renderEndpointDocument(record, codeLanguage, supplied) {
         ? buildPythonExample(record, supplied)
         : buildCurlExample(record, supplied);
     const parameters = endpoint.parameters || [];
+    const executionKind = endpoint.execution?.kind;
+    const executionSteps = resolveEndpointExecution(module, endpoint, record.modules || [module]);
+    const responseExample = endpoint.response?.example;
     return `
         <div class="breadcrumb">${escapeHtml(system.name)} / ${escapeHtml(module.name)}</div>
         <div class="endpoint-title-row">
@@ -272,9 +337,9 @@ export function renderEndpointDocument(record, codeLanguage, supplied) {
                 <a href="${escapeHtml(module.navigationUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(module.navigationUrl)}</a>
             </div>
             <div class="address-row">
-                <span class="address-label">${endpoint.executionKind === "local-workflow" ? "本地执行" : "HTTP 请求"}</span>
+                <span class="address-label">${executionKind === "local-workflow" ? "本地执行" : "HTTP 请求"}</span>
                 <span class="method${endpoint.method === "POST" ? " is-post" : ""}">${escapeHtml(endpoint.method)}</span>
-                <code>${escapeHtml(endpoint.executionKind === "local-workflow" ? "/api/execute" : module.baseUrl + endpoint.path)}</code>
+                <code>${escapeHtml(executionKind === "local-workflow" ? "/api/execute" : module.baseUrl + endpoint.path)}</code>
             </div>
         </section>
 
@@ -335,12 +400,11 @@ export function renderEndpointDocument(record, codeLanguage, supplied) {
                 escapeHtml(field.type || ""),
                 escapeHtml(field.description || "")
             ]))}
-            <h3>脱敏示例</h3>
-            <pre class="example-block">${escapeHtml(endpoint.response?.example || "")}</pre>
+            ${responseExample ? `<h3>脱敏示例</h3><pre class="example-block">${escapeHtml(responseExample)}</pre>` : ""}
         </section>
 
         <section class="doc-section">
-            <h2>内部请求链路</h2>
-            ${internalRequestList(module)}
+            <h2>真实执行链路</h2>
+            ${requestList(executionSteps)}
         </section>`;
 }

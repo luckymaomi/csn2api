@@ -34,7 +34,7 @@ describe("API docs delivery", () => {
     expect(app).toContain('data-session-action="copy"');
   });
 
-  it("keeps the current business catalogs and complete internal request facts", () => {
+  it("keeps the current business catalogs and v2 request roles", () => {
     const index = JSON.parse(readFileSync(`${root}/catalog/index.json`, "utf8"));
     expect(index.modules.map((module: { name: string }) => module.name)).toEqual(expect.arrayContaining([
       "飞行经历查询接口",
@@ -62,9 +62,15 @@ describe("API docs delivery", () => {
       "count",
       "read"
     ]);
-    expect(oaCatalog.endpoints[0].executionKind).toBe("local-workflow");
-    expect(oaCatalog.endpoints[1].executionKind).toBe("local-workflow");
+    expect(oaCatalog.schemaVersion).toBe(2);
+    expect(oaCatalog.endpoints[0].execution.kind).toBe("local-workflow");
+    expect(oaCatalog.endpoints[1].execution.kind).toBe("local-workflow");
     expect(oaCatalog.endpoints[1].progressive).toBe(true);
+    expect(oaCatalog.endpoints[1].execution.steps.map((step: { id: string }) => step.id)).toEqual([
+      "scan-waiting",
+      "mark-read",
+    ]);
+    expect(lockCatalog.relatedRequests.some((item: { kind: string }) => item.kind === "state-action")).toBe(true);
   });
 
   it("keeps browser responsibilities in syntax-valid ESM modules", () => {
@@ -81,12 +87,20 @@ describe("API docs delivery", () => {
     expect(app).toContain('elements.responseTable?.addEventListener("scroll"');
   });
 
-  it("renders every internal request as an always-visible semantic operation", () => {
+  it("renders v2 execution and related request facts", () => {
     const catalogView = readFileSync(`${root}/catalog-view.mjs`, "utf8");
-    expect(catalogView).toContain('<article class="internal-request"');
-    expect(catalogView).toContain('data-internal-request-id=');
+    expect(catalogView).toContain("真实执行链路");
+    expect(catalogView).toContain("模块相关请求");
     expect(catalogView).toContain("请求参数");
     expect(catalogView).toContain("用途");
     expect(catalogView).toContain("响应契约");
+  });
+
+  it("renders the portal hierarchy as expandable navigation", () => {
+    const shell = readFileSync(`${root}/ui-shell.mjs`, "utf8");
+    expect(shell).toContain("<details class=\"nav-system\"");
+    expect(shell).toContain("<details class=\"nav-module\"");
+    expect(shell).toContain("system.id === \"oa\"");
+    expect(shell).toContain("data-endpoint-id");
   });
 });

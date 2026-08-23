@@ -1,8 +1,9 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "id": "lock-entry",
   "systemId": "flight-portal",
   "name": "飞行人员锁班接口",
+  "navigationGroup": "非生产任务",
   "description": "按门户当前动态类型和员工身份事实提交一条非生产任务。",
   "baseUrl": "https://ieb.csair.com",
   "navigationUrl": "https://ieb.csair.com/newieb/nonproductionTask/showNonproductionTaskImportPage",
@@ -28,6 +29,25 @@
       "risk": "write",
       "method": "POST",
       "path": "/newieb/nonproductionTask/showNonproductionTaskImportResultPage",
+      "execution": {
+        "kind": "direct-http",
+        "steps": [
+          {
+            "id": "load-lock-types",
+            "requestRef": "lock-entry.entry-page",
+            "role": "prerequisite",
+            "cardinality": "zero-or-one",
+            "condition": "当前 Session 尚未缓存动态锁班类型"
+          },
+          {
+            "id": "validate-employee",
+            "requestRef": "lock-entry.employee-validation",
+            "role": "prerequisite",
+            "cardinality": "once"
+          },
+          { "id": "submit", "requestRef": "$endpoint", "role": "primary", "cardinality": "once" }
+        ]
+      },
       "parameters": [
         { "name": "staffnum", "in": "form", "label": "员工号", "type": "text", "required": true, "placeholder": "六位员工号", "description": "目标员工号；门户校验仍使用字段 staffNum" },
         { "name": "lockType", "in": "form", "label": "锁班类型", "type": "select", "required": true, "optionSource": "lock-types", "description": "进入本接口后从当前录入页动态加载" },
@@ -59,11 +79,12 @@
       }
     }
   ],
-  "internalRequests": [
+  "requestDefinitions": [
     {
       "id": "entry-page",
       "name": "录入页与动态类型",
       "purpose": "验证锁班页面并读取当前类型、时间限制和日期拆分标记",
+      "risk": "read",
       "method": "GET",
       "path": "/newieb/nonproductionTask/showNonproductionTaskImportPage",
       "parameters": ["random"],
@@ -73,6 +94,7 @@
       "id": "employee-validation",
       "name": "员工校验",
       "purpose": "取得可信姓名与部门并确认当前账号可操作该员工",
+      "risk": "read",
       "method": "POST",
       "path": "/newieb/nonproductionTask/vaildStaffNum",
       "parameters": ["staffNum", "operationType=1", "random", "flagType=nonproductionTask"],
@@ -89,24 +111,17 @@
       "id": "quota",
       "name": "休假额度与规则",
       "purpose": "供独立智能锁班 APP 读取年度额度；单次文档调用不自动互换类型",
+      "risk": "read",
       "method": "POST",
       "path": "/newieb/nonproductionTask/showNonproductionHolidayRulesTips",
       "parameters": ["staffnum", "holidayType", "holidayTypeDesc", "random"],
       "response": "HTML table；字段为休假类型、年份、休假天数、锁班天数、解锁天数、可休天数。RECU_LVE 与 ALV_FD 的智能互换属于独立 APP。"
     },
     {
-      "id": "submit",
-      "name": "提交非生产任务",
-      "purpose": "提交完整锁班表单",
-      "method": "POST",
-      "path": "/newieb/nonproductionTask/showNonproductionTaskImportResultPage",
-      "parameters": ["staffnum", "lockType", "dateSplitFlag", "lockRemark", "startDt", "endDt", "lockDays", "lockTimeType", "lockYearAndMonth", "lockDaysNum(可重复)", "lockStartHourAndMinute", "lockEndHourAndMinute", "lockTypeDesc", "chnName", "orgUnitName", "random"],
-      "response": "HTML；#showNonproductionTaskImportResultPage1 为普通结果，#showNonproductionTaskImportResultPage2 为冲突结果，必须按员工、类型和日期时间判断业务归属。"
-    },
-    {
       "id": "query-page",
       "name": "锁班查询页",
       "purpose": "读取 #queryFormId 与当前筛选项",
+      "risk": "read",
       "method": "GET",
       "path": "/newieb/nonproductionTask/showNonproductionTaskPage",
       "parameters": ["random"],
@@ -116,6 +131,7 @@
       "id": "query-first-page",
       "name": "锁班列表第一页",
       "purpose": "按人员、状态和日期查询第一页",
+      "risk": "read",
       "method": "POST",
       "path": "/newieb/nonproductionTask/showLockListPage",
       "parameters": ["staffnum", "base", "primBase", "fleetCd", "lockType", "lockStatus", "startDt", "endDt", "orderByType", "entryStaffnum", "page", "random"],
@@ -125,6 +141,7 @@
       "id": "query-next-page",
       "name": "锁班列表后续页",
       "purpose": "读取指定后续页",
+      "risk": "read",
       "method": "GET",
       "path": "/newieb/nonproductionTask/showLockListPage",
       "parameters": ["staffnum", "base", "primBase", "fleetCd", "lockType", "lockStatus", "startDt", "endDt", "orderByType", "entryStaffnum", "page", "currentStr"],
@@ -134,6 +151,7 @@
       "id": "approve",
       "name": "通过待审批记录",
       "purpose": "待审批变为已锁",
+      "risk": "write",
       "method": "POST",
       "path": "/newieb/nonproductionTask/importNonproductionTaskLockListToSoc",
       "parameters": ["ids(可重复)", "approveRemark", "staffnum", "base", "primBase", "fleetCd", "lockType", "lockStatus", "startDt", "endDt", "orderByType", "entryStaffnum", "page", "random"],
@@ -143,6 +161,7 @@
       "id": "withdraw",
       "name": "撤销待审批记录",
       "purpose": "待审批变为已撤销",
+      "risk": "write",
       "method": "POST",
       "path": "/newieb/nonproductionTask/deleteNonproductionTaskLock",
       "parameters": ["ids(可重复)", "approveRemark", "staffnum", "base", "primBase", "fleetCd", "lockType", "lockStatus", "startDt", "endDt", "orderByType", "entryStaffnum", "page", "random"],
@@ -152,6 +171,7 @@
       "id": "unlock",
       "name": "解锁已锁记录",
       "purpose": "已锁变为已解锁",
+      "risk": "write",
       "method": "POST",
       "path": "/newieb/nonproductionTask/unlockNonproductionTaskLock",
       "parameters": ["ids(可重复)", "approveRemark", "staffnum", "base", "primBase", "fleetCd", "lockType", "lockStatus", "startDt", "endDt", "orderByType", "entryStaffnum", "page", "random"],
@@ -161,11 +181,23 @@
       "id": "reject",
       "name": "否决待审批记录",
       "purpose": "待审批变为已否决",
+      "risk": "write",
       "method": "POST",
       "path": "/newieb/nonproductionTask/rejectNonproductionTaskLock",
       "parameters": ["ids(可重复)", "approveRemark", "staffnum", "base", "primBase", "fleetCd", "lockType", "lockStatus", "startDt", "endDt", "orderByType", "entryStaffnum", "page", "random"],
       "response": "JSON；success 为字符串 true/false，动作后重新查询状态 7。"
     }
+  ],
+  "relatedRequests": [
+    { "requestRef": "lock-entry.entry-page", "kind": "option-source", "sourceId": "lock-types", "description": "提供当前 Session 可用的动态锁班类型" },
+    { "requestRef": "lock-entry.quota", "kind": "reference-query", "description": "供独立锁班工作台读取休假额度与规则" },
+    { "requestRef": "lock-entry.query-page", "kind": "reference-query", "description": "提供锁班查询表单和筛选项" },
+    { "requestRef": "lock-entry.query-first-page", "kind": "reference-query", "description": "查询锁班列表第一页" },
+    { "requestRef": "lock-entry.query-next-page", "kind": "reference-query", "description": "查询锁班列表后续页" },
+    { "requestRef": "lock-entry.approve", "kind": "state-action", "description": "把待审批记录变为已锁" },
+    { "requestRef": "lock-entry.withdraw", "kind": "state-action", "description": "把待审批记录变为已撤销" },
+    { "requestRef": "lock-entry.unlock", "kind": "state-action", "description": "把已锁记录变为已解锁" },
+    { "requestRef": "lock-entry.reject", "kind": "state-action", "description": "把待审批记录变为已否决" }
   ],
   "technicalNotes": [
     "当前未观察到 CSRF Header、CSRF Body、__VIEWSTATE 或其他动态签名；random 是防缓存值。",

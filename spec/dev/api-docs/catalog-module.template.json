@@ -1,0 +1,199 @@
+{
+  "schemaVersion": 2,
+  "id": "template-module",
+  "systemId": "template-system",
+  "name": "示例接口模块",
+  "description": "替换为当前已确认的模块用途。",
+  "baseUrl": "https://example.invalid",
+  "navigationUrl": "https://example.invalid/home",
+  "cookies": [],
+  "commonHeaders": [],
+  "groups": [
+    { "id": "default", "name": "默认分组" }
+  ],
+  "endpoints": [
+    {
+      "id": "query",
+      "groupId": "default",
+      "name": "示例查询",
+      "summary": "替换为当前端点的可观察用途。",
+      "risk": "read",
+      "method": "GET",
+      "path": "/query",
+      "parameters": [],
+      "execution": {
+        "kind": "direct-http",
+        "steps": [
+          {
+            "id": "load-options",
+            "requestRef": "template-module.options",
+            "role": "prerequisite",
+            "cardinality": "zero-or-one",
+            "condition": "当前 Session 尚未缓存动态选项"
+          },
+          { "id": "request", "requestRef": "$endpoint", "role": "primary", "cardinality": "once" }
+        ]
+      },
+      "response": {
+        "format": "JSON",
+        "statuses": [],
+        "fields": []
+      }
+    },
+    {
+      "id": "workflow",
+      "groupId": "default",
+      "name": "示例组合工作流",
+      "summary": "替换为当前本地组合工作流的可观察用途。",
+      "risk": "write",
+      "method": "POST",
+      "path": "/api/execute",
+      "parameters": [],
+      "execution": {
+        "kind": "local-workflow",
+        "steps": [
+          {
+            "id": "scan-pages",
+            "requestRef": "template-module.page-query",
+            "role": "page-loop",
+            "cardinality": "one-or-more",
+            "stopCondition": "达到服务端总数，或遇到空页、短页、无新增记录"
+          },
+          {
+            "id": "mark-items",
+            "requestRef": "template-module.item-action",
+            "role": "item-loop",
+            "cardinality": "zero-or-more",
+            "condition": "只处理本次选中的业务记录",
+            "stopCondition": "目标完成或首条失败"
+          }
+        ]
+      },
+      "response": {
+        "format": "Local workflow result",
+        "statuses": [],
+        "fields": []
+      }
+    }
+  ],
+  "requestDefinitions": [
+    {
+      "id": "session-check",
+      "name": "会话检查",
+      "purpose": "验证并保持当前系统会话。",
+      "risk": "read",
+      "method": "GET",
+      "path": "/session",
+      "parameters": [],
+      "response": "替换为已确认的有效会话响应条件。"
+    },
+    {
+      "id": "options",
+      "name": "动态选项",
+      "purpose": "读取当前会话可用的端点选项。",
+      "risk": "read",
+      "method": "GET",
+      "path": "/options",
+      "parameters": [],
+      "response": "替换为已确认的选项响应条件。"
+    },
+    {
+      "id": "page-query",
+      "name": "分页查询",
+      "purpose": "读取组合工作流的一页生产记录。",
+      "risk": "read",
+      "method": "POST",
+      "path": "/records/query",
+      "parameters": ["page"],
+      "response": "替换为已确认的分页响应条件。"
+    },
+    {
+      "id": "item-action",
+      "name": "逐项动作",
+      "purpose": "对一条已选择的生产记录执行动作。",
+      "risk": "write",
+      "method": "POST",
+      "path": "/records/action",
+      "parameters": ["recordId"],
+      "response": "替换为已确认的逐项动作响应条件。"
+    },
+    {
+      "id": "metadata",
+      "name": "模块元数据",
+      "purpose": "读取模块分类或其他元数据。",
+      "risk": "read",
+      "method": "GET",
+      "path": "/metadata",
+      "parameters": [],
+      "response": "替换为已确认的元数据响应条件。"
+    },
+    {
+      "id": "option-list",
+      "name": "相关选项来源",
+      "purpose": "读取模块概览中的可选筛选项。",
+      "risk": "read",
+      "method": "GET",
+      "path": "/option-list",
+      "parameters": [],
+      "response": "替换为已确认的选项响应条件。"
+    },
+    {
+      "id": "export",
+      "name": "原生导出",
+      "purpose": "下载生产系统原生导出文件。",
+      "risk": "read",
+      "method": "GET",
+      "path": "/export",
+      "parameters": [],
+      "response": "替换为已确认的文件响应条件。"
+    },
+    {
+      "id": "reference-query",
+      "name": "相关查询",
+      "purpose": "读取不会随当前端点自动执行的相关查询。",
+      "risk": "read",
+      "method": "GET",
+      "path": "/related",
+      "parameters": [],
+      "response": "替换为已确认的相关查询响应条件。"
+    },
+    {
+      "id": "state-action",
+      "name": "状态动作",
+      "purpose": "登记需要明确授权的相关生产状态动作。",
+      "risk": "write",
+      "method": "POST",
+      "path": "/state-action",
+      "parameters": ["recordId"],
+      "response": "替换为已确认的状态动作响应条件。"
+    }
+  ],
+  "relatedRequests": [
+    {
+      "requestRef": "template-module.metadata",
+      "kind": "metadata",
+      "description": "模块概览的分类或元数据请求"
+    },
+    {
+      "requestRef": "template-module.option-list",
+      "kind": "option-source",
+      "sourceId": "template-options",
+      "description": "模块概览的动态筛选项来源"
+    },
+    {
+      "requestRef": "template-module.export",
+      "kind": "export",
+      "description": "生产系统原生导出请求"
+    },
+    {
+      "requestRef": "template-module.reference-query",
+      "kind": "reference-query",
+      "description": "不会随当前 endpoint 自动执行的相关查询"
+    },
+    {
+      "requestRef": "template-module.state-action",
+      "kind": "state-action",
+      "description": "需要明确授权的相关写操作"
+    }
+  ]
+}
