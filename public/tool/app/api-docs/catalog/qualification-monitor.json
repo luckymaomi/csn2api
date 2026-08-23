@@ -123,7 +123,7 @@
     {
       "id": "native-export",
       "name": "门户原生 Excel 导出",
-      "purpose": "按单个 qualType 导出门户原生 OOXML；API 文档记录请求事实，不代理二进制下载。",
+      "purpose": "按单个 qualType 下载门户原生 OOXML。",
       "method": "GET",
       "path": "/newieb/qualification/alarm/new/exportQualificationInfoExcel",
       "parameters": ["qualType", "staffNum", "alarmType", "primaryBase", "manyStaffNum", "manyAlarmType", "base", "fleetCd", "allClear", "effective", "effectiveModel"],
@@ -134,7 +134,6 @@
     "29 个 endpoint 共享 queryAlarmDetail 路径和 PageInfo 契约，各自固定 qualType，调用方不能覆盖。",
     "空筛选参数必须保留；pageNum、pageSize 可编辑，默认 1、20。",
     "接口返回字段随资质子类变化，结构化表格保留当前页全部 JSON 字段，原始响应可单独查看。",
-    "资质监控（皇帝版）的一键 ZIP 是本地组合工作流，不是门户生产 URL，也不属于 API 文档二进制代理。",
     "门户原生导出的已解除警告排除行为被原样保留，不用分页 JSON 补齐。"
   ]
 }

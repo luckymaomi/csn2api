@@ -88,7 +88,5 @@ describe("API docs delivery", () => {
     expect(catalogView).toContain("请求参数");
     expect(catalogView).toContain("用途");
     expect(catalogView).toContain("响应契约");
-    expect(catalogView).toContain("机器可读 JSON");
-    expect(catalogView).toContain("module.catalogSource");
   });
 });

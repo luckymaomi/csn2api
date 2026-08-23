@@ -190,7 +190,7 @@ function systemCookieGuide(system, modules) {
             <div class="address-row"><span class="address-label">抓取请求</span><a href="${escapeHtml(system.credentialRequestUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(system.credentialRequestUrl)}</a></div>
         </div>
         <h3>认证字段</h3>
-        ${table(["Cookie", "要求", "技术事实"], cookies.map((cookie) => [
+        ${table(["Cookie", "要求", "说明"], cookies.map((cookie) => [
             `<code>${escapeHtml(cookie.name)}</code>`,
             cookie.required ? `<span class="required">必填</span>` : "按当前请求保留",
             escapeHtml(cookie.description || "")
@@ -212,11 +212,7 @@ export function renderCookieDocument(systems, modules) {
         <div class="breadcrumb">HTTP 系统 / 身份验证</div>
         <div class="endpoint-title-row"><h1>Cookie 管理</h1><span class="scope-badge">按系统隔离</span></div>
         <p class="endpoint-summary">IEB 与 OA 分别维护自己的 Cookie、Session 和保活请求。凭据只保存在当前页面和 Python 进程内存中，刷新即清除，不在系统之间共享。</p>
-        ${systems.map((system) => systemCookieGuide(system, modules)).join("")}
-        <section class="doc-section">
-            <h2>机器可读目录</h2>
-            <p class="machine-source"><a href="./catalog/index.json" target="_blank" rel="noopener noreferrer"><code>./catalog/index.json</code></a><span>接口模块索引，与页面展示和本地执行器同源。</span></p>
-        </section>`;
+        ${systems.map((system) => systemCookieGuide(system, modules)).join("")}`;
 }
 
 function internalRequestList(module) {
@@ -279,11 +275,6 @@ export function renderEndpointDocument(record, codeLanguage, supplied) {
                 <span class="address-label">${endpoint.executionKind === "local-workflow" ? "本地执行" : "HTTP 请求"}</span>
                 <span class="method${endpoint.method === "POST" ? " is-post" : ""}">${escapeHtml(endpoint.method)}</span>
                 <code>${escapeHtml(endpoint.executionKind === "local-workflow" ? "/api/execute" : module.baseUrl + endpoint.path)}</code>
-            </div>
-            <div class="address-row">
-                <span class="address-label">机器可读 JSON</span>
-                <a href="${escapeHtml(module.catalogSource)}" target="_blank" rel="noopener noreferrer"><code>${escapeHtml(module.catalogSource)}</code></a>
-                <span class="address-description">页面与本地执行器共用的完整事实源</span>
             </div>
         </section>
 
@@ -350,12 +341,6 @@ export function renderEndpointDocument(record, codeLanguage, supplied) {
 
         <section class="doc-section">
             <h2>内部请求链路</h2>
-            <p class="section-description">这些请求是当前业务接口的组成事实，不作为独立业务入口。</p>
             ${internalRequestList(module)}
-        </section>
-
-        <section class="doc-section">
-            <h2>技术说明</h2>
-            <ul class="fact-list">${(module.technicalNotes || []).map((note) => `<li>${escapeHtml(note)}</li>`).join("")}</ul>
         </section>`;
 }
