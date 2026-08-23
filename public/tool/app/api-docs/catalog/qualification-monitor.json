@@ -1,0 +1,140 @@
+{
+  "schemaVersion": 1,
+  "id": "qualification-monitor",
+  "systemId": "flight-portal",
+  "name": "资质监控按资质查询接口",
+  "description": "按资质子类分页查询当前监控记录。29 个入口共享生产查询路径，但各自固定 qualType。",
+  "baseUrl": "https://ieb.csair.com",
+  "navigationUrl": "https://ieb.csair.com/static/qualificationMonitorNew/searchByQualificationPage.html",
+  "cookies": [
+    { "name": "JSESSIONID", "required": true, "description": "门户 Session Cookie，HttpOnly" },
+    { "name": "iebJSid", "required": true, "description": "IEB 会话 Cookie，HttpOnly" }
+  ],
+  "commonHeaders": [
+    { "name": "Accept", "value": "application/json, text/plain, */*", "description": "PageInfo JSON 响应" },
+    { "name": "Referer", "value": "https://ieb.csair.com/index/index", "description": "已验证请求来源" },
+    { "name": "X-Requested-With", "value": "XMLHttpRequest", "description": "门户 XHR 标记" },
+    { "name": "Accept-Language", "value": "zh-CN,zh;q=0.9", "description": "中文响应" }
+  ],
+  "groups": [
+    { "id": "operating", "name": "资质运行类" },
+    { "id": "qualification", "name": "资质资格类" },
+    { "id": "special", "name": "资质特殊类" }
+  ],
+  "endpointDefaults": {
+    "summary": "按固定资质代码查询一页监控记录，空筛选参数表示不限制对应字段。",
+    "risk": "read",
+    "method": "GET",
+    "path": "/newieb/qualification/alarm/new/queryAlarmDetail",
+    "response": {
+      "format": "JSON PageInfo",
+      "statuses": [
+        { "code": 200, "description": "PageInfo JSON；仍需排除登录页并校验 list、total、pages 和页码字段" }
+      ],
+      "fields": [
+        { "name": "list", "type": "array", "description": "当前页记录，字段随资质子类变化" },
+        { "name": "total", "type": "number", "description": "当前筛选的总记录数" },
+        { "name": "pages", "type": "number", "description": "总页数" },
+        { "name": "pageNum", "type": "number", "description": "当前页码" },
+        { "name": "pageSize", "type": "number", "description": "每页条数" },
+        { "name": "hasNextPage", "type": "boolean", "description": "是否还有下一页" },
+        { "name": "staffNum", "type": "string", "description": "记录中的员工号公共字段" },
+        { "name": "name", "type": "string", "description": "记录中的姓名公共字段；实际键名以原始 JSON 为准" },
+        { "name": "primaryBase", "type": "string", "description": "注册基地公共字段" },
+        { "name": "base", "type": "string", "description": "运行基地公共字段" },
+        { "name": "fleetCd", "type": "string", "description": "机队公共字段" }
+      ],
+      "example": "{\"list\":[{\"staffNum\":\"900001\",\"name\":\"示例人员\"}],\"total\":1,\"pages\":1,\"pageNum\":1,\"pageSize\":20,\"hasNextPage\":false}"
+    }
+  },
+  "commonParameters": [
+    { "name": "staffNum", "in": "query", "label": "员工号", "type": "text", "default": "", "includeWhenEmpty": true, "description": "空值表示不按单个员工号筛选" },
+    { "name": "alarmType", "in": "query", "label": "状态", "type": "select", "default": "", "includeWhenEmpty": true, "options": [{ "value": "3", "label": "失效" }, { "value": "2", "label": "警告" }, { "value": "1", "label": "注意" }, { "value": "0", "label": "正常" }], "description": "空值表示全部状态" },
+    { "name": "primaryBase", "in": "query", "label": "注册基地", "type": "text", "default": "", "includeWhenEmpty": true, "description": "空值表示不筛选" },
+    { "name": "manyStaffNum", "in": "query", "label": "多个员工号", "type": "text", "default": "", "includeWhenEmpty": true, "description": "保留页面批量员工号筛选参数" },
+    { "name": "manyAlarmType", "in": "query", "label": "多个状态", "type": "text", "default": "", "includeWhenEmpty": true, "description": "保留页面批量状态筛选参数" },
+    { "name": "base", "in": "query", "label": "运行基地", "type": "text", "default": "", "includeWhenEmpty": true, "description": "空值表示不筛选" },
+    { "name": "fleetCd", "in": "query", "label": "机队", "type": "text", "default": "", "includeWhenEmpty": true, "description": "空值表示不筛选" },
+    { "name": "allClear", "in": "query", "label": "解除状态", "type": "text", "default": "", "includeWhenEmpty": true, "description": "空值保留门户默认查询口径" },
+    { "name": "effective", "in": "query", "label": "有效状态", "type": "text", "default": "", "includeWhenEmpty": true, "description": "空值表示不筛选" },
+    { "name": "effectiveModel", "in": "query", "label": "有效机型", "type": "text", "default": "", "includeWhenEmpty": true, "description": "空值表示不筛选" },
+    { "name": "pageNum", "in": "query", "label": "页码", "type": "number", "default": "1", "required": true, "minimum": 1, "description": "从 1 开始" },
+    { "name": "pageSize", "in": "query", "label": "每页条数", "type": "number", "default": "20", "required": true, "minimum": 1, "description": "门户页面默认 20" }
+  ],
+  "endpoints": [
+    { "id": "operating-90d3f", "groupId": "operating", "name": "90天3起落", "parameters": [{ "name": "qualType", "in": "query", "label": "资质代码", "type": "text", "default": "90D3F", "fixed": true, "description": "90天3起落" }] },
+    { "id": "operating-120d100h", "groupId": "operating", "name": "新岗位120天100小时", "parameters": [{ "name": "qualType", "in": "query", "label": "资质代码", "type": "text", "default": "120D100H", "fixed": true, "description": "新岗位120天100小时" }] },
+    { "id": "operating-hy4", "groupId": "operating", "name": "汉语4级", "parameters": [{ "name": "qualType", "in": "query", "label": "资质代码", "type": "text", "default": "HY4", "fixed": true, "description": "汉语4级" }] },
+    { "id": "operating-tjhg", "groupId": "operating", "name": "体检合格证", "parameters": [{ "name": "qualType", "in": "query", "label": "资质代码", "type": "text", "default": "TJHG", "fixed": true, "description": "体检合格证" }] },
+    { "id": "operating-fx", "groupId": "operating", "name": "复训", "parameters": [{ "name": "qualType", "in": "query", "label": "资质代码", "type": "text", "default": "FX", "fixed": true, "description": "复训" }] },
+    { "id": "operating-sljj", "groupId": "operating", "name": "熟练检查", "parameters": [{ "name": "qualType", "in": "query", "label": "资质代码", "type": "text", "default": "SLJJ", "fixed": true, "description": "熟练检查" }] },
+    { "id": "operating-zzyy", "groupId": "operating", "name": "执照有效期", "parameters": [{ "name": "qualType", "in": "query", "label": "资质代码", "type": "text", "default": "ZZYY", "fixed": true, "description": "执照有效期" }] },
+    { "id": "operating-wxpys", "groupId": "operating", "name": "危险品运输", "parameters": [{ "name": "qualType", "in": "query", "label": "资质代码", "type": "text", "default": "WXPYS", "fixed": true, "description": "危险品运输" }] },
+    { "id": "operating-jznd", "groupId": "operating", "name": "机长年度", "parameters": [{ "name": "qualType", "in": "query", "label": "资质代码", "type": "text", "default": "JZND", "fixed": true, "description": "机长年度" }] },
+    { "id": "operating-yjxl", "groupId": "operating", "name": "应急训练", "parameters": [{ "name": "qualType", "in": "query", "label": "资质代码", "type": "text", "default": "YJXL", "fixed": true, "description": "应急训练" }] },
+    { "id": "operating-abpx", "groupId": "operating", "name": "安保培训", "parameters": [{ "name": "qualType", "in": "query", "label": "资质代码", "type": "text", "default": "ABPX", "fixed": true, "description": "安保培训" }] },
+    { "id": "operating-hjxx", "groupId": "operating", "name": "换季学习", "parameters": [{ "name": "qualType", "in": "query", "label": "资质代码", "type": "text", "default": "HJXX", "fixed": true, "description": "换季学习" }] },
+    { "id": "operating-gjqydf", "groupId": "operating", "name": "国际区域单飞", "parameters": [{ "name": "qualType", "in": "query", "label": "资质代码", "type": "text", "default": "GJQYDF", "fixed": true, "description": "国际区域单飞" }] },
+    { "id": "operating-gjqyyytx", "groupId": "operating", "name": "国际区域英语通信", "parameters": [{ "name": "qualType", "in": "query", "label": "资质代码", "type": "text", "default": "GJQYYYTX", "fixed": true, "description": "国际区域英语通信" }] },
+    { "id": "qualification-icao4", "groupId": "qualification", "name": "ICAO4级", "parameters": [{ "name": "qualType", "in": "query", "label": "资质代码", "type": "text", "default": "ICAO4", "fixed": true, "description": "ICAO4级" }] },
+    { "id": "qualification-icao5", "groupId": "qualification", "name": "ICAO5级", "parameters": [{ "name": "qualType", "in": "query", "label": "资质代码", "type": "text", "default": "ICAO5", "fixed": true, "description": "ICAO5级" }] },
+    { "id": "qualification-hy5", "groupId": "qualification", "name": "汉语5级", "parameters": [{ "name": "qualType", "in": "query", "label": "资质代码", "type": "text", "default": "HY5", "fixed": true, "description": "汉语5级" }] },
+    { "id": "qualification-cat", "groupId": "qualification", "name": "CAT二类/三类", "parameters": [{ "name": "qualType", "in": "query", "label": "资质代码", "type": "text", "default": "CAT", "fixed": true, "description": "CAT二类/三类" }] },
+    { "id": "qualification-wgz", "groupId": "qualification", "name": "无过站运行", "parameters": [{ "name": "qualType", "in": "query", "label": "资质代码", "type": "text", "default": "WGZ", "fixed": true, "description": "无过站运行" }] },
+    { "id": "qualification-737ngmax", "groupId": "qualification", "name": "737NG/MAX资格", "parameters": [{ "name": "qualType", "in": "query", "label": "资质代码", "type": "text", "default": "737NGMAX", "fixed": true, "description": "737NG/MAX资格" }] },
+    { "id": "qualification-tsjc", "groupId": "qualification", "name": "特殊机场资格", "parameters": [{ "name": "qualType", "in": "query", "label": "资质代码", "type": "text", "default": "TSJC", "fixed": true, "description": "特殊机场资格" }] },
+    { "id": "qualification-ebtcapt", "groupId": "qualification", "name": "EBT教员培训", "parameters": [{ "name": "qualType", "in": "query", "label": "资质代码", "type": "text", "default": "EBTCAPT", "fixed": true, "description": "EBT教员培训" }] },
+    { "id": "qualification-tri", "groupId": "qualification", "name": "型别教员TRI", "parameters": [{ "name": "qualType", "in": "query", "label": "资质代码", "type": "text", "default": "TRI", "fixed": true, "description": "型别教员TRI" }] },
+    { "id": "qualification-atri", "groupId": "qualification", "name": "A类飞行教员TRI更新检查", "parameters": [{ "name": "qualType", "in": "query", "label": "资质代码", "type": "text", "default": "ATRI", "fixed": true, "description": "A类飞行教员TRI更新检查" }] },
+    { "id": "special-zzjlql", "groupId": "special", "name": "左座经历起落监控", "parameters": [{ "name": "qualType", "in": "query", "label": "资质代码", "type": "text", "default": "ZZJLQL", "fixed": true, "description": "左座经历起落监控" }] },
+    { "id": "special-ilsprm", "groupId": "special", "name": "ILS PRM 进近", "parameters": [{ "name": "qualType", "in": "query", "label": "资质代码", "type": "text", "default": "ILSPRM", "fixed": true, "description": "ILS PRM 进近" }] },
+    { "id": "special-hy6", "groupId": "special", "name": "汉语6级", "parameters": [{ "name": "qualType", "in": "query", "label": "资质代码", "type": "text", "default": "HY6", "fixed": true, "description": "汉语6级" }] },
+    { "id": "special-jcy", "groupId": "special", "name": "检查员/委任代表", "parameters": [{ "name": "qualType", "in": "query", "label": "资质代码", "type": "text", "default": "JCY", "fixed": true, "description": "检查员/委任代表" }] },
+    { "id": "special-jdyx", "groupId": "special", "name": "极地运行", "parameters": [{ "name": "qualType", "in": "query", "label": "资质代码", "type": "text", "default": "JDYX", "fixed": true, "description": "极地运行" }] }
+  ],
+  "internalRequests": [
+    {
+      "id": "classification-tree",
+      "name": "资质分类树",
+      "purpose": "读取三类父项及当前全部子类，子类 msgCode 是分页查询和原生导出的 qualType。",
+      "method": "GET",
+      "path": "/newieb/qualification/alarm/new/queryQualificationTypeParent",
+      "parameters": [],
+      "response": "JSON 数组。只接受 ZZYX、ZZZG、ZZTS 三类父项；子项必须有唯一 msgCode 和非空 msgType。"
+    },
+    {
+      "id": "data-power",
+      "name": "权限筛选选项",
+      "purpose": "读取注册基地、运行基地和机队权限选项。",
+      "method": "GET",
+      "path": "/newieb/qualification/alarm/new/queryUserDataPower",
+      "parameters": [],
+      "response": "JSON，提供 primBaseList、baseList、fleetCdList。"
+    },
+    {
+      "id": "effective-models",
+      "name": "有效机型选项",
+      "purpose": "读取有效机型筛选列表。",
+      "method": "GET",
+      "path": "/newieb/qualification/alarm/new/queryFleetCd",
+      "parameters": [],
+      "response": "JSON 有效机型列表。"
+    },
+    {
+      "id": "native-export",
+      "name": "门户原生 Excel 导出",
+      "purpose": "按单个 qualType 导出门户原生 OOXML；API 文档记录请求事实，不代理二进制下载。",
+      "method": "GET",
+      "path": "/newieb/qualification/alarm/new/exportQualificationInfoExcel",
+      "parameters": ["qualType", "staffNum", "alarmType", "primaryBase", "manyStaffNum", "manyAlarmType", "base", "fleetCd", "allClear", "effective", "effectiveModel"],
+      "response": "HTTP 200 的响应体是 OOXML ZIP。门户文件名和 MIME 可能不规范；GJQYDF、GJQYYYTX 的原生导出会排除部分 allClear=Y 记录。"
+    }
+  ],
+  "technicalNotes": [
+    "29 个 endpoint 共享 queryAlarmDetail 路径和 PageInfo 契约，各自固定 qualType，调用方不能覆盖。",
+    "空筛选参数必须保留；pageNum、pageSize 可编辑，默认 1、20。",
+    "接口返回字段随资质子类变化，结构化表格保留当前页全部 JSON 字段，原始响应可单独查看。",
+    "资质监控（皇帝版）的一键 ZIP 是本地组合工作流，不是门户生产 URL，也不属于 API 文档二进制代理。",
+    "门户原生导出的已解除警告排除行为被原样保留，不用分页 JSON 补齐。"
+  ]
+}

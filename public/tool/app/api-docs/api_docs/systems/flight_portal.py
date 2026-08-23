@@ -19,6 +19,7 @@ from .flight_portal_parsers import (
     parse_lock_types,
     parse_personnel_basic,
     parse_personnel_html,
+    parse_qualification_page_info,
     validate_query_page,
 )
 from .session_keepalive import SessionKeepAlive
@@ -145,6 +146,9 @@ class FlightPortalAdapter:
         elif record.full_id == "personnel-info.training-experiences":
             response = self._execute_personnel_form(record, supplied, "staffNum")
             parser = lambda: parse_personnel_html(str(response.text or ""), "#trainResultList, #empProfile_trainResultList", "training-experiences", "训练经历")
+        elif record.module.get("id") == "qualification-monitor":
+            response = self._execute_catalog_get(record, supplied)
+            parser = lambda: parse_qualification_page_info(str(response.text or ""))
         else:
             raise ExecutionError("当前系统不支持该业务接口")
 
@@ -167,6 +171,20 @@ class FlightPortalAdapter:
     ) -> requests.Response:
         return self._request(
             str(record.endpoint["method"]),
+            record.url,
+            params=self._build_catalog_parameters(record, supplied),
+            headers=self._record_headers(record),
+        )
+
+    def _execute_catalog_get(
+        self,
+        record: EndpointRecord,
+        supplied: dict[str, object],
+    ) -> requests.Response:
+        if record.endpoint.get("method") != "GET":
+            raise ExecutionError("目录通用查询只允许 GET")
+        return self._request(
+            "GET",
             record.url,
             params=self._build_catalog_parameters(record, supplied),
             headers=self._record_headers(record),
@@ -249,7 +267,7 @@ class FlightPortalAdapter:
             if not isinstance(parameter, dict):
                 continue
             name = str(parameter.get("name", ""))
-            raw_value = supplied.get(name, parameter.get("default", ""))
+            raw_value = parameter.get("default", "") if parameter.get("fixed") else supplied.get(name, parameter.get("default", ""))
             automatic = str(parameter.get("auto", ""))
             if automatic == "timestamp":
                 raw_value = str(time.time_ns())

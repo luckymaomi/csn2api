@@ -222,3 +222,37 @@ def parse_personnel_basic(body: str) -> dict[str, object]:
 def parse_personnel_html(html: str, selector: str, table_id: str, title: str) -> dict[str, object]:
     columns, rows = _section_data(BeautifulSoup(str(html or ""), "html.parser"), selector)
     return {"summary": {"recordCount": len(rows)}, "tables": [{"id": table_id, "title": title, "columns": columns, "rows": rows}]}
+
+
+def parse_qualification_page_info(body: str) -> dict[str, object]:
+    try:
+        payload = json.loads(str(body or ""))
+    except json.JSONDecodeError as error:
+        raise ExecutionError("资质查询接口未返回有效 JSON") from error
+    if not isinstance(payload, dict) or not isinstance(payload.get("list"), list):
+        raise ExecutionError("资质查询 PageInfo 结构异常")
+    rows = payload["list"]
+    if any(not isinstance(row, dict) for row in rows):
+        raise ExecutionError("资质查询结果行结构异常")
+    columns: list[str] = []
+    for row in rows:
+        for name in row:
+            if name not in columns:
+                columns.append(str(name))
+    summary = {
+        "recordCount": len(rows),
+        "total": payload.get("total", 0),
+        "pages": payload.get("pages", 0),
+        "pageNum": payload.get("pageNum", 0),
+        "pageSize": payload.get("pageSize", 0),
+        "hasNextPage": bool(payload.get("hasNextPage", False)),
+    }
+    return {
+        "summary": summary,
+        "tables": [{
+            "id": "qualification-monitor",
+            "title": "资质监控查询结果",
+            "columns": columns,
+            "rows": rows,
+        }],
+    }

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from copy import deepcopy
 from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import urlparse
@@ -79,8 +80,40 @@ class ApiCatalog:
                 raise CatalogError(f"接口模块标识不一致：{source}")
             if str(module.get("systemId", "")) not in system_ids:
                 raise CatalogError(f"接口模块所属系统不存在：{source}")
+            self._materialize_endpoint_defaults(module)
             modules.append(module)
         return {"schemaVersion": 1, "systems": systems, "modules": modules}
+
+    @staticmethod
+    def _materialize_endpoint_defaults(module: dict[str, object]) -> None:
+        defaults = module.get("endpointDefaults", {})
+        common_parameters = module.get("commonParameters", [])
+        if not isinstance(defaults, dict) or not isinstance(common_parameters, list):
+            raise CatalogError("接口模块共享契约格式无效")
+        endpoints = module.get("endpoints", [])
+        if not isinstance(endpoints, list):
+            return
+        expanded: list[object] = []
+        for endpoint in endpoints:
+            if not isinstance(endpoint, dict):
+                expanded.append(endpoint)
+                continue
+            merged = {**deepcopy(defaults), **endpoint}
+            own_parameters = endpoint.get("parameters", [])
+            if not isinstance(own_parameters, list):
+                expanded.append(merged)
+                continue
+            names = {
+                str(parameter.get("name", ""))
+                for parameter in own_parameters
+                if isinstance(parameter, dict)
+            }
+            merged["parameters"] = [
+                *deepcopy(own_parameters),
+                *(deepcopy(parameter) for parameter in common_parameters if not isinstance(parameter, dict) or str(parameter.get("name", "")) not in names),
+            ]
+            expanded.append(merged)
+        module["endpoints"] = expanded
 
     def _index_endpoints(self) -> dict[str, EndpointRecord]:
         indexed: dict[str, EndpointRecord] = {}

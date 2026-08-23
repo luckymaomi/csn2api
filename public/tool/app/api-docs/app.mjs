@@ -1,3 +1,4 @@
+import { materializeCatalogModule } from "./catalog-normalize.mjs";
 import {
     buildCurlExample,
     buildPythonExample,
@@ -90,7 +91,7 @@ async function loadCatalog() {
     state.systems = Array.isArray(index.systems) ? index.systems : [];
     state.modules = await Promise.all(index.modules.map(async (item) => {
         const source = String(item.source || "").replace(/^\.\//, "");
-        const module = await fetchJson(`./catalog/${source}`);
+        const module = materializeCatalogModule(await fetchJson(`./catalog/${source}`));
         return { ...module, catalogSource: `./catalog/${source}` };
     }));
     state.endpointRecords.clear();

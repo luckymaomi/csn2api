@@ -1,3 +1,5 @@
+import { materializeCatalogModule } from "./catalog-normalize.mjs";
+
 function text(value) {
     return String(value ?? "");
 }
@@ -203,6 +205,7 @@ function appendInternalRequests(lines, module) {
 }
 
 function appendModule(lines, module, index) {
+    module = materializeCatalogModule(module);
     lines.push(
         `## ${index + 1}. ${module.name}`,
         "",

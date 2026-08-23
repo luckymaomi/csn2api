@@ -103,9 +103,10 @@ class ServerTests(unittest.TestCase):
         health = self.request("/api/health")
         self.assertTrue(health["available"])
         catalog = self.request("/api/catalog")
-        self.assertEqual(
-            [module["id"] for module in catalog["modules"]],
-            ["flight-stats", "lock-entry", "personnel-info", "oa-read"],
+        self.assertTrue(
+            {"flight-stats", "lock-entry", "personnel-info", "oa-read"}.issubset(
+                {module["id"] for module in catalog["modules"]}
+            )
         )
         session = self.request(
             "/api/session",

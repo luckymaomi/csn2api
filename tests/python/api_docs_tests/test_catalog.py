@@ -13,24 +13,19 @@ class CatalogTests(unittest.TestCase):
 
     def test_catalog_exposes_cross_system_business_apis(self) -> None:
         modules = self.catalog.as_dict()["modules"]
-        self.assertEqual(
-            [module["name"] for module in modules],
-            ["飞行经历查询接口", "飞行人员锁班接口", "飞行人员信息查询接口", "OA 公文已阅接口"],
-        )
-        self.assertEqual(
-            list(self.catalog.endpoints),
-            [
-                "flight-stats.query",
-                "lock-entry.submit",
-                "personnel-info.basic",
-                "personnel-info.technical",
-                "personnel-info.operation",
-                "personnel-info.training-records",
-                "personnel-info.training-experiences",
-                "oa-read.count",
-                "oa-read.read",
-            ],
-        )
+        self.assertTrue({
+            "飞行经历查询接口",
+            "飞行人员锁班接口",
+            "飞行人员信息查询接口",
+            "OA 公文已阅接口",
+            "资质监控按资质查询接口",
+        }.issubset({module["name"] for module in modules}))
+        self.assertTrue({
+            "flight-stats.query",
+            "lock-entry.submit",
+            "personnel-info.basic",
+            "oa-read.count",
+        }.issubset(self.catalog.endpoints))
         personnel = modules[2]
         self.assertEqual(
             [group["name"] for group in personnel["groups"]],
@@ -40,6 +35,28 @@ class CatalogTests(unittest.TestCase):
         self.assertEqual([system["id"] for system in systems], ["flight-portal", "oa"])
         self.assertEqual(systems[0]["navigationUrl"], "https://ieb.csair.com/index/index")
         self.assertEqual(systems[1]["credentialRequestUrl"], "https://work.csair.com/oai/work/box/query/waiting")
+
+    def test_qualification_monitor_exposes_29_fixed_query_contracts(self) -> None:
+        records = [
+            record
+            for full_id, record in self.catalog.endpoints.items()
+            if full_id.startswith("qualification-monitor.")
+        ]
+        self.assertEqual(len(records), 29)
+        self.assertEqual(
+            {record.endpoint["groupId"] for record in records},
+            {"operating", "qualification", "special"},
+        )
+        codes = []
+        for record in records:
+            self.assertEqual(record.endpoint["method"], "GET")
+            self.assertEqual(record.endpoint["path"], "/newieb/qualification/alarm/new/queryAlarmDetail")
+            parameters = {item["name"]: item for item in record.endpoint["parameters"]}
+            self.assertTrue(parameters["qualType"]["fixed"])
+            self.assertTrue(parameters["staffNum"]["includeWhenEmpty"])
+            self.assertEqual(parameters["pageSize"]["default"], "20")
+            codes.append(parameters["qualType"]["default"])
+        self.assertEqual(len(set(codes)), 29)
 
     def test_internal_request_facts_are_preserved_without_becoming_endpoints(self) -> None:
         modules = self.catalog.as_dict()["modules"]

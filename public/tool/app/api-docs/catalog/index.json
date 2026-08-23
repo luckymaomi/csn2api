@@ -60,6 +60,12 @@
       "name": "OA 公文已阅接口",
       "description": "全量待办数量与按任意正整数逐条执行公文已阅的组合工作流",
       "source": "./oa-read.json"
+    },
+    {
+      "id": "qualification-monitor",
+      "name": "资质监控按资质查询接口",
+      "description": "三类资质的 29 个独立分页查询入口和门户原生导出事实",
+      "source": "./qualification-monitor.json"
     }
   ]
 }

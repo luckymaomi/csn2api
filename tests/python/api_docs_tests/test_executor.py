@@ -60,6 +60,18 @@ TECHNICAL_RESULT_HTML = """
 </div>
 """
 
+QUALIFICATION_PAGE_INFO = json.dumps({
+    "list": [
+        {"staffNum": "900001", "name": "测试人员", "alarmType": "2"},
+        {"staffNum": "900002", "name": "样例人员", "specialField": "动态字段"},
+    ],
+    "total": 42,
+    "pages": 3,
+    "pageNum": 2,
+    "pageSize": 20,
+    "hasNextPage": True,
+}, ensure_ascii=False)
+
 OA_USER_INFO = json.dumps({"code": 200, "data": {"displayName": "示例用户"}}, ensure_ascii=False)
 OA_WAITING = json.dumps({
     "code": 200,
@@ -256,6 +268,35 @@ class ExecutorTests(unittest.TestCase):
         self.assertEqual(technical["data"]["summary"]["recordCount"], 1)
         self.assertEqual(technical["data"]["tables"][0]["rows"][0]["技术等级"], "机长")
         self.assertIn(("staffNum", "900001"), session.requests[-1]["data"])
+
+    def test_qualification_query_uses_fixed_code_and_parses_page_info(self) -> None:
+        executor, session = self.create_executor([
+            FakeResponse(QUERY_PAGE_HTML),
+            FakeResponse(QUALIFICATION_PAGE_INFO, content_type="application/json"),
+        ])
+        executor.load_credentials("JSESSIONID=session-value; iebJSid=browser-value")
+        result = executor.execute("qualification-monitor.operating-90d3f", {
+            "qualType": "ATTEMPTED_OVERRIDE",
+            "pageNum": 2,
+            "pageSize": 20,
+        })
+
+        self.assertEqual(result["data"]["summary"], {
+            "recordCount": 2,
+            "total": 42,
+            "pages": 3,
+            "pageNum": 2,
+            "pageSize": 20,
+            "hasNextPage": True,
+        })
+        table = result["data"]["tables"][0]
+        self.assertIn("specialField", table["columns"])
+        params = session.requests[-1]["params"]
+        self.assertIn(("qualType", "90D3F"), params)
+        self.assertNotIn(("qualType", "ATTEMPTED_OVERRIDE"), params)
+        self.assertIn(("staffNum", ""), params)
+        self.assertIn(("pageNum", "2"), params)
+        self.assertEqual(session.requests[-1]["method"], "GET")
 
     def test_verified_cookie_is_kept_alive_with_read_only_query_page(self) -> None:
         request_event = threading.Event()
