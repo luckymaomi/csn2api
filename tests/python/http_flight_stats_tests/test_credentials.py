@@ -15,6 +15,10 @@ class CredentialTests(unittest.TestCase):
         )
 
         cookies = parse_credentials(source)
+        self.assertEqual(
+            parse_credentials("飞行门户：JSESSIONID=session-value; iebJSid=browser-value"),
+            {"JSESSIONID": "session-value", "iebJSid": "browser-value"},
+        )
 
         self.assertEqual(
             cookies,

@@ -13,6 +13,10 @@ def _extract_cookie_text(source: str) -> str:
     if not text:
         raise ValueError("请粘贴登录凭据")
 
+    labeled_cookie = re.match(r"(?is)^(?:飞行门户|IEB)\s*[:：]\s*(.+)$", text)
+    if labeled_cookie and "\n" not in text and "\r" not in text:
+        return labeled_cookie.group(1).strip().strip("'\"")
+
     quoted_header = re.search(
         r"(?is)(?:-H|--header)\s+\^?(['\"])cookie\s*:\s*(.*?)\^?\1",
         text,

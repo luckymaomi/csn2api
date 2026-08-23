@@ -19,6 +19,10 @@ class CredentialTests(unittest.TestCase):
             parse_credentials("curl 'https://ieb.csair.com/a' -H 'Cookie: JSESSIONID=a; iebJSid=b'"),
             {"JSESSIONID": "a", "iebJSid": "b"},
         )
+        self.assertEqual(
+            parse_credentials("飞行门户：JSESSIONID=session-value; iebJSid=browser-value"),
+            {"JSESSIONID": "session-value", "iebJSid": "browser-value"},
+        )
 
     def test_requires_both_session_cookies(self) -> None:
         with self.assertRaisesRegex(ValueError, "iebJSid"):

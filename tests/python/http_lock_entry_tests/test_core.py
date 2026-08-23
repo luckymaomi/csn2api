@@ -19,6 +19,10 @@ class HttpLockEntryCoreTest(unittest.TestCase):
             "-H 'Cookie: ignored=abc; JSESSIONID=session-secret; iebJSid=ieb-secret'"
         )
         cookies = parse_credentials(source)
+        self.assertEqual(
+            parse_credentials("飞行门户：JSESSIONID=session-value; iebJSid=browser-value"),
+            {"JSESSIONID": "session-value", "iebJSid": "browser-value"},
+        )
         self.assertEqual(cookies, {"JSESSIONID": "session-secret", "iebJSid": "ieb-secret"})
         summary = credential_summary(cookies)
         self.assertEqual(summary["cookieCount"], 2)
