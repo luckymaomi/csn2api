@@ -1,0 +1,71 @@
+{
+  "schemaVersion": 2,
+  "id": "soc-positioning",
+  "systemId": "soc",
+  "name": "SOC 随机置位申请接口",
+  "navigationGroup": "飞行人员随机置位",
+  "description": "随机指随航班置位；当前模块记录站点、航班、人员校验和单条提交契约。",
+  "baseUrl": "https://soc.csair.com",
+  "navigationUrl": "https://soc.csair.com/opws-web/pages/public/soc.jsp?f=2&s=11&t=1",
+  "cookies": [
+    { "name": "JSESSIONID", "required": true, "description": "SOC 应用会话" },
+    { "name": "com.trs.idm.coSessionId", "required": false, "description": "统一身份会话，当前与 JSESSIONID 同值但未证明最小必要性" },
+    { "name": "trsidssdssotoken", "required": false, "description": "SSO Token，建议保留当前完整 Cookie" }
+  ],
+  "commonHeaders": [
+    { "name": "Content-Type", "value": "application/x-www-form-urlencoded; charset=UTF-8", "description": "UTF-8 表单编码" },
+    { "name": "Origin", "value": "https://soc.csair.com", "description": "SOC 来源" },
+    { "name": "Referer", "value": "https://soc.csair.com/opws-web/pages/public/soc.jsp?f=2&s=11&t=1", "description": "随机置位外层页面" },
+    { "name": "X-Requested-With", "value": "XMLHttpRequest", "description": "XHR 标记" }
+  ],
+  "groups": [{ "id": "positioning", "name": "随机置位" }],
+  "endpoints": [
+    {
+      "id": "station-suggest", "groupId": "positioning", "name": "站点拼音建议", "summary": "按拼音返回站点候选；空值和通配符不返回全量。", "risk": "read", "method": "POST", "path": "/opws-web/flightinfo-FlightPlan-findSuggest.action",
+      "execution": { "kind": "direct-http", "steps": [{ "id": "request", "requestRef": "$endpoint", "role": "primary", "cardinality": "once" }] },
+      "parameters": [{ "name": "dataJson", "in": "form", "label": "站点拼音", "type": "text", "required": true, "placeholder": "例如 zhengzhou", "description": "中文直接查询可能返回空数组" }],
+      "response": { "format": "JSON", "statuses": [{ "code": 200, "description": "result 数组包含中文站点候选" }], "fields": [{ "name": "result", "type": "array", "description": "站点名称数组" }] }
+    },
+    {
+      "id": "apply-reasons", "groupId": "positioning", "name": "申请原因列表", "summary": "只读核对当前页面原因字典；批量 APP 使用已确认的 20 条静态字典。", "risk": "read", "method": "POST", "path": "/opws-web/aircrew-KkTvlApply-getApplyReasons.action",
+      "execution": { "kind": "direct-http", "steps": [{ "id": "request", "requestRef": "$endpoint", "role": "primary", "cardinality": "once" }] },
+      "parameters": [],
+      "response": { "format": "JSON", "statuses": [{ "code": 200, "description": "rows 数组；当前确认 20 条" }], "fields": [{ "name": "rows", "type": "array", "description": "applyReasonCd、applyReasonDesc、applyReasonType" }] }
+    },
+    {
+      "id": "flights", "groupId": "positioning", "name": "动态航班列表", "summary": "按业务日期和中文站点取得可提交航班复合值。", "risk": "read", "method": "POST", "path": "/opws-web/aircrew-KkTvlApply-getFltNumList.action",
+      "execution": { "kind": "direct-http", "steps": [{ "id": "request", "requestRef": "$endpoint", "role": "primary", "cardinality": "once" }] },
+      "parameters": [
+        { "name": "kkTvlApplyVO.fltDt", "in": "form", "label": "航班日期", "type": "date", "required": true },
+        { "name": "kkTvlApplyVO.depArpCd", "in": "form", "label": "出发地", "type": "text", "required": true },
+        { "name": "kkTvlApplyVO.arvArpCd", "in": "form", "label": "目的地", "type": "text", "required": true }
+      ],
+      "response": { "format": "JSON", "statuses": [{ "code": 200, "description": "rows 和 total；total=0 表示无可选航班" }], "fields": [{ "name": "rows", "type": "array", "description": "fltNr、seqNr、fltDt、fltRoute、fltTime、crewDepDt、subfleetType、alnCd" }, { "name": "total", "type": "number", "description": "动态航班数量" }] }
+    },
+    {
+      "id": "staff-validation", "groupId": "positioning", "name": "人员与业务校验", "summary": "校验员工和当前航线、日期、原因是否允许申请。", "risk": "read", "method": "POST", "path": "/opws-web/aircrew-KkTvlApply-getStaffValidate.action",
+      "execution": { "kind": "direct-http", "steps": [{ "id": "request", "requestRef": "$endpoint", "role": "primary", "cardinality": "once" }] },
+      "parameters": [
+        { "name": "staffNums", "in": "form", "label": "员工号", "type": "text", "required": true }, { "name": "depArpCd", "in": "form", "label": "出发地", "type": "text", "required": true }, { "name": "arvArpCd", "in": "form", "label": "目的地", "type": "text", "required": true }, { "name": "fltDt", "in": "form", "label": "航班日期", "type": "date", "required": true }, { "name": "depArpCd2", "in": "form", "label": "出发地2", "type": "text", "default": "" }, { "name": "arvArpCd2", "in": "form", "label": "目的地2", "type": "text", "default": "" }, { "name": "fltDt2", "in": "form", "label": "航班日期2", "type": "date", "required": true }, { "name": "applyReasonCd", "in": "form", "label": "申请原因代码", "type": "text", "required": true }, { "name": "hasSecondFlt", "in": "form", "label": "第二航段", "type": "select", "required": true, "default": "N", "options": [{ "value": "N", "label": "无" }, { "value": "Y", "label": "有" }] }, { "name": "fltRoute", "in": "form", "label": "IATA 航线", "type": "text", "required": true }
+      ],
+      "response": { "format": "JSON", "statuses": [{ "code": 200, "description": "failFeedback 为空且 rows 有唯一员工时通过" }], "fields": [{ "name": "failFeedback", "type": "text", "description": "非空为业务拒绝" }, { "name": "rows", "type": "array", "description": "员工号、中文名、基地、级别" }] }
+    },
+    {
+      "id": "submit", "groupId": "positioning", "name": "单条随机置位提交", "summary": "使用动态航班完整 option value 提交一条授权申请；每次最多发送一次。", "risk": "write", "method": "POST", "path": "/opws-web/aircrew-KkTvlApply-addKkTvlApply.action",
+      "execution": { "kind": "direct-http", "steps": [{ "id": "submit", "requestRef": "$endpoint", "role": "primary", "cardinality": "once" }] },
+      "parameters": [
+        { "name": "kkTvlStaffNum1", "in": "form", "label": "员工号1", "type": "text", "required": true }, { "name": "kkTvlStaffMobile1", "in": "form", "label": "手机号1", "type": "text" }, { "name": "kkTvlPassportNum1", "in": "form", "label": "护照号1", "type": "text" }, { "name": "kkTvlApplyVO.staffNum", "in": "form", "label": "员工号汇总", "type": "text", "required": true }, { "name": "kkTvlApplyVO.staffMobile", "in": "form", "label": "手机号汇总", "type": "text" }, { "name": "kkTvlApplyVO.passportNum", "in": "form", "label": "护照号汇总", "type": "text" }, { "name": "kkTvlApplyVO.fltDt", "in": "form", "label": "航班日期", "type": "date", "required": true }, { "name": "kkTvlApplyVO.depArpCd", "in": "form", "label": "出发地", "type": "text", "required": true }, { "name": "kkTvlApplyVO.arvArpCd", "in": "form", "label": "目的地", "type": "text", "required": true }, { "name": "kkTvlApplyVO.fltNr", "in": "form", "label": "动态航班复合值", "type": "text", "required": true }, { "name": "kkTvlApplyVO.fltDt2", "in": "form", "label": "航班日期2", "type": "date", "required": true }, { "name": "kkTvlApplyVO.depArpCd2", "in": "form", "label": "出发地2", "type": "text" }, { "name": "kkTvlApplyVO.arvArpCd2", "in": "form", "label": "目的地2", "type": "text" }, { "name": "kkTvlApplyVO.fltNr2", "in": "form", "label": "航班2复合值", "type": "text" }, { "name": "kkTvlApplyVO.applyType", "in": "form", "label": "申请任务", "type": "text", "fixed": true, "default": "KK" }, { "name": "kkTvlApplyVO.applyReasonCd", "in": "form", "label": "申请原因", "type": "select", "required": true, "options": [{ "value": "26", "label": "要客保障" }, { "value": "1", "label": "商务跟机" }, { "value": "23", "label": "保卫跟机" }, { "value": "29", "label": "特殊装卸" }, { "value": "30", "label": "军事信使" }, { "value": "28", "label": "货机押运" }, { "value": "10", "label": "本场训练" }, { "value": "5", "label": "其它" }, { "value": "3", "label": "复训" }, { "value": "4", "label": "体检" }, { "value": "6", "label": "学习培训" }, { "value": "8", "label": "调配飞行" }, { "value": "9", "label": "调勤帮飞" }, { "value": "15", "label": "执行航班" }, { "value": "16", "label": "航班调整" }, { "value": "2", "label": "模拟机" }, { "value": "11", "label": "飞行改装" }, { "value": "13", "label": "航线检查" }, { "value": "25", "label": "安全监察" }, { "value": "31", "label": "外籍休假" }] }, { "name": "kkTvlApplyVO.seatSelection", "in": "form", "label": "座位类型", "type": "text", "fixed": true, "default": "N" }, { "name": "kkTvlApplyVO.applyComment", "in": "form", "label": "备注", "type": "text", "maxlength": 24 }
+      ],
+      "response": { "format": "JSON", "statuses": [{ "code": 200, "description": "只有 message=录入成功！才是业务成功" }], "fields": [{ "name": "message", "type": "text", "description": "业务结果消息" }] }
+    }
+  ],
+  "requestDefinitions": [
+    { "id": "entry-page", "name": "随机置位申请页", "purpose": "验证 SOC 会话并读取当前申请表单", "risk": "read", "method": "GET", "path": "/opws-web/pages/aircrew/querypages/KkTvlApply-saveByKkTvlApplyData.jsp", "parameters": [], "response": "HTML；有效页面包含 applyFm 和 KkTvlApply 表单。" }
+  ],
+  "technicalNotes": [
+    "SOC 与 IEB、OA 不共享 Cookie、Session 或接口事实。",
+    "站点建议按拼音查询；本地热门城市字典只用于初始候选，最终以动态航班结果为准。",
+    "申请原因使用页面当前 20 条静态字典，接口仅用于只读核对变化。",
+    "批量工作台严格串行，普通异常逐条标记失败并继续，只有会话失效停止；每行最终 POST 最多一次。"
+  ]
+}

@@ -1,0 +1,1 @@
+"""SOC random positioning workbench."""

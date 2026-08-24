@@ -43,7 +43,8 @@ const pageEntries = [
   { source: "src/tool/app/http-lock-entry-helper/shell.ts", output: "tool/app/http-lock-entry-helper/app", page: "tool/app/http-lock-entry-helper/index.html" },
   { source: "src/tool/app/http-oa-read-helper/shell.ts", output: "tool/app/http-oa-read-helper/app", page: "tool/app/http-oa-read-helper/index.html" },
   { source: "src/tool/app/http-qualification-query-helper/shell.ts", output: "tool/app/http-qualification-query-helper/app", page: "tool/app/http-qualification-query-helper/index.html" },
-  { source: "src/tool/app/http-qualification-monitor-helper/shell.ts", output: "tool/app/http-qualification-monitor-helper/app", page: "tool/app/http-qualification-monitor-helper/index.html" }
+  { source: "src/tool/app/http-qualification-monitor-helper/shell.ts", output: "tool/app/http-qualification-monitor-helper/app", page: "tool/app/http-qualification-monitor-helper/index.html" },
+  { source: "src/tool/app/http-soc-positioning-helper/shell.ts", output: "tool/app/http-soc-positioning-helper/app", page: "tool/app/http-soc-positioning-helper/index.html" }
 ] as const;
 
 const workerEntries: ReadonlyArray<{ source: string; output: string }> = [];
@@ -176,7 +177,7 @@ async function buildPageEntries(): Promise<void> {
 }
 
 async function copyPythonWorkbenchAssets() {
-  for (const toolEntry of ["http-flight-stats-helper", "http-lock-entry-helper", "http-oa-read-helper", "http-qualification-query-helper", "http-qualification-monitor-helper"]) {
+  for (const toolEntry of ["http-flight-stats-helper", "http-lock-entry-helper", "http-oa-read-helper", "http-qualification-query-helper", "http-qualification-monitor-helper", "http-soc-positioning-helper"]) {
     const workbenchRoot = path.join(distRoot, "tool", "app", toolEntry, "web");
     const libraryRoot = path.join(workbenchRoot, "libs");
     await fs.mkdir(libraryRoot, { recursive: true });

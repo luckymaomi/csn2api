@@ -7,6 +7,7 @@ import requests
 from .catalog import ApiCatalog
 from .systems.flight_portal import FlightPortalAdapter, random_keepalive_interval
 from .systems.oa import OaAdapter
+from .systems.soc import SocAdapter
 from .systems.errors import ExecutionError, SessionExpiredError
 
 
@@ -29,6 +30,12 @@ class ApiExecutor:
                 keepalive_interval_factory,
             ),
             "oa": OaAdapter(
+                catalog,
+                session_factory,
+                timeout_seconds,
+                keepalive_interval_factory,
+            ),
+            "soc": SocAdapter(
                 catalog,
                 session_factory,
                 timeout_seconds,

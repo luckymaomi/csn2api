@@ -39,6 +39,9 @@ __pycache__/
 # 资质监控（皇帝版）运行结果，禁止进入版本库
 /public/tool/app/http-qualification-monitor-helper/results/
 
+# SOC 随机置位运行结果，禁止进入版本库
+/public/tool/app/http-soc-positioning-helper/results/
+
 plan.md
 
 # 本地门户会话凭据，禁止进入版本库

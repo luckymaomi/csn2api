@@ -1,6 +1,6 @@
 # API 文档用户手册
 
-从工具首页顶栏打开“API 文档”。该入口不占用工具卡片；页面左侧按飞行门户原生模块和 OA 系统分组当前 catalog 中的 GET/POST 接口，Cookie 管理统一展示 IEB 与 OA 的登录网址、建议抓取请求和获取步骤。系统和模块都可以用箭头展开或收起。
+从工具首页顶栏打开“API 文档”。该入口不占用工具卡片；页面左侧按飞行门户原生模块、OA 系统和 SOC 随机置位分组当前 catalog 中的 GET/POST 接口，Cookie 管理统一展示各系统的登录网址、建议抓取请求和获取步骤。系统和模块都可以用箭头展开或收起。
 
 ## Cookie
 
@@ -9,6 +9,8 @@ Cookie 管理右侧把 IEB 与 OA 两个完整区域从上到下排列，两套�
 IEB：打开 `https://ieb.csair.com/index/index` 并登录，在 F12 Network 中选择任意 `ieb.csair.com` 已登录请求，右键 Copy as cURL 后粘贴验证。`JSESSIONID` 与 `iebJSid` 为 HttpOnly，普通 `document.cookie` 无法完整读取。
 
 OA：打开 `https://work.csair.com/oaw/work/my-dealt-with/schedule-list?sourceType=wait` 并登录，确认待办列表已显示；在 F12 Network 筛选 `query/waiting`，选择 `POST https://work.csair.com/oai/work/box/query/waiting` 并 Copy as cURL。优先粘贴完整 cURL，使本地执行器同时取得 Cookie、User-Agent 和待办 JSON 模板。
+
+SOC：打开 `https://soc.csair.com/opws-web/pages/public/soc.jsp?f=2&s=11&t=1` 并进入随机置位申请页面；在 F12 Network 选择随机置位页面或其 Fetch/XHR 请求，Copy as cURL 后粘贴验证。SOC 至少需要当前有效的 `JSESSIONID`，建议保留完整 Cookie Header；它与 IEB、OA 会话完全独立。
 
 验证成功后对应系统区域显示当前使用员工号和姓名、可复制的规范化 Cookie Header，并显示下一次只读保活请求的动态倒计时。保活间隔为 30-60 秒，倒计时归零后由本地执行器发送系统会话请求，成功后重新开始下一轮。刷新或重新打开会清除两套 Session；每个区域的“清除”只清该系统。页面不使用浏览器持久化存储保存凭据。
 
@@ -21,6 +23,8 @@ OA：打开 `https://work.csair.com/oaw/work/my-dealt-with/schedule-list?sourceT
 资质监控按资质查询分为资质运行类、资质资格类、资质特殊类。每个子类是一个独立入口，资质代码固定；可填写员工号、状态、基地、机队等筛选并修改 `pageNum`、`pageSize`。返回结果显示当前页 PageInfo 摘要和该子类实际返回的全部 JSON 字段。API 文档只调试分页 JSON，不下载原生 Excel；需要把当前全部子类分别导出为 Excel 时使用“资质监控（皇帝版）”。
 
 OA 提供“获取全部 OA 数量”和“按数量点击 OA 已阅”两个入口。前者扫描全部分页，显示 OA 总数、可处理公文数、跳过数和各模块数量。后者填写任意正整数：填 1 处理一条，填其他数处理对应数量，不设置最大值；输入数大于当前可处理公文数时自动处理全部可处理公文。
+
+SOC 随机置位目录包含站点拼音建议、申请原因列表、动态航班、人员与业务校验和单条提交。站点建议按拼音输入；航班下拉返回的复合 value 由执行器原样保留，不能只填写显示的航班号。申请原因按页面当前静态字典选择，提交属于写操作，只在 owner 当次授权后执行；HTTP 200 不是成功判据，只有响应 `message=录入成功！` 才显示业务成功。需要批量导入时使用独立的“SOC 随机置位批量工作台”，API 文档不会代替批量工作台自动提交。
 
 按数量点击开始后，页面先显示全量扫描状态；扫描完成后显示本次目标。执行器只处理 `DOC/official-document`，其他模块跳过，并按列表顺序逐条调用已阅。一条返回后，该条标题、模块、状态和结果立即追加到结果表，再发送下一条；不会等整个批次完成后一次性显示。结果表默认自动跟随到最底部；用鼠标、滚轮或触控向上滚动后会暂停自动跟随，重新滚到底部后恢复。已阅单条请求发生任何异常时都记录当前条目失败并继续；只有登录会话失效时停止后续派发。
 

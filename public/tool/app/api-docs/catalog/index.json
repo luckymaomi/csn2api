@@ -42,6 +42,27 @@
         "identityRequestRef": "oa-read.user-info",
         "keepAliveRequestRef": "oa-read.user-info"
       }
+    },
+    {
+      "id": "soc",
+      "name": "SOC 运行信息网",
+      "shortName": "SOC",
+      "navigationUrl": "https://soc.csair.com/opws-web/pages/public/soc.jsp?f=2&s=11&t=1",
+      "credentialRequestUrl": "https://soc.csair.com/opws-web/pages/aircrew/querypages/KkTvlApply-saveByKkTvlApplyData.jsp",
+      "credentialInputLabel": "SOC Cookie Header 或 Copy as cURL",
+      "credentialPlaceholder": "粘贴 SOC 随机置位页面已登录请求的完整 Copy as cURL 或 Cookie Header",
+      "credentialSteps": [
+        "打开 SOC 运行信息网并进入随机置位申请页面。",
+        "打开 F12 Network，刷新随机置位页面或加载动态航班。",
+        "选择一条 soc.csair.com 的已登录请求，右键 Copy > Copy as cURL。",
+        "把完整 cURL 粘贴到 Cookie 管理并点击验证。"
+      ],
+      "credentialNote": "SOC 会话与 IEB、OA 完全独立；至少需要当前有效的 JSESSIONID，建议粘贴完整 Cookie Header。",
+      "session": {
+        "validationRequestRef": "soc-positioning.entry-page",
+        "identityRequestRef": "soc-positioning.entry-page",
+        "keepAliveRequestRef": "soc-positioning.entry-page"
+      }
     }
   ],
   "modules": [
@@ -74,6 +95,12 @@
       "name": "资质监控按资质查询接口",
       "description": "三类资质的 29 个独立分页查询入口和门户原生导出事实",
       "source": "./qualification-monitor.json"
+    },
+    {
+      "id": "soc-positioning",
+      "name": "SOC 随机置位申请接口",
+      "description": "站点建议、动态航班、员工校验和授权单条随机置位提交",
+      "source": "./soc-positioning.json"
     }
   ]
 }

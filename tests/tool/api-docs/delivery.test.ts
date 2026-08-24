@@ -40,9 +40,10 @@ describe("API docs delivery", () => {
       "飞行经历查询接口",
       "飞行人员锁班接口",
       "飞行人员信息查询接口",
-      "OA 公文已阅接口"
+      "OA 公文已阅接口",
+      "SOC 随机置位申请接口"
     ]));
-    expect(index.systems.map((system: { id: string }) => system.id)).toEqual(["flight-portal", "oa"]);
+    expect(index.systems.map((system: { id: string }) => system.id)).toEqual(["flight-portal", "oa", "soc"]);
     expect(index.systems[0].navigationUrl).toBe("https://ieb.csair.com/index/index");
     expect(index.systems[1].credentialRequestUrl).toBe("https://work.csair.com/oai/work/box/query/waiting");
     const lockCatalog = JSON.parse(readFileSync(`${root}/catalog/lock-entry.json`, "utf8"));
