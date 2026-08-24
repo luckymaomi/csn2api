@@ -18,6 +18,7 @@ WORKBENCH_ROOTS = {
         "http-oa-read-helper",
         "http-qualification-query-helper",
         "http-qualification-monitor-helper",
+        "http-soc-positioning-helper",
     )
 }
 for workbench_root in WORKBENCH_ROOTS.values():
@@ -29,6 +30,7 @@ from http_lock_entry.server import create_server as create_lock_entry_server
 from http_oa_read.server import create_server as create_oa_read_server
 from http_qualification_monitor.server import create_server as create_qualification_monitor_server
 from http_qualification_query.server import create_server as create_qualification_query_server
+from soc_positioning.server import create_server as create_soc_server
 
 
 ServerFactory = Callable[[], object]
@@ -52,6 +54,9 @@ class HttpWorkbenchAssetTests(unittest.TestCase):
             ),
             "http-qualification-monitor-helper": lambda: create_qualification_monitor_server(
                 WORKBENCH_ROOTS["http-qualification-monitor-helper"], 0, manager  # type: ignore[arg-type]
+            ),
+            "http-soc-positioning-helper": lambda: create_soc_server(
+                WORKBENCH_ROOTS["http-soc-positioning-helper"], 0, manager  # type: ignore[arg-type]
             ),
         }
 

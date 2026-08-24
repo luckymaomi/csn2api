@@ -183,6 +183,7 @@ async function copyPythonWorkbenchAssets() {
     await fs.mkdir(libraryRoot, { recursive: true });
     await fs.copyFile(path.join(staticRoot, "theme.js"), path.join(workbenchRoot, "theme.js"));
     await fs.copyFile(path.join(staticRoot, "theme.css"), path.join(workbenchRoot, "theme.css"));
+    await fs.copyFile(path.join(staticRoot, "tool", "app", toolEntry, "web", "session_keepalive.mjs"), path.join(workbenchRoot, "session_keepalive.mjs"));
     await fs.copyFile(
       path.join(staticRoot, "libs", "bootstrap.min.css"),
       path.join(libraryRoot, "bootstrap.min.css")

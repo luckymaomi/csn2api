@@ -10,6 +10,7 @@ from typing import Any
 
 import requests
 from bs4 import BeautifulSoup
+from typing import Callable
 
 from .constants import (
     BASE_URL, FLIGHTS_PATH, PAGE_PATH, STAFF_MOBILE_PATH, STAFF_VALIDATE_PATH,
@@ -17,6 +18,7 @@ from .constants import (
 )
 from .credentials import format_credentials, parse_credentials
 from .models import FlightOption, StaffIdentity, SubmitOutcome
+from .session_keepalive import SessionKeepAlive, random_keepalive_interval
 
 
 class PortalError(RuntimeError):
@@ -40,10 +42,20 @@ def _login_like(response: requests.Response) -> bool:
 
 
 class SocPortalClient:
-    def __init__(self, timeout: int = 30, session: requests.Session | None = None):
+    def __init__(
+        self,
+        timeout: int = 30,
+        session: requests.Session | None = None,
+        keepalive_interval_factory: Callable[[], int] = random_keepalive_interval,
+    ):
         self.timeout = timeout
         self.session = session or requests.Session()
         self.request_lock = threading.RLock()
+        self.keepalive = SessionKeepAlive(
+            keepalive_interval_factory,
+            timeout,
+            "http-soc-positioning-cookie-keepalive",
+        )
         self.copyable_credentials = ""
         self.verified_at = ""
         self.verified = False
@@ -101,14 +113,27 @@ class SocPortalClient:
     def check_session(self) -> None:
         if not self.verified:
             raise PortalSessionExpired("尚未验证 SOC 凭据")
-        self._get(PAGE_PATH)
+        response = self._get(PAGE_PATH)
+        if "applyFm" not in (response.text or "") or "KkTvlApply" not in (response.text or ""):
+            raise PortalSessionExpired("SOC 会话未进入随机置位页面")
 
-    def clear_credentials(self) -> None:
+    def invalidate_credentials(self) -> None:
         with self.request_lock:
             self.session.cookies.clear()
             self.copyable_credentials = ""
             self.verified_at = ""
             self.verified = False
+
+    def clear_credentials(self) -> None:
+        self.keepalive.stop()
+        with self.request_lock:
+            self.invalidate_credentials()
+
+    def close(self) -> None:
+        self.clear_credentials()
+        close = getattr(self.session, "close", None)
+        if callable(close):
+            close()
 
     def suggest(self, pinyin: str) -> list[str]:
         response = self._post(SUGGEST_PATH, {"dataJson": pinyin})
