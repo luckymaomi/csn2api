@@ -33,6 +33,10 @@ class PortalError(RuntimeError):
     pass
 
 
+class PortalBusinessError(PortalError):
+    """OA 返回 HTTP 成功但业务码不是 200。"""
+
+
 class PortalSessionExpired(PortalError):
     pass
 
@@ -57,7 +61,7 @@ def _business_payload(response: object, action: str) -> dict[str, object]:
             "OA 登录会话已失效，请从 /oai/work/box/query/waiting 重新 Copy as cURL"
         )
     if code != "200":
-        raise PortalError(f"{action}业务码不是 200")
+        raise PortalBusinessError(f"{action}业务码不是 200")
     return payload
 
 

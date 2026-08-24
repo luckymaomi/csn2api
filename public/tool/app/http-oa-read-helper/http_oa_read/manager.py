@@ -288,7 +288,9 @@ class RunManager:
                 self._append_log("warning", "批次已终止")
             elif result.failed:
                 self._state["phase"] = "failed"
-                self._state["message"] = result.error or "已阅失败，未继续派发"
+                self._state["message"] = result.error or (
+                    f"本批处理完成：成功 {result.success} 条，失败 {result.failed} 条；异常项已跳过"
+                )
                 self._append_log("error", self._state["message"])
             else:
                 self._state["phase"] = "completed"

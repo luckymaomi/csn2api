@@ -37,6 +37,7 @@ class BatchRunner:
             if self.stop_event.is_set():
                 break
             self._progress(len(targets), index - 1, success, failed, record.title)
+            stop_after_failure = False
             try:
                 self.portal.mark_read(record)  # type: ignore[attr-defined]
                 success += 1
@@ -50,11 +51,11 @@ class BatchRunner:
                 status = "失败"
                 message = error_message
                 level = "error"
+                stop_after_failure = True
             except Exception as error:
                 failed += 1
-                error_message = str(error)
                 status = "失败"
-                message = error_message
+                message = str(error)
                 level = "error"
 
             self.emit({"type": "record_result", **record.public_result(status, message)})
@@ -66,7 +67,7 @@ class BatchRunner:
                 }
             )
             self._progress(len(targets), success + failed, success, failed, "")
-            if status == "失败":
+            if stop_after_failure:
                 break
 
         stopped = self.stop_event.is_set() and success + failed < len(targets)

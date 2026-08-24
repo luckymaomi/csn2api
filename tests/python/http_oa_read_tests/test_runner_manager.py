@@ -8,6 +8,7 @@ from pathlib import Path
 from .common import APP_ROOT  # noqa: F401
 from http_oa_read.manager import RunManager
 from http_oa_read.models import ScanSnapshot, WaitingRecord
+from http_oa_read.portal_client import PortalBusinessError, PortalSessionExpired
 from http_oa_read.runner import BatchRunner
 
 
@@ -68,6 +69,54 @@ class RunnerManagerTests(unittest.TestCase):
 
         self.assertEqual(portal.calls, ["file-1"])
         self.assertTrue(result.stopped)
+
+    def test_runner_skips_business_code_failure_and_continues(self) -> None:
+        class BusinessFailurePortal(FakePortal):
+            def mark_read(self, item):
+                self.calls.append(item.file_id)
+                if item.file_id == "file-1":
+                    raise PortalBusinessError("提交 OA 已阅业务码不是 200")
+
+        portal = BusinessFailurePortal()
+        events = []
+        result = BatchRunner(portal, emit=events.append).run([record(1), record(2)], limit=2)
+
+        self.assertEqual(portal.calls, ["file-1", "file-2"])
+        self.assertEqual(result.success, 1)
+        self.assertEqual(result.failed, 1)
+        self.assertFalse(result.stopped)
+        record_results = [event for event in events if event.get("type") == "record_result"]
+        self.assertEqual([event["status"] for event in record_results], ["失败", "成功"])
+
+    def test_runner_skips_non_session_exception_and_continues(self) -> None:
+        class UnexpectedFailurePortal(FakePortal):
+            def mark_read(self, item):
+                self.calls.append(item.file_id)
+                if item.file_id == "file-1":
+                    raise RuntimeError("提交 OA 已阅连接被重置")
+
+        portal = UnexpectedFailurePortal()
+        result = BatchRunner(portal).run([record(1), record(2)], limit=2)
+
+        self.assertEqual(portal.calls, ["file-1", "file-2"])
+        self.assertEqual(result.success, 1)
+        self.assertEqual(result.failed, 1)
+        self.assertFalse(result.session_expired)
+        self.assertFalse(result.stopped)
+
+    def test_runner_stops_when_session_expires(self) -> None:
+        class ExpiredPortal(FakePortal):
+            def mark_read(self, item):
+                self.calls.append(item.file_id)
+                raise PortalSessionExpired("OA 登录会话已失效")
+
+        portal = ExpiredPortal()
+        result = BatchRunner(portal).run([record(1), record(2)], limit=2)
+
+        self.assertEqual(portal.calls, ["file-1"])
+        self.assertEqual(result.failed, 1)
+        self.assertTrue(result.session_expired)
+        self.assertFalse(result.stopped)
 
     def test_manager_defaults_to_all_mode_and_keeps_credentials_private(self) -> None:
         portal = FakePortal()
@@ -185,6 +234,29 @@ class RunnerManagerTests(unittest.TestCase):
 
         self.assertEqual(finished["progress"]["success"], 2)
         self.assertEqual(portal.calls, ["file-1", "file-2"])
+        manager.shutdown()
+
+    def test_manager_keeps_running_after_business_code_failure(self) -> None:
+        class BusinessFailurePortal(FakePortal):
+            def mark_read(self, item):
+                self.calls.append(item.file_id)
+                if item.file_id == "file-1":
+                    raise PortalBusinessError("提交 OA 已阅业务码不是 200")
+
+        portal = BusinessFailurePortal()
+        manager = RunManager(Path("."), client=portal)
+        manager.verify_credentials("Cookie: SESSION=secret")
+        manager.scan()
+
+        manager.run(max_count=2, run_mode="finite")
+        finished = self._wait(manager)
+
+        self.assertEqual(portal.calls, ["file-1", "file-2"])
+        self.assertEqual(finished["phase"], "failed")
+        self.assertEqual(finished["progress"]["success"], 1)
+        self.assertEqual(finished["progress"]["failed"], 1)
+        self.assertEqual([item["status"] for item in finished["results"]], ["失败", "成功"])
+        self.assertIn("异常项已跳过", finished["message"])
         manager.shutdown()
 
     def test_all_mode_processes_every_eligible_record(self) -> None:

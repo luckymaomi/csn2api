@@ -6,7 +6,12 @@ import requests
 
 from .common import APP_ROOT  # noqa: F401
 from http_oa_read.models import WaitingRecord
-from http_oa_read.portal_client import PortalClient, PortalError, PortalSessionExpired
+from http_oa_read.portal_client import (
+    PortalBusinessError,
+    PortalClient,
+    PortalError,
+    PortalSessionExpired,
+)
 
 
 class FakeResponse:
@@ -208,7 +213,7 @@ class PortalClientTests(unittest.TestCase):
         verify_calls = [call for call in session.calls if call[1].endswith("/query/waiting")]
         self.assertEqual(verify_calls, [])
 
-    def test_mark_read_stops_on_business_failure(self) -> None:
+    def test_mark_read_raises_on_business_failure(self) -> None:
         record = WaitingRecord.from_payload(row(1))
         session = FakeSession(
             get_responses=[FakeResponse({"code": "200", "success": True, "data": {}})],
@@ -217,7 +222,7 @@ class PortalClientTests(unittest.TestCase):
         client = PortalClient(session_factory=lambda: session)
         client.load_credentials("Cookie: SESSION=secret")
 
-        with self.assertRaises(PortalError):
+        with self.assertRaises(PortalBusinessError):
             client.mark_read(record)
 
 
