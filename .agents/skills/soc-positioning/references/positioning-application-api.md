@@ -1,6 +1,6 @@
 # SOC 随机置位 HTTP 接口事实
 
-本文件记录 2026-08-20 从 SOC 随机置位申请页面真实 Network/cURL 中确认的请求契约。真实响应正文、查询/撤销接口和完整成功判据尚未捕获，不能根据 action 名称补造。
+本文件记录截至 2026-08-24 从 SOC 随机置位申请页面真实 Network/cURL 和授权测试中确认的请求契约。查询/撤销接口仍未确认，不能根据 action 名称补造。
 
 ## 系统与页面
 
@@ -47,13 +47,28 @@ Content-Type: application/x-www-form-urlencoded; charset=UTF-8
 
 浏览器的“Copy all as cURL”也可以作为证据，但文件会包含大量静态资源。解析时只筛选 `aircrew-KkTvlApply-*` 请求，禁止直接执行整个文件。
 
+## 站点建议
+
+```http
+POST /opws-web/flightinfo-FlightPlan-findSuggest.action
+Content-Type: application/x-www-form-urlencoded; charset=UTF-8
+```
+
+Form 字段：
+
+```text
+dataJson
+```
+
+响应为 JSON 对象，候选站点位于 `result` 数组。页面的 `commonlh.js` 在输入框为空时不调用该接口，而是展示内置的 19 个热门城市；输入拼音时调用服务端建议，例如 `zhengzhou` 返回唯一候选“郑州”，`guangzhou` 返回“广州”。中文直接作为查询词时可能返回空数组，因此应使用页面选中的实际站点值继续调用动态航班接口。
+
 ## 申请原因
 
 ```http
 POST /opws-web/aircrew-KkTvlApply-getApplyReasons.action
 ```
 
-捕获请求没有 form body。页面显示“学习培训”时，后续校验和提交使用的真实原因代码为 `26`。其它原因代码必须从当前接口或页面动态取得，不能沿用这一示例猜测。
+请求没有 form body，响应返回 `rows` 数组。当前实时响应包含 20 条原因；页面显示“学习培训”时，当前业务类型 `KK` 使用的原因代码为 `6`，类型为 `KK`。其它原因代码必须从当前接口或页面动态取得，不能沿用历史样例猜测。
 
 ## 动态航班号
 
@@ -98,7 +113,7 @@ fltRoute
 
 - `fltRoute` 使用 IATA 航线代码。它应来自所选动态航班，不从中文站名通用推算。
 - 单航段捕获值为 `hasSecondFlt=N`，第二航段站点为空；`fltDt2` 仍由页面提交日期值。第二航段业务尚未探测，不能套用单航段契约。
-- 校验响应正文和业务成功字段尚未固化。接入客户端前必须补录真实响应，并区分 HTTP 200、登录页和业务拒绝。
+- 单员工校验成功时响应包含 `total`、`rows`，且 `failFeedback` 为空；非空 `failFeedback` 应视为业务拒绝。仍需区分 HTTP 200、登录页和业务拒绝。
 
 ## 最终提交
 
@@ -136,7 +151,7 @@ kkTvlApplyVO.applyType=KK
 kkTvlApplyVO.seatSelection=N
 ```
 
-手机号和护照号在该次页面操作中为空，但不能据此认定所有人员都允许为空。备注使用普通 UTF-8 form 字段。最终提交响应正文尚未保存，因此不能只凭 200 声称成功。
+手机号和护照号在该次页面操作中为空，但不能据此认定所有人员都允许为空。备注使用普通 UTF-8 form 字段。一次真实授权提交已返回 JSON `message=录入成功！`，这是当前确认的业务成功判据；HTTP 200 本身仍不足以证明成功。
 
 ## 已确认顺序
 
@@ -147,7 +162,7 @@ kkTvlApplyVO.seatSelection=N
 -> 保留所选航班完整 option value
 -> 调用人员与业务校验
 -> 在当前样例得到明确授权后提交一次
--> 检查业务响应并通过查询或报表页面复核记录
+-> 检查业务响应（`message=录入成功！`）并通过查询或报表页面复核记录
 ```
 
 若 cURL 文件本身包含一次历史 `addKkTvlApply`，先确认该申请未成功、已撤销或已不存在，再决定是否重放。提交请求发生超时后不能自动重发。
