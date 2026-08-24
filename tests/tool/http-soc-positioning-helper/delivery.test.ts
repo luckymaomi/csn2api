@@ -10,7 +10,8 @@ describe("SOC positioning delivery", () => {
     const app = readFileSync(`${root}/web/app.mjs`, "utf8");
     const template = readFileSync(`${root}/template.xlsx`);
     expect(landing).toContain("SOC 随机置位批量工作台");
-    expect(landing).toContain("下载录入模板");
+    expect(landing).toContain('download="随机置位录入模板.xlsx"');
+    expect(landing).toContain("下载随机置位录入模板");
     expect(page).not.toContain("下载录入模板");
     expect(page).toContain("数据检查");
     expect(page).toContain("开始录入");

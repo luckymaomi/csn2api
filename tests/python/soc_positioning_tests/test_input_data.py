@@ -4,9 +4,10 @@ from datetime import date
 from io import BytesIO
 from pathlib import Path
 
-from openpyxl import Workbook
+from openpyxl import Workbook, load_workbook
 
 APP_ROOT = Path(__file__).resolve().parents[3] / "public" / "tool" / "app" / "http-soc-positioning-helper"
+TEMPLATE_PATH = APP_ROOT / "template.xlsx"
 sys.path.insert(0, str(APP_ROOT))
 
 from soc_positioning.constants import APPLY_REASON_LABELS  # noqa: E402
@@ -14,6 +15,18 @@ from soc_positioning.input_data import normalize_date, parse_excel  # noqa: E402
 
 
 class SocInputTests(unittest.TestCase):
+    def test_delivery_template_leaves_optional_columns_empty(self):
+        workbook = load_workbook(TEMPLATE_PATH, data_only=False, read_only=True)
+        try:
+            sheet = workbook["随机置位申请"]
+            self.assertEqual(sheet.cell(1, 1).value, "序号")
+            self.assertEqual(sheet.cell(1, 10).value, "是否需要录入")
+            self.assertIsNone(sheet.cell(2, 1).value)
+            self.assertIsNone(sheet.cell(2, 10).value)
+            self.assertEqual(workbook.properties.title, "随机置位录入模板")
+        finally:
+            workbook.close()
+
     def test_date_normalization_handles_excel_serial_and_explicit_text(self):
         self.assertEqual(normalize_date(46037), "2026-01-15")
         self.assertEqual(normalize_date("2026/1/15"), "2026-01-15")
