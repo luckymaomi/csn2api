@@ -32,7 +32,7 @@ python startapp.py
 4. 回到工作台，把复制的整段内容粘贴到“cURL 或 Cookie Header”。
 5. 点击“验证凭据”。
 
-不需要从 cURL 中寻找 Cookie，也不要修改复制内容。验证成功后输入框自动清空，页面只显示 Session 有效、验证时间、动态类型数量和版本摘要。
+不需要从 cURL 中寻找 Cookie，也不要修改复制内容。验证成功后输入框自动清空，页面显示 Session 摘要，并在当前页凭据面板提供规范化 Cookie 和“复制凭据”；刷新页面或会话失效后自动删除。
 
 不要使用 F12 Console 里的 `document.cookie`。IEB 的两个关键 Cookie 是 HttpOnly，控制台脚本读取不到，复制结果会缺少登录凭据。
 

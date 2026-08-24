@@ -4,6 +4,9 @@ const elements = {
   themeToggle: document.querySelector("#themeToggle"),
   credentials: document.querySelector("#credentials"),
   verifyButton: document.querySelector("#verifyButton"),
+  savedCredentialsPanel: document.querySelector("#savedCredentialsPanel"),
+  savedCredentials: document.querySelector("#savedCredentials"),
+  copyCredentialsButton: document.querySelector("#copyCredentialsButton"),
   sessionStatus: document.querySelector("#sessionStatus"),
   sessionVerified: document.querySelector("#sessionVerified"),
   sessionVerifiedAt: document.querySelector("#sessionVerifiedAt"),
@@ -73,6 +76,23 @@ let followResults = true;
 let lastLogsSignature = "";
 let lastResultsSignature = "";
 let pollingFailed = false;
+let savedCredentials = "";
+
+function updateSavedCredentials(value) {
+  savedCredentials = String(value || "");
+  elements.savedCredentials.value = savedCredentials;
+  elements.savedCredentialsPanel.hidden = !savedCredentials;
+}
+
+async function copySavedCredentials() {
+  if (!savedCredentials) return;
+  try {
+    await navigator.clipboard.writeText(savedCredentials);
+    elements.statusMessage.textContent = "当前页 Cookie 已复制";
+  } catch (_error) {
+    showActionError(new Error("复制失败，请手动选择当前页 Cookie"));
+  }
+}
 
 function isNearBottom(element) {
   return element.scrollHeight - element.scrollTop - element.clientHeight < 20;
@@ -133,8 +153,12 @@ async function verifyCredentials() {
   elements.verifyButton.disabled = true;
   try {
     const state = await postJson("/api/session/verify", { credentials });
+    updateSavedCredentials(state.credentials);
     elements.credentials.value = "";
     renderState(state);
+  } catch (error) {
+    updateSavedCredentials("");
+    throw error;
   } finally {
     elements.verifyButton.disabled = false;
   }
@@ -242,6 +266,7 @@ function renderState(state) {
   const total = Number(progress.total || 0);
   const completed = Number(progress.completed || 0);
   const percent = total ? Math.min(100, Math.round((completed / total) * 100)) : 0;
+  if (!session.verified || phase === "session_expired") updateSavedCredentials("");
 
   elements.statusMessage.textContent = state.message || "";
   elements.statusBadge.textContent = phaseLabels[phase] || phase;
@@ -272,6 +297,8 @@ function renderState(state) {
   setDownload(elements.excelDownload, Boolean(state.downloads?.excel), "excel");
   setDownload(elements.jsonDownload, Boolean(state.downloads?.json), "json");
   setDownload(elements.reportDownload, Boolean(state.downloads?.report), "report");
+  elements.savedCredentials.value = savedCredentials;
+  elements.savedCredentialsPanel.hidden = !savedCredentials;
 }
 
 async function pollStatus() {
@@ -290,6 +317,7 @@ document.querySelectorAll('input[name="inputMode"]').forEach((input) => {
   input.addEventListener("change", syncInputMode);
 });
 elements.verifyButton.addEventListener("click", () => verifyCredentials().catch(showActionError));
+elements.copyCredentialsButton.addEventListener("click", () => copySavedCredentials());
 elements.dataCheckButton.addEventListener("click", () => checkData().catch(showActionError));
 elements.runButton.addEventListener("click", () => runQuery().catch(showActionError));
 elements.stopButton.addEventListener("click", () => stopQuery().catch(showActionError));

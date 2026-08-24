@@ -113,3 +113,7 @@ def parse_waiting_payload(source: str) -> dict[str, object] | None:
 
 def credential_summary(cookies: dict[str, str]) -> dict[str, object]:
     return {"cookieCount": len(cookies)}
+
+
+def format_all_credentials(cookies: dict[str, str]) -> str:
+    return "; ".join(f"{name}={value}" for name, value in cookies.items() if value)

@@ -150,7 +150,11 @@ class RunManager:
             self._state["phase"] = "credentials_ready"
             self._state["message"] = "登录凭据有效，查询接口已就绪"
             self._append_log("success", "凭据验证成功，纯 HTTP 查询接口已就绪")
-            return self.snapshot()
+            state = self.snapshot()
+            credentials = str(getattr(self.client, "copyable_credentials", "") or "")
+            if credentials:
+                state["credentials"] = credentials
+            return state
 
     def _require_session(self) -> None:
         if not self._state["session"]["verified"]:  # type: ignore[index]

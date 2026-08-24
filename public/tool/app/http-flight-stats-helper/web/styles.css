@@ -32,6 +32,12 @@
 .keepalive-ring[data-state="expired"] { background: conic-gradient(var(--watchdog-danger-text) calc(var(--keepalive-progress) * 1%), var(--watchdog-surface-muted) 0); }
 .keepalive-ring[hidden] { display: none; }
 
+.saved-credential-panel { display: grid; gap: 8px; margin-top: 14px; padding: 12px; border: 1px solid var(--watchdog-divider); background: var(--watchdog-surface-soft); }
+.saved-credential-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.saved-credential-heading .form-label { margin: 0; color: var(--watchdog-text-muted); font-size: 12px; }
+.saved-credential-text { min-height: 72px; resize: vertical; font-family: Consolas, monospace; font-size: 12px; }
+.saved-credential-note { color: var(--watchdog-text-muted); font-size: 12px; }
+
 body {
     min-width: 320px;
     min-height: 100vh;

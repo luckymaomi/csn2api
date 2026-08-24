@@ -10,7 +10,7 @@ from urllib.parse import urlparse
 import requests
 from bs4 import BeautifulSoup
 
-from .credentials import credential_summary, parse_credentials
+from .credentials import credential_summary, format_credentials, parse_credentials
 from .models import QueryRecord, TableResult
 from .session_keepalive import SessionKeepAlive, random_keepalive_interval
 
@@ -110,6 +110,7 @@ class PortalClient:
             "http-flight-stats-cookie-keepalive",
         )
         self.cookies: dict[str, str] = {}
+        self.copyable_credentials = ""
         self.verified_at = ""
         self._verify_session: requests.Session | None = None
 
@@ -147,6 +148,7 @@ class PortalClient:
             raise PortalError("当前登录态无法打开飞行经历查询页面")
         with self.request_lock:
             self.cookies = cookies
+            self.copyable_credentials = format_credentials(cookies)
             self.verified_at = datetime.now().isoformat(timespec="seconds")
             self._verify_session = session
         return {**credential_summary(cookies), "verifiedAt": self.verified_at}
@@ -195,6 +197,7 @@ class PortalClient:
     def invalidate_credentials(self) -> None:
         with self.request_lock:
             self.cookies = {}
+            self.copyable_credentials = ""
             self.verified_at = ""
             if self._verify_session is not None:
                 self._verify_session.close()

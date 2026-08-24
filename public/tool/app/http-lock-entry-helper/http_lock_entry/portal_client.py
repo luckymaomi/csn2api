@@ -12,7 +12,7 @@ from typing import Callable, Iterable
 import requests
 from bs4 import BeautifulSoup, Tag
 
-from .credentials import parse_credentials
+from .credentials import format_credentials, parse_credentials
 from .metadata import normalize_lock_type, normalize_text, parse_portal_metadata
 from .models import EmployeeIdentity, LockTypeMetadata, PortalMetadata, SubmitResult
 from .routing import available_days_for_year, parse_quota_rows
@@ -162,6 +162,7 @@ class PortalClient:
             "http-lock-entry-cookie-keepalive",
         )
         self.metadata: PortalMetadata | None = None
+        self.copyable_credentials = ""
         self.verified_at = ""
         self.session.headers.update(
             {
@@ -215,6 +216,7 @@ class PortalClient:
             self.metadata = None
             raise PortalSessionExpired("凭据未进入非生产任务录入页，请重新复制已登录请求")
         self.metadata = parse_portal_metadata(html)
+        self.copyable_credentials = format_credentials(cookies)
         self.verified_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         return self.metadata
 
@@ -228,6 +230,7 @@ class PortalClient:
     def invalidate_credentials(self) -> None:
         with self.request_lock:
             self.metadata = None
+            self.copyable_credentials = ""
             self.verified_at = ""
             self.session.cookies.clear()
 

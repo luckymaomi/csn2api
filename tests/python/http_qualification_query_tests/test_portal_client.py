@@ -14,6 +14,7 @@ from http_qualification_query.portal_client import (
     parse_employee_identity,
     parse_training_record_pages,
 )
+from http_qualification_query.credentials import format_credentials
 
 
 SESSION_HTML = '<form id="showEmpProfileCompositeListPageForm"></form>'
@@ -178,6 +179,7 @@ class PortalClientTests(unittest.TestCase):
         )
         client = PortalClient(session=session)
         summary = client.load_credentials("JSESSIONID=a; iebJSid=b")
+        self.assertEqual(client.copyable_credentials, format_credentials({"JSESSIONID": "a", "iebJSid": "b"}))
         result = client.query(QueryRecord(1, "900001", "测试甲", "样例"))
 
         self.assertTrue(summary["verifiedAt"])

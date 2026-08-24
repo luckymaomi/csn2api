@@ -34,7 +34,7 @@
 
 ## 文件职责
 
-- `credentials.py`：Cookie/cURL 文本解析与摘要。
+- `credentials.py`：Cookie/cURL 文本解析、规范化复制值与摘要。
 - `input_data.py`：Excel 与粘贴输入归一化。
 - `portal_client.py`：Session、请求构造、登录判断、人员归属和 HTML/JSON 解析。
 - `exporter.py`：Excel、JSON、原子保存和文本报告。
@@ -49,7 +49,7 @@
 
 ## API
 
-- `POST /api/session/verify`：验证 `credentials`，不回显凭据。
+- `POST /api/session/verify`：验证 `credentials`，成功响应一次性返回规范化 Cookie Header；状态响应不返回 Cookie。
 - `POST /api/check-data`：检查 Excel Base64 或粘贴输入。
 - `POST /api/run`：复用当前 Session 开始逐人查询。
 - `POST /api/start`：agent 全链路入口，可导入新凭据或复用当前 Session。

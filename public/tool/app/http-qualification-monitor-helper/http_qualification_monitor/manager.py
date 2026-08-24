@@ -139,7 +139,11 @@ class RunManager:
             self._state["items"] = self._new_item_states(groups)
             self._start_keepalive()
             self._log("success", f"已加载 {summary['qualificationCount']} 个资质子类")
-            return self.snapshot()
+            state = self.snapshot()
+            credentials = str(getattr(self.client, "copyable_credentials", "") or "")
+            if credentials:
+                state["credentials"] = credentials
+            return state
 
     @staticmethod
     def _new_item_states(groups: list[QualificationGroup]) -> list[dict[str, object]]:

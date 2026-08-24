@@ -166,7 +166,11 @@ class RunManager:
             self._state["phase"] = "credentials_ready"
             self._state["message"] = "OA 登录凭据有效，可以扫描待办"
             self._append_log("success", "OA 登录凭据验证成功")
-            return self.snapshot()
+            state = self.snapshot()
+            credentials = str(getattr(self.client, "copyable_credentials", "") or "")
+            if credentials:
+                state["credentials"] = credentials
+            return state
 
     def clear_session(self) -> dict[str, object]:
         with self._lock:

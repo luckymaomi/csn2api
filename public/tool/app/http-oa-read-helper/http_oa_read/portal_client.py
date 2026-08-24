@@ -11,6 +11,7 @@ import requests
 
 from .credentials import (
     credential_summary,
+    format_all_credentials,
     parse_browser_headers,
     parse_credentials,
     parse_waiting_payload,
@@ -132,6 +133,7 @@ class PortalClient:
         )
         self._session: requests.Session | object | None = None
         self._waiting_payload_template: dict[str, object] | None = None
+        self.copyable_credentials = ""
         self.verified_at = ""
 
     @staticmethod
@@ -182,6 +184,7 @@ class PortalClient:
         with self.request_lock:
             self._session = session
             self._waiting_payload_template = waiting_payload
+            self.copyable_credentials = format_all_credentials(cookies)
             self.verified_at = datetime.now().isoformat(timespec="seconds")
         return {**credential_summary(cookies), "verifiedAt": self.verified_at}
 
@@ -288,6 +291,7 @@ class PortalClient:
                 self._session.close()  # type: ignore[attr-defined]
                 self._session = None
             self._waiting_payload_template = None
+            self.copyable_credentials = ""
             self.verified_at = ""
 
     def clear_credentials(self) -> None:

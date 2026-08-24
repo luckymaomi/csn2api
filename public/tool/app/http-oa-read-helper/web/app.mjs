@@ -4,6 +4,9 @@ const elements = {
   themeToggle: document.querySelector("#themeToggle"),
   credentials: document.querySelector("#credentials"),
   verifyButton: document.querySelector("#verifyButton"),
+  savedCredentialsPanel: document.querySelector("#savedCredentialsPanel"),
+  savedCredentials: document.querySelector("#savedCredentials"),
+  copyCredentialsButton: document.querySelector("#copyCredentialsButton"),
   sessionStatus: document.querySelector("#sessionStatus"),
   sessionVerified: document.querySelector("#sessionVerified"),
   sessionVerifiedAt: document.querySelector("#sessionVerifiedAt"),
@@ -72,19 +75,40 @@ let lastLogsSignature = "";
 let followResults = true;
 let followLogs = true;
 let pollingErrorShown = false;
+let savedCredentials = "";
+
+function updateSavedCredentials(value) {
+  savedCredentials = String(value || "");
+  elements.savedCredentials.value = savedCredentials;
+  elements.savedCredentialsPanel.hidden = !savedCredentials;
+}
+
+async function copySavedCredentials() {
+  if (!savedCredentials) return;
+  try {
+    await navigator.clipboard.writeText(savedCredentials);
+    elements.statusMessage.textContent = "当前页 Cookie 已复制";
+  } catch (_error) {
+    showLocalError(new Error("复制失败，请手动选择当前页 Cookie"));
+  }
+}
 let latestEligibleCount = 0;
 
 elements.themeToggle.addEventListener("click", () => window.WatchdogTheme?.toggleTheme());
 elements.verifyButton.addEventListener("click", async () => {
   const credentials = elements.credentials.value.trim();
   if (!credentials) return showLocalError("请粘贴 cURL 或 Cookie Header");
+  updateSavedCredentials("");
   try {
-    await postJson("/api/session/verify", { credentials });
-    await refreshStatus();
+    const state = await postJson("/api/session/verify", { credentials });
+    updateSavedCredentials(state.credentials);
+    elements.credentials.value = "";
+    render(state);
   } catch (error) {
     showLocalError(error);
   }
 });
+elements.copyCredentialsButton.addEventListener("click", () => copySavedCredentials());
 elements.scanButton.addEventListener("click", () => invoke("/api/scan", {}));
 elements.finiteMode.addEventListener("change", updateTargetPreview);
 elements.allMode.addEventListener("change", updateTargetPreview);
@@ -152,6 +176,7 @@ function render(state) {
   const total = Number(progress.total || 0);
   const completed = Number(progress.completed || 0);
   const percent = total ? Math.min(100, Math.round((completed / total) * 100)) : 0;
+  if (!session.verified || phase === "session_expired") updateSavedCredentials("");
 
   elements.statusMessage.textContent = state.message || "";
   elements.statusBadge.textContent = phaseLabels[phase] || phase;
@@ -190,6 +215,8 @@ function render(state) {
   elements.currentRecord.textContent = progress.current || "-";
   renderResults(state.results || []);
   renderLogs(state.logs || []);
+  elements.savedCredentials.value = savedCredentials;
+  elements.savedCredentialsPanel.hidden = !savedCredentials;
 }
 
 function renderCategories(categories) {

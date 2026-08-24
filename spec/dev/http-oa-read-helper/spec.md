@@ -10,9 +10,9 @@
 
 工作台接受浏览器 Network 面板的 Copy as cURL 文本、`Cookie: ...` Header 或 Cookie 键值串。凭据文本只被解析，不作为命令执行；所有 Cookie 键值进入 Python 后端的 `requests.Session`。完整 cURL 中的浏览器 User-Agent 经单字段白名单解析后复用于 Session，以对齐旧探针的浏览器会话上下文；Authorization、自定义头和其他 cURL 内容不会透传。纯 Cookie 输入继续使用本地默认 User-Agent。
 
-页面验证成功后不清空凭据输入框，当前页面未刷新时原文持续保留。页面不使用 localStorage、sessionStorage、IndexedDB 或文件保存凭据。页面首次加载调用 `POST /api/session/clear`，清除后端旧 Session；因此刷新或重新打开页面后需要重新粘贴并验证。运行中的批次拒绝清除 Session。
+页面验证成功后清空输入框，并只在验证成功的那一次响应中接收规范化 Cookie Header，显示当前页复制面板。页面不使用 localStorage、sessionStorage、IndexedDB 或文件保存凭据；刷新、重新打开、主动清除或会话失效后面板立即清空。页面首次加载调用 `POST /api/session/clear`，清除后端旧 Session；因此刷新或重新打开页面后需要重新粘贴并验证。运行中的批次拒绝清除 Session。
 
-状态 API、页面结果、日志和静态文件不返回 Cookie。页面完整显示 OA 标题和模块信息，不对授权账户内的业务标题做脱敏、截断或替换。
+除验证成功响应的一次性顶层 `credentials` 外，状态 API、页面结果、日志和静态文件不返回 Cookie。页面完整显示 OA 标题和模块信息，不对授权账户内的业务标题做脱敏、截断或替换。
 
 凭据验证接口：
 

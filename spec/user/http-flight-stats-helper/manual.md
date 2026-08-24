@@ -20,7 +20,7 @@ python start.py
 3. 右键任意已登录请求，选择 `Copy`，再选择 `Copy as cURL`。
 4. 把复制的整段内容粘贴到工作台，点击“验证凭据”。
 
-不需要从 cURL 中寻找 Cookie，也不要改复制内容。IEB 的关键 Cookie 可能是 HttpOnly，Console 中的 `document.cookie` 无法完整导出，所以应使用 Copy as cURL。验证成功后凭据输入框会清空，Cookie 只保存在当前 Python 进程内存。
+不需要从 cURL 中寻找 Cookie，也不要改复制内容。IEB 的关键 Cookie 可能是 HttpOnly，Console 中的 `document.cookie` 无法完整导出，所以应使用 Copy as cURL。验证成功后凭据输入框会清空，页面会显示规范化 Cookie 并提供“复制凭据”；内容只存在当前页面内存，刷新页面或会话失效后自动删除。
 
 ## 选择范围和输入
 

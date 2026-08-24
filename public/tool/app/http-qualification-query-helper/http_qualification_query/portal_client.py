@@ -10,7 +10,7 @@ from urllib.parse import urlparse
 import requests
 from bs4 import BeautifulSoup, Tag
 
-from .credentials import credential_summary, parse_credentials
+from .credentials import credential_summary, format_credentials, parse_credentials
 from .models import QueryRecord, QueryResult
 from .session_keepalive import SessionKeepAlive, random_keepalive_interval
 
@@ -279,6 +279,7 @@ class PortalClient:
             "http-qualification-query-cookie-keepalive",
         )
         self.cookies: dict[str, str] = {}
+        self.copyable_credentials = ""
         self.verified_at = ""
         self.session.headers.update(
             {
@@ -338,6 +339,7 @@ class PortalClient:
             self.cookies = {}
             raise PortalSessionExpired("凭据未进入技术资料查询页，请重新复制已登录请求")
         self.cookies = cookies
+        self.copyable_credentials = format_credentials(cookies)
         self.verified_at = datetime.now().isoformat(timespec="seconds")
         return {**credential_summary(cookies), "verifiedAt": self.verified_at}
 
@@ -421,6 +423,7 @@ class PortalClient:
     def invalidate_credentials(self) -> None:
         with self.request_lock:
             self.cookies = {}
+            self.copyable_credentials = ""
             self.verified_at = ""
             self.session.cookies.clear()
 

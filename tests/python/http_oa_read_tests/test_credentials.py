@@ -5,6 +5,7 @@ import unittest
 from .common import APP_ROOT  # noqa: F401
 from http_oa_read.credentials import (
     credential_summary,
+    format_all_credentials,
     parse_browser_headers,
     parse_credentials,
     parse_waiting_payload,
@@ -19,6 +20,7 @@ class CredentialTests(unittest.TestCase):
         summary = credential_summary(cookies)
         self.assertEqual(summary, {"cookieCount": 3})
         self.assertNotIn("secret", str(summary))
+        self.assertEqual(format_all_credentials(cookies), "SESSION=secret-a; route=secret-b; flag=value=part")
 
     def test_parses_copy_as_curl_without_executing_it(self) -> None:
         source = (

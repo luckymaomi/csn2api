@@ -11,7 +11,7 @@ from urllib.parse import urlparse
 
 import requests
 
-from .credentials import REQUIRED_COOKIE_NAMES, credential_summary, parse_credentials
+from .credentials import REQUIRED_COOKIE_NAMES, credential_summary, format_credentials, parse_credentials
 from .models import QualificationGroup, QualificationItem
 from .session_keepalive import SessionKeepAlive, random_keepalive_interval
 
@@ -139,6 +139,7 @@ class PortalClient:
             "http-qualification-monitor-cookie-keepalive",
         )
         self.verified = False
+        self.copyable_credentials = ""
         self.verified_at = ""
         self.session.headers.update(
             {
@@ -182,6 +183,7 @@ class PortalClient:
             self.clear_credentials()
             raise
         self.verified = True
+        self.copyable_credentials = format_credentials(cookies)
         self.verified_at = datetime.now().isoformat(timespec="seconds")
         summary = {
             **credential_summary(cookies),
@@ -207,6 +209,7 @@ class PortalClient:
     def invalidate_credentials(self) -> None:
         with self.request_lock:
             self.verified = False
+            self.copyable_credentials = ""
             self.verified_at = ""
             self.session.cookies.clear()
 

@@ -4,6 +4,7 @@ import unittest
 
 from .common import APP_DIR, CONFLICT_HTML, ENTRY_HTML, SUCCESS_HTML  # noqa: F401
 from http_lock_entry.metadata import parse_portal_metadata
+from http_lock_entry.credentials import format_credentials
 from http_lock_entry.models import EmployeeIdentity
 from http_lock_entry.portal_client import PortalClient, PortalSessionExpired
 
@@ -71,6 +72,7 @@ class HttpPortalClientTest(unittest.TestCase):
         )
         client = self.make_client(session)
         client.load_credentials("JSESSIONID=a; iebJSid=b")
+        self.assertEqual(client.copyable_credentials, format_credentials({"JSESSIONID": "a", "iebJSid": "b"}))
         identity = client.validate_employee("900001")
         self.assertEqual(identity.name, "测试甲")
         body = session.calls[-1][2]["data"]

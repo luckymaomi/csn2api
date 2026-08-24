@@ -51,3 +51,11 @@ def parse_credentials(source: str) -> dict[str, str]:
 def credential_summary(cookies: dict[str, str]) -> dict[str, object]:
     names = [name for name in REQUIRED_COOKIE_NAMES if cookies.get(name)]
     return {"cookieNames": names, "cookieCount": len(names)}
+
+
+def format_credentials(cookies: dict[str, str]) -> str:
+    return "; ".join(
+        f"{name}={cookies[name]}"
+        for name in REQUIRED_COOKIE_NAMES
+        if cookies.get(name)
+    )

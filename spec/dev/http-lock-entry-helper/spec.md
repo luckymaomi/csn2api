@@ -10,7 +10,7 @@
 
 工作台接受浏览器 Network 面板的 Copy as cURL 文本或完整 Cookie Header，只提取 `JSESSIONID` 和 `iebJSid`。粘贴内容不作为命令执行，cURL 中的 URL、方法和 Body 不参与请求。
 
-两个 Cookie 都是 HttpOnly，页面 Console 中的 `document.cookie` 和 Cookie Store API 无法读取，因此工作台不提供无效的 Console 复制脚本。凭据只存 Python 进程内存，不写 localStorage、日志、状态响应、Excel 或文件。验证成功后页面只显示验证时间、动态类型数量和类型版本摘要。
+两个 Cookie 都是 HttpOnly，页面 Console 中的 `document.cookie` 和 Cookie Store API 无法读取，因此工作台不提供无效的 Console 复制脚本。凭据只存 Python 进程内存，不写 localStorage、日志、状态响应、Excel 或文件；验证成功的那一次响应可额外返回规范化 Cookie Header，供当前页面复制，后续状态响应不返回 Cookie。验证成功后页面显示验证时间、动态类型数量、类型版本摘要和当前页复制面板。
 
 凭据验证请求：
 

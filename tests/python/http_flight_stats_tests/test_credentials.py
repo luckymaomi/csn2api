@@ -3,7 +3,7 @@ from __future__ import annotations
 import unittest
 
 from .common import APP_ROOT  # noqa: F401
-from http_flight_stats.credentials import credential_summary, parse_credentials
+from http_flight_stats.credentials import credential_summary, format_credentials, parse_credentials
 
 
 class CredentialTests(unittest.TestCase):
@@ -28,6 +28,7 @@ class CredentialTests(unittest.TestCase):
         self.assertEqual(summary["cookieCount"], 2)
         self.assertNotIn("session-value", str(summary))
         self.assertNotIn("browser-value", str(summary))
+        self.assertEqual(format_credentials(cookies), "JSESSIONID=session-value; iebJSid=browser-value")
 
     def test_rejects_incomplete_credentials(self) -> None:
         with self.assertRaisesRegex(ValueError, "iebJSid"):

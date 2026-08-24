@@ -2,7 +2,7 @@
 
 ## 产品边界
 
-本工具是独立的本地 HTTP APP，只读访问 IEB“资质监控 -> 按资质查询”。用户提供已登录 Cookie Header 或 Copy as cURL；Cookie 只保存在 Python 进程内存中。服务只监听 `127.0.0.1`，不使用 Playwright，不调用解除或恢复警告接口。
+本工具是独立的本地 HTTP APP，只读访问 IEB“资质监控 -> 按资质查询”。用户提供已登录 Cookie Header 或 Copy as cURL；Cookie 只保存在 Python 进程内存中，验证成功响应一次性返回规范化 Cookie Header 供当前页复制，状态响应不返回 Cookie。服务只监听 `127.0.0.1`，不使用 Playwright，不调用解除或恢复警告接口。
 
 ## 核心工作流
 
@@ -14,7 +14,7 @@
 
 ## 本地接口
 
-- `POST /api/session/verify`：验证 Cookie 并加载分类。
+- `POST /api/session/verify`：验证 Cookie 并加载分类，成功响应一次性返回规范化 Cookie Header。
 - `POST /api/export/all`：启动全部子类串行导出。
 - `POST /api/export/one`：启动已加载子类的单项导出。
 - `POST /api/stop`：请求在当前请求返回后停止。

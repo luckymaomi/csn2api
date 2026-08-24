@@ -17,6 +17,7 @@ from http_qualification_monitor.portal_client import (
     parse_classification_tree,
     validate_ooxml,
 )
+from http_qualification_monitor.credentials import format_credentials
 
 
 class FakeCookies:
@@ -104,6 +105,7 @@ class PortalClientTests(unittest.TestCase):
         ])
         client = PortalClient(session=session)
         summary, groups = client.load_credentials("JSESSIONID=a; iebJSid=b")
+        self.assertEqual(client.copyable_credentials, format_credentials({"JSESSIONID": "a", "iebJSid": "b"}))
         exported = client.export_qualification(groups[0].items[0].code)
 
         self.assertEqual(summary["qualificationCount"], 4)

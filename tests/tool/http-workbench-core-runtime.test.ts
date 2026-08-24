@@ -24,6 +24,13 @@ describe("HTTP workbench core runtime", () => {
     expect(script).not.toMatch(/^import\s+\{[^}]*renderKeepAlive/m);
     expect(script).toContain('void import("./session_keepalive.mjs")');
     expect(script).toContain("核心功能仍可使用");
+    expect(html).toContain('id="savedCredentialsPanel"');
+    expect(html).toContain('id="savedCredentials"');
+    expect(html).toContain('id="copyCredentialsButton"');
+    expect(script).toContain("state.credentials");
+    expect(script).toContain("navigator.clipboard.writeText(savedCredentials)");
+    expect(script).not.toContain("localStorage");
+    expect(script).not.toContain("sessionStorage");
     expect(server).toContain('"/session_keepalive.mjs": web_root / "session_keepalive.mjs"');
 
     const credentialStart = html.indexOf('class="work-panel credential-panel"');

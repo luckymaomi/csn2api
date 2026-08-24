@@ -5,6 +5,9 @@ const elements = {
   themeToggle: document.querySelector("#themeToggle"),
   credentials: document.querySelector("#credentials"),
   verifyButton: document.querySelector("#verifyButton"),
+  savedCredentialsPanel: document.querySelector("#savedCredentialsPanel"),
+  savedCredentials: document.querySelector("#savedCredentials"),
+  copyCredentialsButton: document.querySelector("#copyCredentialsButton"),
   sessionStatus: document.querySelector("#sessionStatus"),
   sessionVerified: document.querySelector("#sessionVerified"),
   sessionVerifiedAt: document.querySelector("#sessionVerifiedAt"),
@@ -79,11 +82,29 @@ let followResults = true;
 let pollingFailed = false;
 let lastLogsSignature = "";
 let lastResultsSignature = "";
+let savedCredentials = "";
+
+function updateSavedCredentials(value) {
+  savedCredentials = String(value || "");
+  elements.savedCredentials.value = savedCredentials;
+  elements.savedCredentialsPanel.hidden = !savedCredentials;
+}
+
+async function copySavedCredentials() {
+  if (!savedCredentials) return;
+  try {
+    await navigator.clipboard.writeText(savedCredentials);
+    elements.statusMessage.textContent = "当前页 Cookie 已复制";
+  } catch (_error) {
+    showLocalError(new Error("复制失败，请手动选择当前页 Cookie"));
+  }
+}
 
 document.querySelectorAll('input[name="inputMode"]').forEach((input) => {
   input.addEventListener("change", syncInputMode);
 });
 elements.verifyButton.addEventListener("click", verifyCredentials);
+elements.copyCredentialsButton.addEventListener("click", () => copySavedCredentials());
 elements.dataCheckButton.addEventListener("click", checkData);
 elements.runButton.addEventListener("click", runEntries);
 elements.stopButton.addEventListener("click", stopRun);
@@ -115,8 +136,10 @@ async function verifyCredentials() {
     showLocalError(new Error("请粘贴 cURL 或 Cookie Header"));
     return;
   }
+  updateSavedCredentials("");
   await withBusy(elements.verifyButton, "验证中", async () => {
     const state = await request("/api/session/verify", { credentials });
+    updateSavedCredentials(state.credentials);
     elements.credentials.value = "";
     render(state);
   });
@@ -217,6 +240,7 @@ function render(state) {
   const total = Number(progress.total || 0);
   const completed = Number(progress.completed || 0);
   const percent = total ? Math.min(100, Math.round((completed / total) * 100)) : 0;
+  if (!session.verified || phase === "session_expired") updateSavedCredentials("");
   currentMode = state.mode || currentMode;
 
   elements.modeLabel.textContent = state.modeLabel || "录入工作台";
@@ -250,6 +274,8 @@ function render(state) {
   renderResults(state.results || []);
   renderLogs(state.logs || []);
   syncDownload(Boolean(state.downloads?.result));
+  elements.savedCredentials.value = savedCredentials;
+  elements.savedCredentialsPanel.hidden = !savedCredentials;
 }
 
 function renderSession(session) {
