@@ -2,7 +2,6 @@
     letter-spacing: 0;
 }
 
-body {
 .keepalive-summary {
     display: flex;
     align-items: center;
@@ -34,6 +33,8 @@ body {
 .keepalive-ring[data-state="error"],
 .keepalive-ring[data-state="expired"] { background: conic-gradient(var(--watchdog-danger-text) calc(var(--keepalive-progress) * 1%), var(--watchdog-surface-muted) 0); }
 .keepalive-ring[hidden] { display: none; }
+
+body {
     min-width: 320px;
     min-height: 100vh;
     margin: 0;
@@ -104,6 +105,7 @@ body {
 }
 
 .status-badge.is-failed,
+.status-badge.is-session_expired,
 .status-badge.is-terminated {
     border-color: var(--watchdog-danger-border);
     background: var(--watchdog-danger-bg);

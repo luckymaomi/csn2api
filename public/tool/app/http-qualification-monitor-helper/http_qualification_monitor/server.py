@@ -90,6 +90,7 @@ def create_server(app_root: Path, port: int, manager: RunManager) -> WorkbenchSe
                 "/": web_root / "index.html",
                 "/index.html": web_root / "index.html",
                 "/app.mjs": web_root / "app.mjs",
+                "/session_keepalive.mjs": web_root / "session_keepalive.mjs",
                 "/styles.css": web_root / "styles.css",
                 "/theme.css": _asset(root, "theme.css"),
                 "/theme.js": _asset(root, "theme.js"),

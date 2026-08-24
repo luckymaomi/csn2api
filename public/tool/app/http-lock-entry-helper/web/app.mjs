@@ -1,4 +1,3 @@
-import { createKeepAliveTimer, renderKeepAlive } from "./session_keepalive.mjs";
 const elements = {
   modeLabel: document.querySelector("#modeLabel"),
   statusMessage: document.querySelector("#statusMessage"),
@@ -45,7 +44,21 @@ const elements = {
   logList: document.querySelector("#logList"),
 };
 
-const keepAliveTimer = createKeepAliveTimer();
+let keepAliveTimer = () => ({ active: false, total: 0, remaining: 0 });
+let renderKeepAlive = () => undefined;
+
+void import("./session_keepalive.mjs")
+  .then((keepAliveModule) => {
+    keepAliveTimer = keepAliveModule.createKeepAliveTimer();
+    renderKeepAlive = keepAliveModule.renderKeepAlive;
+    return refreshStatus();
+  })
+  .catch(() => {
+    elements.keepAliveRing.hidden = true;
+    elements.keepAliveStatus.textContent = "保活组件加载失败";
+    elements.keepAliveDetail.textContent = "核心功能仍可使用，请重新下载安装包";
+    showLocalError(new Error("保活状态组件加载失败，核心功能仍可使用"));
+  });
 const phaseLabels = {
   waiting_credentials: "待验证",
   verifying_credentials: "验证中",
@@ -56,6 +69,7 @@ const phaseLabels = {
   stopping: "终止中",
   completed: "已完成",
   terminated: "已终止",
+  session_expired: "会话失效",
   failed: "失败",
 };
 

@@ -1,6 +1,5 @@
 :root { letter-spacing: 0; }
 
-body {
 .keepalive-summary {
     display: flex;
     align-items: center;
@@ -32,6 +31,8 @@ body {
 .keepalive-ring[data-state="error"],
 .keepalive-ring[data-state="expired"] { background: conic-gradient(var(--watchdog-danger-text) calc(var(--keepalive-progress) * 1%), var(--watchdog-surface-muted) 0); }
 .keepalive-ring[hidden] { display: none; }
+
+body {
     min-width: 320px;
     min-height: 100vh;
     margin: 0;
@@ -47,7 +48,7 @@ body {
 .status-badge { min-width: 86px; padding: 6px 10px; border: 1px solid var(--watchdog-border); background: var(--watchdog-surface-soft); color: var(--watchdog-text-muted); font-size: 13px; font-weight: 700; text-align: center; }
 .status-badge.is-credentials_ready, .status-badge.is-data_checked, .status-badge.is-completed { border-color: var(--watchdog-success-border); background: var(--watchdog-success-bg); color: var(--watchdog-success-text); }
 .status-badge.is-verifying_credentials, .status-badge.is-checking_data, .status-badge.is-running, .status-badge.is-stopping { border-color: var(--watchdog-info-border); background: var(--watchdog-info-bg); color: var(--watchdog-info-text); }
-.status-badge.is-failed, .status-badge.is-terminated { border-color: var(--watchdog-danger-border); background: var(--watchdog-danger-bg); color: var(--watchdog-danger-text); }
+.status-badge.is-failed, .status-badge.is-terminated, .status-badge.is-session_expired { border-color: var(--watchdog-danger-border); background: var(--watchdog-danger-bg); color: var(--watchdog-danger-text); }
 
 .workspace-grid { display: grid; grid-template-columns: minmax(380px, 1.1fr) minmax(320px, .9fr); gap: 16px; padding-top: 16px; }
 .work-panel { min-width: 0; padding: 18px; border: 1px solid var(--watchdog-border); border-radius: min(var(--watchdog-radius), 8px); background: var(--watchdog-surface); box-shadow: var(--watchdog-shadow-sm); }

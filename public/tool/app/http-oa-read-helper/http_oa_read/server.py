@@ -98,6 +98,7 @@ def create_server(
                 "/": web_root / "index.html",
                 "/index.html": web_root / "index.html",
                 "/app.mjs": web_root / "app.mjs",
+                "/session_keepalive.mjs": web_root / "session_keepalive.mjs",
                 "/styles.css": web_root / "styles.css",
                 "/theme.js": asset_path("theme.js", "theme.js"),
                 "/theme.css": asset_path("theme.css", "theme.css"),
