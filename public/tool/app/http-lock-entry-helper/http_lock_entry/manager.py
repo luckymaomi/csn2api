@@ -58,6 +58,7 @@ class RunManager:
                 "verifiedAt": "",
                 "typeCount": 0,
                 "typeVersion": "",
+                "identity": None,
                 "keepAlive": self.client.keepalive.status(False) if hasattr(self.client, "keepalive") else {},
             },
             "progress": {"total": 0, "completed": 0, "success": 0, "failed": 0, "current": ""},
@@ -97,6 +98,7 @@ class RunManager:
             if isinstance(session, dict):
                 session["verified"] = False
                 session["verifiedAt"] = ""
+                session["identity"] = None
             self._state["phase"] = "session_expired"
             self._state["message"] = "保活检查发现登录凭据已失效，已停止后续请求"
             self._append_log("error", str(self._state["message"]))
@@ -157,6 +159,8 @@ class RunManager:
                 self.client.metadata = None
                 if hasattr(self.client, "copyable_credentials"):
                     self.client.copyable_credentials = ""
+                if hasattr(self.client, "identity"):
+                    self.client.identity = None
                 try:
                     self.client.session.cookies.clear()
                 except Exception:
@@ -166,6 +170,7 @@ class RunManager:
                     "verifiedAt": "",
                     "typeCount": 0,
                     "typeVersion": "",
+                    "identity": None,
                 }
                 self._state["phase"] = "waiting_credentials"
                 self._state["message"] = str(error)
@@ -177,6 +182,7 @@ class RunManager:
                 "verifiedAt": self.client.verified_at,
                 "typeCount": len(metadata.lock_types),
                 "typeVersion": self._metadata_version(),
+                "identity": dict(self.client.identity) if self.client.identity else None,
             }
             self._start_keepalive()
             self._state["phase"] = "credentials_ready"

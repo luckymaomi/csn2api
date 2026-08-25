@@ -16,6 +16,7 @@ from .session_keepalive import SessionKeepAlive, random_keepalive_interval
 
 
 BASE_URL = "https://ieb.csair.com"
+HOME_PATH = "/index/index"
 QUERY_PAGE_PATH = "/newieb/flytime/showFlytimeManyQuery"
 QUERY_PATH = "/newieb/flytime/showFlytimeManyQueryList"
 
@@ -38,6 +39,17 @@ def _is_login_response(response: requests.Response) -> bool:
         return True
     soup = BeautifulSoup(str(response.text or ""), "html.parser")
     return bool(soup.select_one("#scanLogin"))
+
+
+def parse_current_identity(html: str, status_code: int) -> dict[str, str]:
+    soup = BeautifulSoup(str(html or ""), "html.parser")
+    name_node = soup.select_one("#personalInfo .name-txt")
+    staff_node = soup.select_one(".detailInfo .empid span[title]")
+    name = _clean_text(name_node.get_text(" ", strip=True)) if name_node else ""
+    staff_number = _clean_text(staff_node.get("title")) if staff_node else ""
+    if status_code != 200 or not re.fullmatch(r"\d{6}", staff_number) or not name:
+        raise ValueError("飞行门户首页没有返回可识别的当前登录人")
+    return {"staffNumber": staff_number, "name": name}
 
 
 def parse_result_table(html: str, expected_employee_id: str, expected_name: str = "") -> TableResult:
@@ -112,6 +124,7 @@ class PortalClient:
         self.cookies: dict[str, str] = {}
         self.copyable_credentials = ""
         self.verified_at = ""
+        self.identity: dict[str, str] | None = None
         self._verify_session: requests.Session | None = None
 
     @staticmethod
@@ -146,12 +159,33 @@ class PortalClient:
         if response.status_code != 200 or form is None or form.get("action") != QUERY_PATH:
             session.close()
             raise PortalError("当前登录态无法打开飞行经历查询页面")
+        try:
+            identity_response = session.get(f"{BASE_URL}{HOME_PATH}", timeout=self.timeout_seconds)
+        except requests.RequestException as error:
+            session.close()
+            raise PortalError("读取飞行门户当前登录人失败") from error
+        if _is_login_response(identity_response):
+            session.close()
+            raise PortalSessionExpired("登录凭据已失效，请重新复制")
+        try:
+            identity = parse_current_identity(
+                str(identity_response.text or ""),
+                identity_response.status_code,
+            )
+        except ValueError as error:
+            session.close()
+            raise PortalError(str(error)) from error
         with self.request_lock:
             self.cookies = cookies
             self.copyable_credentials = format_credentials(cookies)
             self.verified_at = datetime.now().isoformat(timespec="seconds")
+            self.identity = identity
             self._verify_session = session
-        return {**credential_summary(cookies), "verifiedAt": self.verified_at}
+        return {
+            **credential_summary(cookies),
+            "verifiedAt": self.verified_at,
+            "identity": dict(identity),
+        }
 
     def check_session(self) -> None:
         with self.request_lock:
@@ -199,6 +233,7 @@ class PortalClient:
             self.cookies = {}
             self.copyable_credentials = ""
             self.verified_at = ""
+            self.identity = None
             if self._verify_session is not None:
                 self._verify_session.close()
                 self._verify_session = None

@@ -23,6 +23,7 @@ class FakePortalClient:
         return {
             "cookieCount": 2,
             "verifiedAt": datetime.now().isoformat(timespec="seconds"),
+            "identity": {"staffNumber": "900001", "name": "测试用户"},
         }
 
     def require_credentials(self) -> None:
@@ -69,7 +70,8 @@ class ManagerTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             client = FakePortalClient()
             manager = RunManager(Path(directory), client=client)  # type: ignore[arg-type]
-            manager.verify_credentials("Cookie: fake")
+            verified = manager.verify_credentials("Cookie: fake")
+            self.assertEqual(verified["session"]["identity"]["name"], "测试用户")
             checked = manager.check_data(payload)
 
             self.assertEqual(checked["checks"]["data"]["validCount"], 2)

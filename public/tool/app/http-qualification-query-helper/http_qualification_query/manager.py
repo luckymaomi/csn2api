@@ -50,6 +50,7 @@ class RunManager:
                 "verified": False,
                 "verifiedAt": "",
                 "cookieCount": 0,
+                "identity": None,
                 "keepAlive": self.client.keepalive.status(False) if hasattr(self.client, "keepalive") else {},
             },
             "checks": {
@@ -100,7 +101,12 @@ class RunManager:
         )
 
     def _set_unverified(self) -> None:
-        self._state["session"] = {"verified": False, "verifiedAt": "", "cookieCount": 0}
+        self._state["session"] = {
+            "verified": False,
+            "verifiedAt": "",
+            "cookieCount": 0,
+            "identity": None,
+        }
 
     def snapshot(self) -> dict[str, object]:
         with self._lock:
@@ -145,6 +151,7 @@ class RunManager:
                 "verified": True,
                 "verifiedAt": summary["verifiedAt"],
                 "cookieCount": summary["cookieCount"],
+                "identity": summary.get("identity"),
             }
             self._start_keepalive()
             self._state["phase"] = "credentials_ready"

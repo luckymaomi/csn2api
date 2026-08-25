@@ -6,7 +6,13 @@ from .common import APP_DIR, CONFLICT_HTML, ENTRY_HTML, SUCCESS_HTML  # noqa: F4
 from http_lock_entry.metadata import parse_portal_metadata
 from http_lock_entry.credentials import format_credentials
 from http_lock_entry.models import EmployeeIdentity
-from http_lock_entry.portal_client import PortalClient, PortalSessionExpired
+from http_lock_entry.portal_client import PortalClient, PortalSessionExpired, parse_current_identity
+
+
+HOME_HTML = """
+<div id="personalInfo"><span class="name-txt">测试用户</span></div>
+<div class="detailInfo"><div class="empid"><span title="900001"></span></div></div>
+"""
 
 
 class FakeResponse:
@@ -57,6 +63,14 @@ class HttpPortalClientTest(unittest.TestCase):
     def make_client(self, session=None):
         return PortalClient(session=session or FakeSession())
 
+    def test_parses_current_session_identity_from_home_page(self):
+        self.assertEqual(
+            parse_current_identity(HOME_HTML, 200),
+            {"staffNumber": "900001", "name": "测试用户"},
+        )
+        with self.assertRaisesRegex(ValueError, "当前登录人"):
+            parse_current_identity("<html></html>", 200)
+
     def test_verify_credentials_requires_real_entry_form(self):
         session = FakeSession(get_responses=[FakeResponse("<html>login</html>", url="https://ieb.csair.com/login")])
         client = self.make_client(session)
@@ -65,7 +79,7 @@ class HttpPortalClientTest(unittest.TestCase):
 
     def test_employee_validation_uses_staff_num_with_capital_n(self):
         session = FakeSession(
-            get_responses=[FakeResponse(ENTRY_HTML)],
+            get_responses=[FakeResponse(ENTRY_HTML), FakeResponse(HOME_HTML)],
             post_responses=[FakeResponse(json_value={
                 "permissionFlag": "true", "nameInfo": "测试甲", "deptInfo": "测试部门"
             })],
@@ -80,7 +94,7 @@ class HttpPortalClientTest(unittest.TestCase):
         self.assertNotIn("staffnum", body)
 
     def test_monthly_submit_body_preserves_repeated_days(self):
-        session = FakeSession(get_responses=[FakeResponse(ENTRY_HTML)])
+        session = FakeSession(get_responses=[FakeResponse(ENTRY_HTML), FakeResponse(HOME_HTML)])
         client = self.make_client(session)
         metadata = client.load_credentials("JSESSIONID=a; iebJSid=b")
         record = {

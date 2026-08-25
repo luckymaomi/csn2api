@@ -70,6 +70,7 @@ body {
 .session-summary div:last-child, .run-summary div:last-child { border-right: 0; }
 .session-summary dt, .run-summary dt { color: var(--watchdog-text-muted); font-size: 12px; font-weight: 500; }
 .session-summary dd, .run-summary dd { margin: 3px 0 0; overflow-wrap: anywhere; font-size: 14px; font-weight: 700; }
+.session-summary .session-identity { grid-column: 1 / -1; border-top: 1px solid var(--watchdog-divider); border-right: 0; }
 .run-summary { margin-top: 18px; }
 .run-summary dd { font-size: 22px; font-variant-numeric: tabular-nums; }
 .primary-actions { display: grid; grid-template-columns: minmax(0, 1fr) 100px; gap: 10px; }

@@ -12,8 +12,23 @@ const workbenches = [
   ["http-qualification-monitor-helper", "http_qualification_monitor"],
 ] as const;
 
+const sessionWorkbenches = [
+  ...workbenches.map(([entry]) => entry),
+  "http-soc-positioning-helper",
+] as const;
+
 
 describe("HTTP workbench core runtime", () => {
+  it.each(sessionWorkbenches)("shows the verified identity in %s", (entry) => {
+    const root = resolveFromRoot(`public/tool/app/${entry}`);
+    const html = readFileSync(`${root}/web/index.html`, "utf8");
+    const script = readFileSync(`${root}/web/app.mjs`, "utf8");
+
+    expect(html).toContain("当前登录人");
+    expect(html).toContain('id="sessionIdentity"');
+    expect(script).toContain("session.identity");
+  });
+
   it.each(workbenches)("keeps %s controls independent from the keepalive widget", (entry, packageName) => {
     const root = resolveFromRoot(`public/tool/app/${entry}`);
     const html = readFileSync(`${root}/web/index.html`, "utf8");

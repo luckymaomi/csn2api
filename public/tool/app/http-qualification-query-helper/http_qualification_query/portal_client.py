@@ -16,6 +16,7 @@ from .session_keepalive import SessionKeepAlive, random_keepalive_interval
 
 
 BASE_URL = "https://ieb.csair.com"
+HOME_PATH = "/index/index"
 VERIFY_PATH = "/newieb/basics/showEmpprofileCompositeListPageNew"
 EMPLOYEE_PATH = "/newieb/basics/showEmpProfileCompositeResult"
 BASIC_INFO_PATH = "/newieb/hrInfo/showEmpInfo"
@@ -63,6 +64,17 @@ class PortalSessionExpired(PortalError):
 
 def _text(value: Any) -> str:
     return re.sub(r"\s+", " ", str(value or "").replace("\xa0", " ")).strip()
+
+
+def parse_current_identity(html: str, status_code: int) -> dict[str, str]:
+    soup = BeautifulSoup(str(html or ""), "html.parser")
+    name_node = soup.select_one("#personalInfo .name-txt")
+    staff_node = soup.select_one(".detailInfo .empid span[title]")
+    name = _text(name_node.get_text(" ", strip=True)) if name_node else ""
+    staff_number = _text(staff_node.get("title")) if staff_node else ""
+    if status_code != 200 or not re.fullmatch(r"\d{6}", staff_number) or not name:
+        raise ValueError("飞行门户首页没有返回可识别的当前登录人")
+    return {"staffNumber": staff_number, "name": name}
 
 
 def _cell_text(cell: Tag) -> str:
@@ -281,6 +293,7 @@ class PortalClient:
         self.cookies: dict[str, str] = {}
         self.copyable_credentials = ""
         self.verified_at = ""
+        self.identity: dict[str, str] | None = None
         self.session.headers.update(
             {
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/140 Safari/537.36",
@@ -333,15 +346,28 @@ class PortalClient:
         with self.request_lock:
             for name, value in cookies.items():
                 self.session.cookies.set(name, value, domain="ieb.csair.com", path="/")
-        response = self._get(VERIFY_PATH, params={"random": str(time.time_ns())})
-        soup = BeautifulSoup(str(getattr(response, "text", "") or ""), "html.parser")
-        if soup.select_one("#showEmpProfileCompositeListPageForm") is None:
-            self.cookies = {}
-            raise PortalSessionExpired("凭据未进入技术资料查询页，请重新复制已登录请求")
+        try:
+            response = self._get(VERIFY_PATH, params={"random": str(time.time_ns())})
+            soup = BeautifulSoup(str(getattr(response, "text", "") or ""), "html.parser")
+            if soup.select_one("#showEmpProfileCompositeListPageForm") is None:
+                raise PortalSessionExpired("凭据未进入技术资料查询页，请重新复制已登录请求")
+            identity_response = self._get(HOME_PATH, params={})
+            identity = parse_current_identity(
+                str(getattr(identity_response, "text", "") or ""),
+                int(getattr(identity_response, "status_code", 0) or 0),
+            )
+        except Exception:
+            self.invalidate_credentials()
+            raise
         self.cookies = cookies
+        self.identity = identity
         self.copyable_credentials = format_credentials(cookies)
         self.verified_at = datetime.now().isoformat(timespec="seconds")
-        return {**credential_summary(cookies), "verifiedAt": self.verified_at}
+        return {
+            **credential_summary(cookies),
+            "verifiedAt": self.verified_at,
+            "identity": dict(identity),
+        }
 
     def check_session(self) -> None:
         self.require_credentials()
@@ -423,6 +449,7 @@ class PortalClient:
     def invalidate_credentials(self) -> None:
         with self.request_lock:
             self.cookies = {}
+            self.identity = None
             self.copyable_credentials = ""
             self.verified_at = ""
             self.session.cookies.clear()

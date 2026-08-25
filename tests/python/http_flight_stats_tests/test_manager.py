@@ -24,6 +24,7 @@ class FakePortalClient:
             "cookieCount": 2,
             "cookieNames": ["JSESSIONID", "iebJSid"],
             "verifiedAt": datetime.now().isoformat(timespec="seconds"),
+            "identity": {"staffNumber": "900001", "name": "测试用户"},
         }
 
     def require_credentials(self) -> None:
@@ -78,6 +79,7 @@ class ManagerTests(unittest.TestCase):
 
             verified = manager.verify_credentials(secret)
             self.assertTrue(verified["session"]["verified"])
+            self.assertEqual(verified["session"]["identity"]["name"], "测试用户")
             self.assertNotIn("secret-one", str(verified))
             self.assertNotIn("secret-two", str(verified))
 

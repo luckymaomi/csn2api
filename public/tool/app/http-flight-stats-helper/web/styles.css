@@ -168,6 +168,7 @@ body {
 .session-summary dt,
 .run-summary dt { color: var(--watchdog-text-muted); font-size: 12px; font-weight: 500; }
 .session-summary dd { margin: 3px 0 0; overflow-wrap: anywhere; font-size: 14px; font-weight: 700; }
+.session-summary .session-identity { grid-column: 1 / -1; border-top: 1px solid var(--watchdog-divider); border-right: 0; }
 .run-summary dd { margin: 3px 0 0; font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; }
 
 .scope-switch { display: grid; grid-template-columns: 1fr 1fr; margin-bottom: 16px; }

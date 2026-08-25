@@ -8,6 +8,8 @@
 
 ## 2. 会话凭据
 
+验证阶段除录入页外还会只读请求 `GET /index/index`，员工号来自 `.detailInfo .empid span[title]`，姓名来自 `#personalInfo .name-txt`。身份缺失时验证失败；页面显示“员工号 · 姓名”，身份只保存在内存 Session，会话失效时与 Cookie 同步清除。
+
 工作台接受浏览器 Network 面板的 Copy as cURL 文本或完整 Cookie Header，只提取 `JSESSIONID` 和 `iebJSid`。粘贴内容不作为命令执行，cURL 中的 URL、方法和 Body 不参与请求。
 
 两个 Cookie 都是 HttpOnly，页面 Console 中的 `document.cookie` 和 Cookie Store API 无法读取，因此工作台不提供无效的 Console 复制脚本。凭据只存 Python 进程内存，不写 localStorage、日志、状态响应、Excel 或文件；验证成功的那一次响应可额外返回规范化 Cookie Header，供当前页面复制，后续状态响应不返回 Cookie。验证成功后页面显示验证时间、动态类型数量、类型版本摘要和当前页复制面板。

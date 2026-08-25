@@ -35,7 +35,12 @@ class FakeClient:
         if not source:
             raise ValueError("缺少凭据")
         self.verified = True
-        return {"cookieCount": 2, "verifiedAt": "2026-08-23T10:00:00", "qualificationCount": 4}, GROUPS
+        return {
+            "cookieCount": 2,
+            "verifiedAt": "2026-08-23T10:00:00",
+            "qualificationCount": 4,
+            "identity": {"staffNumber": "900001", "name": "测试用户"},
+        }, GROUPS
 
     def require_credentials(self) -> None:
         if not self.verified:
@@ -67,6 +72,7 @@ class ManagerServerTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             manager = RunManager(Path(directory), client=FakeClient())  # type: ignore[arg-type]
             state = manager.verify_credentials("Cookie: secret-value")
+            self.assertEqual(state["session"]["identity"]["name"], "测试用户")
             self.assertNotIn("secret-value", json.dumps(state, ensure_ascii=False))
             manager.export_all()
             finished = wait_finished(manager)

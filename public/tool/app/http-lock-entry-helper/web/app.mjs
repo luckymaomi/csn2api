@@ -11,6 +11,7 @@ const elements = {
   sessionStatus: document.querySelector("#sessionStatus"),
   sessionVerified: document.querySelector("#sessionVerified"),
   sessionVerifiedAt: document.querySelector("#sessionVerifiedAt"),
+  sessionIdentity: document.querySelector("#sessionIdentity"),
   keepAliveRing: document.querySelector("#keepAliveRing"),
   keepAliveCountdown: document.querySelector("#keepAliveCountdown"),
   keepAliveStatus: document.querySelector("#keepAliveStatus"),
@@ -283,6 +284,10 @@ function renderSession(session) {
   elements.sessionStatus.textContent = verified ? "当前 Session 可用" : "尚未验证";
   elements.sessionVerified.textContent = verified ? "有效" : "未验证";
   elements.sessionVerifiedAt.textContent = session.verifiedAt || "-";
+  const identity = session.identity || {};
+  elements.sessionIdentity.textContent = verified
+    ? [identity.staffNumber, identity.name].filter(Boolean).join(" · ") || "未识别"
+    : "-";
   elements.sessionTypeCount.textContent = String(session.typeCount || 0);
   elements.sessionTypeVersion.textContent = session.typeVersion || "-";
 }

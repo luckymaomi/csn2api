@@ -42,6 +42,18 @@ class PortalSessionExpired(PortalError):
     pass
 
 
+def _parse_current_identity(payload: dict[str, object]) -> dict[str, str]:
+    data = payload.get("data")
+    login_user = data.get("loginUserInfo") if isinstance(data, dict) else None
+    if not isinstance(login_user, dict):
+        raise PortalError("OA 用户信息没有返回可识别的当前登录人")
+    staff_number = " ".join(str(login_user.get("empId") or "").split())
+    name = " ".join(str(login_user.get("empName") or "").split())
+    if not staff_number or not name:
+        raise PortalError("OA 用户信息没有返回可识别的当前登录人")
+    return {"staffNumber": staff_number, "name": name}
+
+
 def _business_payload(response: object, action: str) -> dict[str, object]:
     status_code = int(getattr(response, "status_code", 0) or 0)
     if status_code in {301, 302, 303, 307, 308}:
@@ -135,6 +147,7 @@ class PortalClient:
         self._waiting_payload_template: dict[str, object] | None = None
         self.copyable_credentials = ""
         self.verified_at = ""
+        self.identity: dict[str, str] | None = None
 
     @staticmethod
     def _configure_session(
@@ -171,7 +184,8 @@ class PortalClient:
                 timeout=VERIFY_TIMEOUT,
                 allow_redirects=False,
             )
-            _business_payload(response, "验证 OA 凭据")
+            payload = _business_payload(response, "验证 OA 凭据")
+            identity = _parse_current_identity(payload)
         except requests.Timeout as error:
             session.close()  # type: ignore[attr-defined]
             raise PortalError("验证 OA 凭据超时，请确认已连接内网并重新复制当前 Cookie") from error
@@ -186,7 +200,12 @@ class PortalClient:
             self._waiting_payload_template = waiting_payload
             self.copyable_credentials = format_all_credentials(cookies)
             self.verified_at = datetime.now().isoformat(timespec="seconds")
-        return {**credential_summary(cookies), "verifiedAt": self.verified_at}
+            self.identity = identity
+        return {
+            **credential_summary(cookies),
+            "verifiedAt": self.verified_at,
+            "identity": dict(identity),
+        }
 
     def _active_session(self) -> object:
         if self._session is None:
@@ -293,6 +312,7 @@ class PortalClient:
             self._waiting_payload_template = None
             self.copyable_credentials = ""
             self.verified_at = ""
+            self.identity = None
 
     def clear_credentials(self) -> None:
         self.keepalive.stop()

@@ -8,6 +8,8 @@
 
 ## 已验证接口
 
+凭据验证还会只读请求 `GET https://ieb.csair.com/index/index`。员工号来自 `.detailInfo .empid span[title]`，姓名来自 `#personalInfo .name-txt`；两者缺失时验证失败。页面将内存 Session 中的身份显示为“员工号 · 姓名”，会话失效时身份与 Cookie 同步清除。
+
 - 凭据验证：`GET https://ieb.csair.com/newieb/flytime/showFlytimeManyQuery`。有效页面包含 `#showflyTimeExperienceQueryForm`，未登录会重定向到 `/login` 并出现 `#scanLogin`。
 - 人员查询：`GET https://ieb.csair.com/newieb/flytime/showFlytimeManyQueryList`。
 - 查询参数：`staffNum`、`activeStatusArray=ZAIZHI`、`dateType=5`、`startStr=YYYY-MM-DD`、`endStr=YYYY-MM-DD`、页面既有空筛选参数、`page=1` 和防缓存值。

@@ -6,6 +6,8 @@
 
 ## 已验证 HTTP 契约
 
+凭据验证还会只读请求 `GET /index/index`。员工号来自 `.detailInfo .empid span[title]`，姓名来自 `#personalInfo .name-txt`；身份缺失时验证失败。页面显示“员工号 · 姓名”，身份只保存在内存 Session，会话失效时与 Cookie 同步清除。
+
 - 会话验证：`GET /newieb/basics/showEmpprofileCompositeListPageNew`，有效页面包含 `#showEmpProfileCompositeListPageForm`。
 - 人员归属：`GET /newieb/basics/showEmpProfileCompositeResult`，`personName` 使用员工号，`activeStatusArray=ZAIZHI` 和 `activeStatusArray=WAIBU` 必须作为重复 Query 参数发送。
 - 基础信息：`POST /newieb/hrInfo/showEmpInfo`，multipart 字段 `staffNum`，返回 `empDto`、`eduList`、`workList`、`titleList`、`relationList`，分别对应基本信息、教育经历、工作经历、职称信息、家庭信息。

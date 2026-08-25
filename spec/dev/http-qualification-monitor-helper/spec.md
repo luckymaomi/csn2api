@@ -6,6 +6,8 @@
 
 ## 核心工作流
 
+凭据验证还会只读请求 `GET /index/index`。员工号来自 `.detailInfo .empid span[title]`，姓名来自 `#personalInfo .name-txt`；身份缺失时验证失败。页面显示“员工号 · 姓名”，身份只保存在内存 Session，会话失效时与 Cookie 同步清除。
+
 凭据验证通过分类树接口完成。客户端只接受资质运行类 `ZZYX`、资质资格类 `ZZZG`、资质特殊类 `ZZTS`，子类按门户响应动态读取；缺失父类、意外父类、重复代码或缺少名称时停止。
 
 单项与全部导出均调用门户原生 `GET /newieb/qualification/alarm/new/exportQualificationInfoExcel`。请求保留页面的全部空筛选参数且不携带分页字段。响应通过 ZIP 魔数、OOXML 必要部件和 worksheet 校验后原样保存，不用 Excel 库解析、修复或重写。

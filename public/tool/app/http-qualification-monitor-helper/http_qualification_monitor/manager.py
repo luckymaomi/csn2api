@@ -48,6 +48,7 @@ class RunManager:
             "session": {
                 "verified": False,
                 "verifiedAt": "",
+                "identity": None,
                 "keepAlive": self.client.keepalive.status(False) if hasattr(self.client, "keepalive") else {},
             },
             "groups": [],
@@ -84,6 +85,7 @@ class RunManager:
             session = self._state.get("session")
             if isinstance(session, dict):
                 session["verified"] = False
+                session["identity"] = None
             self._state["phase"] = "session_expired"
             self._state["error"] = "保活检查发现登录凭据已失效，已停止后续导出"
             self._log("error", self._state["error"])

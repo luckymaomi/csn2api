@@ -31,7 +31,11 @@ class FakePortal:
 
     def load_credentials(self, source):
         self.secret = source
-        return {"cookieCount": 2, "verifiedAt": "2026-08-21T10:00:00"}
+        return {
+            "cookieCount": 2,
+            "verifiedAt": "2026-08-21T10:00:00",
+            "identity": {"staffNumber": "900001", "name": "测试用户"},
+        }
 
     def scan_waiting(self):
         rows = [record(1), record(2), record(3, "WORKFLOW_PLATFORM", "DI")]
@@ -122,6 +126,7 @@ class RunnerManagerTests(unittest.TestCase):
         portal = FakePortal()
         manager = RunManager(Path("."), client=portal)
         state = manager.verify_credentials("Cookie: SESSION=secret-value")
+        self.assertEqual(state["session"]["identity"]["name"], "测试用户")
         self.assertNotIn("secret-value", str(state))
         scanned = manager.scan()
         self.assertEqual(scanned["scan"]["eligibleCount"], 2)

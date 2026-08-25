@@ -8,6 +8,8 @@
 
 ## 2. 凭据与页面生命周期
 
+用户信息响应必须包含 `data.loginUserInfo.empId` 和 `data.loginUserInfo.empName`。页面显示“员工号 · 姓名”；身份只保存在内存 Session，不写日志或文件，主动清除、刷新清除或会话失效时与 Cookie 同步删除。
+
 工作台接受浏览器 Network 面板的 Copy as cURL 文本、`Cookie: ...` Header 或 Cookie 键值串。凭据文本只被解析，不作为命令执行；所有 Cookie 键值进入 Python 后端的 `requests.Session`。完整 cURL 中的浏览器 User-Agent 经单字段白名单解析后复用于 Session，以对齐旧探针的浏览器会话上下文；Authorization、自定义头和其他 cURL 内容不会透传。纯 Cookie 输入继续使用本地默认 User-Agent。
 
 页面验证成功后清空输入框，并只在验证成功的那一次响应中接收规范化 Cookie Header，显示当前页复制面板。页面不使用 localStorage、sessionStorage、IndexedDB 或文件保存凭据；刷新、重新打开、主动清除或会话失效后面板立即清空。页面首次加载调用 `POST /api/session/clear`，清除后端旧 Session；因此刷新或重新打开页面后需要重新粘贴并验证。运行中的批次拒绝清除 Session。

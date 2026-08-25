@@ -10,6 +10,7 @@ from typing import Any, Callable
 from urllib.parse import urlparse
 
 import requests
+from bs4 import BeautifulSoup
 
 from .credentials import REQUIRED_COOKIE_NAMES, credential_summary, format_credentials, parse_credentials
 from .models import QualificationGroup, QualificationItem
@@ -17,6 +18,7 @@ from .session_keepalive import SessionKeepAlive, random_keepalive_interval
 
 
 BASE_URL = "https://ieb.csair.com"
+HOME_PATH = "/index/index"
 CLASSIFICATION_PATH = "/newieb/qualification/alarm/new/queryQualificationTypeParent"
 EXPORT_PATH = "/newieb/qualification/alarm/new/exportQualificationInfoExcel"
 EXPECTED_GROUPS = {
@@ -49,6 +51,17 @@ class PortalSessionExpired(PortalError):
 
 def _clean_text(value: Any) -> str:
     return re.sub(r"\s+", " ", str(value or "")).strip()
+
+
+def parse_current_identity(html: str, status_code: int) -> dict[str, str]:
+    soup = BeautifulSoup(str(html or ""), "html.parser")
+    name_node = soup.select_one("#personalInfo .name-txt")
+    staff_node = soup.select_one(".detailInfo .empid span[title]")
+    name = _clean_text(name_node.get_text(" ", strip=True)) if name_node else ""
+    staff_number = _clean_text(staff_node.get("title")) if staff_node else ""
+    if status_code != 200 or not re.fullmatch(r"\d{6}", staff_number) or not name:
+        raise ValueError("飞行门户首页没有返回可识别的当前登录人")
+    return {"staffNumber": staff_number, "name": name}
 
 
 def _is_login_response(response: object) -> bool:
@@ -139,6 +152,7 @@ class PortalClient:
             "http-qualification-monitor-cookie-keepalive",
         )
         self.verified = False
+        self.identity: dict[str, str] | None = None
         self.copyable_credentials = ""
         self.verified_at = ""
         self.session.headers.update(
@@ -151,10 +165,20 @@ class PortalClient:
             }
         )
 
-    def _get(self, path: str, params: dict[str, str]) -> object:
+    def _get(
+        self,
+        path: str,
+        params: dict[str, str],
+        headers: dict[str, str] | None = None,
+    ) -> object:
         with self.request_lock:
             try:
-                response = self.session.get(f"{self.base_url}{path}", params=params, timeout=self.timeout)
+                response = self.session.get(
+                    f"{self.base_url}{path}",
+                    params=params,
+                    headers=headers,
+                    timeout=self.timeout,
+                )
                 response.raise_for_status()
             except requests.RequestException as error:
                 raise PortalError(f"无法连接飞行门户：{error.__class__.__name__}") from error
@@ -179,16 +203,23 @@ class PortalClient:
             except (ValueError, json.JSONDecodeError) as error:
                 raise PortalSessionExpired("资质分类接口未返回有效 JSON，请重新验证凭据") from error
             groups = parse_classification_tree(payload)
+            identity_response = self._get(HOME_PATH, {}, {"Accept": "text/html,application/xhtml+xml"})
+            identity = parse_current_identity(
+                str(getattr(identity_response, "text", "") or ""),
+                int(getattr(identity_response, "status_code", 0) or 0),
+            )
         except Exception:
             self.clear_credentials()
             raise
         self.verified = True
+        self.identity = identity
         self.copyable_credentials = format_credentials(cookies)
         self.verified_at = datetime.now().isoformat(timespec="seconds")
         summary = {
             **credential_summary(cookies),
             "verifiedAt": self.verified_at,
             "qualificationCount": sum(len(group.items) for group in groups),
+            "identity": dict(identity),
         }
         return summary, groups
 
@@ -209,6 +240,7 @@ class PortalClient:
     def invalidate_credentials(self) -> None:
         with self.request_lock:
             self.verified = False
+            self.identity = None
             self.copyable_credentials = ""
             self.verified_at = ""
             self.session.cookies.clear()

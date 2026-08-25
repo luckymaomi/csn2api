@@ -46,6 +46,7 @@ class RunManager:
                 "verified": False,
                 "verifiedAt": "",
                 "cookieCount": 0,
+                "identity": None,
                 "keepAlive": self.client.keepalive.status(False) if hasattr(self.client, "keepalive") else {},
             },
             "scan": {
@@ -86,6 +87,7 @@ class RunManager:
             session = self._state.get("session")
             if isinstance(session, dict):
                 session["verified"] = False
+                session["identity"] = None
             self._state["phase"] = "session_expired"
             self._state["message"] = "保活检查发现 OA 登录凭据已失效，已停止后续请求"
             self._append_log("error", str(self._state["message"]))
@@ -161,6 +163,7 @@ class RunManager:
                 "verified": True,
                 "verifiedAt": summary.get("verifiedAt", ""),
                 "cookieCount": summary.get("cookieCount", 0),
+                "identity": summary.get("identity"),
             }
             self._start_keepalive()
             self._state["phase"] = "credentials_ready"

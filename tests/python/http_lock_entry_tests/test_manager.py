@@ -28,11 +28,13 @@ class FakeSession:
 class FakeClient:
     def __init__(self):
         self.metadata = None
+        self.identity = None
         self.verified_at = ""
         self.session = FakeSession()
 
     def load_credentials(self, _source):
         self.metadata = parse_portal_metadata(ENTRY_HTML)
+        self.identity = {"staffNumber": "900001", "name": "测试用户"}
         self.verified_at = "2026-08-19 10:00:00"
         return self.metadata
 
@@ -87,6 +89,7 @@ class HttpLockEntryManagerTest(unittest.TestCase):
             try:
                 verified = manager.verify_credentials("JSESSIONID=secret-a; iebJSid=secret-b")
                 self.assertTrue(verified["session"]["verified"])
+                self.assertEqual(verified["session"]["identity"]["name"], "测试用户")
                 self.assertNotIn("secret-a", json.dumps(verified, ensure_ascii=False))
                 checked = manager.check_data(self.payload())
                 self.assertEqual(checked["checks"]["data"]["validCount"], 1)

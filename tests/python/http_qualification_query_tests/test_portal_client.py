@@ -10,6 +10,7 @@ from http_qualification_query.portal_client import (
     PortalSessionExpired,
     build_employee_query_params,
     parse_basic_payload,
+    parse_current_identity,
     parse_detail_table,
     parse_employee_identity,
     parse_training_record_pages,
@@ -18,6 +19,10 @@ from http_qualification_query.credentials import format_credentials
 
 
 SESSION_HTML = '<form id="showEmpProfileCompositeListPageForm"></form>'
+HOME_HTML = """
+<div id="personalInfo"><span class="name-txt">测试用户</span></div>
+<div class="detailInfo"><div class="empid"><span title="900001"></span></div></div>
+"""
 EMPLOYEE_HTML = """
 <div class="flexigrid">
   <div class="hDiv"><table><tr>
@@ -119,6 +124,14 @@ class FakeSession:
 
 
 class PortalClientTests(unittest.TestCase):
+    def test_parses_current_session_identity_from_home_page(self) -> None:
+        self.assertEqual(
+            parse_current_identity(HOME_HTML, 200),
+            {"staffNumber": "900001", "name": "测试用户"},
+        )
+        with self.assertRaisesRegex(ValueError, "当前登录人"):
+            parse_current_identity("<html></html>", 200)
+
     def test_employee_params_preserve_both_active_status_values(self) -> None:
         params = build_employee_query_params("900001", "123")
         self.assertEqual(
@@ -165,7 +178,7 @@ class PortalClientTests(unittest.TestCase):
 
     def test_query_uses_verified_session_and_all_real_endpoints(self) -> None:
         session = FakeSession(
-            get_responses=[FakeResponse(SESSION_HTML), FakeResponse(EMPLOYEE_HTML)],
+            get_responses=[FakeResponse(SESSION_HTML), FakeResponse(HOME_HTML), FakeResponse(EMPLOYEE_HTML)],
             post_responses=[
                 FakeResponse(__import__("json").dumps(BASIC_PAYLOAD, ensure_ascii=False)),
                 FakeResponse(TECHNICAL_HTML),
@@ -187,16 +200,16 @@ class PortalClientTests(unittest.TestCase):
         self.assertEqual((len(result.technical_rows), len(result.operation_rows)), (1, 2))
         self.assertEqual((len(result.training_record_rows), len(result.training_experience_rows)), (2, 3))
         self.assertEqual(len(result.education_rows), 1)
-        employee_call = session.calls[1]
+        employee_call = session.calls[2]
         self.assertEqual(employee_call[0], "GET")
         statuses = [value for key, value in employee_call[2]["params"] if key == "activeStatusArray"]
         self.assertEqual(statuses, ["ZAIZHI", "WAIBU"])
-        self.assertTrue(session.calls[2][1].endswith("/newieb/hrInfo/showEmpInfo"))
-        self.assertEqual(session.calls[2][2]["files"]["staffNum"], (None, "900001"))
-        self.assertTrue(session.calls[3][1].endswith("/newieb/basics/qualList"))
-        self.assertTrue(session.calls[4][1].endswith("/newieb/basics/showSingleEmpOperQualListByempIdNew"))
-        self.assertTrue(session.calls[5][1].endswith("/newieb/basics/trainingRecordList"))
-        self.assertTrue(session.calls[6][1].endswith("/newieb/basics/trainResultList"))
+        self.assertTrue(session.calls[3][1].endswith("/newieb/hrInfo/showEmpInfo"))
+        self.assertEqual(session.calls[3][2]["files"]["staffNum"], (None, "900001"))
+        self.assertTrue(session.calls[4][1].endswith("/newieb/basics/qualList"))
+        self.assertTrue(session.calls[5][1].endswith("/newieb/basics/showSingleEmpOperQualListByempIdNew"))
+        self.assertTrue(session.calls[6][1].endswith("/newieb/basics/trainingRecordList"))
+        self.assertTrue(session.calls[7][1].endswith("/newieb/basics/trainResultList"))
 
     def test_rejects_login_response(self) -> None:
         session = FakeSession(get_responses=[FakeResponse("<div id='scanLogin'></div>", "https://ieb.csair.com/login")])

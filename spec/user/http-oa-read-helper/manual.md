@@ -13,6 +13,8 @@ python start.py
 
 ## 1. 验证凭据
 
+验证成功后，凭据区会显示该 OA Session 对应的“员工号 · 姓名”。身份只保存在当前页面和后端进程内存，刷新、主动清除或会话失效时与 Cookie 同步删除。
+
 在已登录 OA 的浏览器打开 F12 Network，等待登录重定向和回调完成并进入待办列表。优先选择域名为 `work.csair.com`、路径包含 `/oai/work/box/query/waiting` 的待办请求，右键选择 Copy as cURL；`/oai/work/login/userInfo` 或其他携带 Cookie 的 `work.csair.com` 已登录业务请求也可以。不要选择 IAM 登录域、回调中间页、静态资源或请求头中没有 Cookie 的请求。把完整内容粘贴到“cURL 或 Cookie Header”，点击“验证凭据”。
 
 OA 优先粘贴完整 cURL，不要只从其他页面抄一段 Cookie。完整 cURL 会同时提供该浏览器的 User-Agent；如果 OA Session 绑定浏览器上下文，这比纯 Cookie 更可靠。工作台只复用 Cookie 和白名单内的 User-Agent，不执行 cURL，也不透传 Authorization 或其他任意请求头。

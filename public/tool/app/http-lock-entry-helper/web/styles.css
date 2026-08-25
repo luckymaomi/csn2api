@@ -239,6 +239,12 @@ body {
     font-weight: 700;
 }
 
+.session-summary .session-identity {
+    grid-column: 1 / -1;
+    border-top: 1px solid var(--watchdog-divider);
+    border-right: 0;
+}
+
 .run-summary {
     margin-bottom: 18px;
 }

@@ -5,7 +5,7 @@ from datetime import date
 
 from .common import APP_ROOT  # noqa: F401
 from http_flight_stats.models import QueryRecord
-from http_flight_stats.portal_client import build_query_params, parse_result_table
+from http_flight_stats.portal_client import build_query_params, parse_current_identity, parse_result_table
 
 
 RESULT_HTML = """
@@ -21,8 +21,22 @@ RESULT_HTML = """
 </table>
 """
 
+HOME_HTML = """
+<div id="personalInfo"><span class="name-txt">测试用户</span></div>
+<div class="detailInfo"><div class="empid"><span title="900001"></span></div></div>
+"""
+
 
 class PortalTests(unittest.TestCase):
+    def test_parses_current_session_identity_from_home_page(self) -> None:
+        self.assertEqual(
+            parse_current_identity(HOME_HTML, 200),
+            {"staffNumber": "900001", "name": "测试用户"},
+        )
+
+        with self.assertRaisesRegex(ValueError, "当前登录人"):
+            parse_current_identity("<html></html>", 200)
+
     def test_parses_dynamic_headers_and_exact_identity(self) -> None:
         result = parse_result_table(RESULT_HTML, "100001", "测试甲")
 

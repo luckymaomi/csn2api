@@ -13,6 +13,8 @@ python start.py
 
 ## 验证 Cookie
 
+验证成功后，凭据区会显示该 Session 对应的“员工号 · 姓名”。身份只保存在当前页面和后端进程内存，会话失效时与 Cookie 同步清除。
+
 先在 Chrome 或 Edge 正常登录飞行门户，按 `F12` 打开 `Network`，右键已登录请求选择 `Copy`、`Copy as cURL`，把完整内容粘贴到工作台，点击“验证 Cookie”。也可以直接粘贴 Cookie Header。
 
 验证成功后输入框会清空，当前页凭据面板显示规范化 Cookie 并提供“复制凭据”。内容只存在当前页面生命周期内；刷新页面、服务关闭或门户 Session 失效后自动删除，需要重新复制。

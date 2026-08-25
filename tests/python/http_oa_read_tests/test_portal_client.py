@@ -11,6 +11,7 @@ from http_oa_read.portal_client import (
     PortalClient,
     PortalError,
     PortalSessionExpired,
+    _parse_current_identity,
 )
 
 
@@ -90,9 +91,25 @@ def nested_page(rows, total):
     )
 
 
+def user_info():
+    return FakeResponse({
+        "code": "200",
+        "success": True,
+        "data": {"loginUserInfo": {"empId": "900001", "empName": "测试用户"}},
+    })
+
+
 class PortalClientTests(unittest.TestCase):
+    def test_parses_current_session_identity_from_user_info(self) -> None:
+        self.assertEqual(
+            _parse_current_identity({"data": {"loginUserInfo": {"empId": "900001", "empName": "测试用户"}}}),
+            {"staffNumber": "900001", "name": "测试用户"},
+        )
+        with self.assertRaisesRegex(PortalError, "当前登录人"):
+            _parse_current_identity({"data": {}})
+
     def test_verify_requires_business_success_and_keeps_cookie_values_private(self) -> None:
-        session = FakeSession(get_responses=[FakeResponse({"code": "200", "success": True, "data": {}})])
+        session = FakeSession(get_responses=[user_info()])
         client = PortalClient(session_factory=lambda: session)
 
         result = client.load_credentials("Cookie: SESSION=secret; route=private")
@@ -102,7 +119,7 @@ class PortalClientTests(unittest.TestCase):
         self.assertEqual(session.cookies.values, {"SESSION": "secret", "route": "private"})
 
     def test_verify_reuses_browser_user_agent_from_full_curl(self) -> None:
-        session = FakeSession(get_responses=[FakeResponse({"code": "200", "success": True, "data": {}})])
+        session = FakeSession(get_responses=[user_info()])
         client = PortalClient(session_factory=lambda: session)
 
         client.load_credentials(
@@ -149,7 +166,7 @@ class PortalClientTests(unittest.TestCase):
         first_rows = [row(index) for index in range(100)]
         last_row = row(100, "WORKFLOW_PLATFORM", "DI")
         session = FakeSession(
-            get_responses=[FakeResponse({"code": "200", "success": True, "data": {}})],
+            get_responses=[user_info()],
             post_responses=[page(first_rows, 101), page([last_row], 101)],
         )
         client = PortalClient(session_factory=lambda: session)
@@ -167,7 +184,7 @@ class PortalClientTests(unittest.TestCase):
 
     def test_scan_reuses_waiting_curl_template_and_accepts_nested_page_contract(self) -> None:
         session = FakeSession(
-            get_responses=[FakeResponse({"code": "200", "success": True, "data": {}})],
+            get_responses=[user_info()],
             post_responses=[nested_page([row(1)], 1)],
         )
         client = PortalClient(session_factory=lambda: session)
@@ -190,7 +207,7 @@ class PortalClientTests(unittest.TestCase):
     def test_mark_read_posts_confirmed_mapping_once_without_followup_query(self) -> None:
         record = WaitingRecord.from_payload(row(1))
         session = FakeSession(
-            get_responses=[FakeResponse({"code": "200", "success": True, "data": {}})],
+            get_responses=[user_info()],
             post_responses=[FakeResponse({"code": "200", "data": None, "message": "ok"})],
         )
         client = PortalClient(session_factory=lambda: session)
@@ -216,7 +233,7 @@ class PortalClientTests(unittest.TestCase):
     def test_mark_read_raises_on_business_failure(self) -> None:
         record = WaitingRecord.from_payload(row(1))
         session = FakeSession(
-            get_responses=[FakeResponse({"code": "200", "success": True, "data": {}})],
+            get_responses=[user_info()],
             post_responses=[FakeResponse({"code": "500", "message": "failed"})],
         )
         client = PortalClient(session_factory=lambda: session)

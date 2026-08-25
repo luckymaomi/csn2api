@@ -10,6 +10,7 @@ const elements = {
   sessionStatus: document.querySelector("#sessionStatus"),
   sessionVerified: document.querySelector("#sessionVerified"),
   sessionVerifiedAt: document.querySelector("#sessionVerifiedAt"),
+  sessionIdentity: document.querySelector("#sessionIdentity"),
   keepAliveRing: document.querySelector("#keepAliveRing"),
   keepAliveCountdown: document.querySelector("#keepAliveCountdown"),
   keepAliveStatus: document.querySelector("#keepAliveStatus"),
@@ -250,6 +251,10 @@ function renderState(state) {
   elements.sessionStatus.textContent = session.verified ? "已验证" : "尚未验证";
   elements.sessionVerified.textContent = session.verified ? "有效" : "未验证";
   elements.sessionVerifiedAt.textContent = session.verifiedAt || "-";
+  const identity = session.identity || {};
+  elements.sessionIdentity.textContent = session.verified
+    ? [identity.staffNumber, identity.name].filter(Boolean).join(" · ") || "未识别"
+    : "-";
   renderKeepAlive({ ring: elements.keepAliveRing, countdown: elements.keepAliveCountdown, status: elements.keepAliveStatus, detail: elements.keepAliveDetail }, session, keepAliveTimer);
   elements.groupCount.textContent = `${groups.length} 类`;
   elements.qualificationCount.textContent = `${session.qualificationCount || 0} 项`;

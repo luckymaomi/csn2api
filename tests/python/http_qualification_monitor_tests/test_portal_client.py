@@ -15,9 +15,16 @@ from http_qualification_monitor.portal_client import (
     PortalSessionExpired,
     build_export_params,
     parse_classification_tree,
+    parse_current_identity,
     validate_ooxml,
 )
 from http_qualification_monitor.credentials import format_credentials
+
+
+HOME_HTML = """
+<div id="personalInfo"><span class="name-txt">测试用户</span></div>
+<div class="detailInfo"><div class="empid"><span title="900001"></span></div></div>
+"""
 
 
 class FakeCookies:
@@ -64,6 +71,14 @@ class FakeSession:
 
 
 class PortalClientTests(unittest.TestCase):
+    def test_parses_current_session_identity_from_home_page(self) -> None:
+        self.assertEqual(
+            parse_current_identity(HOME_HTML, 200),
+            {"staffNumber": "900001", "name": "测试用户"},
+        )
+        with self.assertRaisesRegex(ValueError, "当前登录人"):
+            parse_current_identity("<html></html>", 200)
+
     def test_parses_three_expected_parents_in_portal_order(self) -> None:
         groups = parse_classification_tree(CLASSIFICATION_PAYLOAD)
         self.assertEqual([group.code for group in groups], ["ZZYX", "ZZZG", "ZZTS"])
@@ -101,6 +116,7 @@ class PortalClientTests(unittest.TestCase):
         native = ooxml_bytes("native")
         session = FakeSession([
             FakeResponse(payload=CLASSIFICATION_PAYLOAD),
+            FakeResponse(content=HOME_HTML.encode("utf-8")),
             FakeResponse(content=native),
         ])
         client = PortalClient(session=session)
@@ -109,6 +125,9 @@ class PortalClientTests(unittest.TestCase):
         exported = client.export_qualification(groups[0].items[0].code)
 
         self.assertEqual(summary["qualificationCount"], 4)
+        self.assertEqual(summary["identity"], {"staffNumber": "900001", "name": "测试用户"})
+        self.assertTrue(session.calls[1][0].endswith("/index/index"))
+        self.assertEqual(session.calls[1][1]["headers"]["Accept"], "text/html,application/xhtml+xml")
         self.assertEqual(exported, native)
         self.assertTrue(session.calls[-1][0].endswith(EXPORT_PATH))
         self.assertEqual(session.calls[-1][1]["params"], build_export_params("90D3F"))

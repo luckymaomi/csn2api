@@ -20,6 +20,7 @@ from .session_keepalive import SessionKeepAlive, random_keepalive_interval
 
 
 BASE_URL = "https://ieb.csair.com"
+HOME_PATH = "/index/index"
 ENTRY_PATH = "/newieb/nonproductionTask/showNonproductionTaskImportPage"
 EMPLOYEE_PATH = "/newieb/nonproductionTask/vaildStaffNum"
 QUOTA_PATH = "/newieb/nonproductionTask/showNonproductionHolidayRulesTips"
@@ -53,6 +54,17 @@ class PortalSessionExpired(PortalError):
 
 def _random_value() -> str:
     return f"{random.random():.16f}"
+
+
+def parse_current_identity(html: str, status_code: int) -> dict[str, str]:
+    soup = BeautifulSoup(str(html or ""), "html.parser")
+    name_node = soup.select_one("#personalInfo .name-txt")
+    staff_node = soup.select_one(".detailInfo .empid span[title]")
+    name = normalize_text(name_node.get_text(" ", strip=True)) if name_node else ""
+    staff_number = normalize_text(staff_node.get("title")) if staff_node else ""
+    if status_code != 200 or not re.fullmatch(r"\d{6}", staff_number) or not name:
+        raise ValueError("飞行门户首页没有返回可识别的当前登录人")
+    return {"staffNumber": staff_number, "name": name}
 
 
 def _is_login_response(response: object) -> bool:
@@ -162,6 +174,7 @@ class PortalClient:
             "http-lock-entry-cookie-keepalive",
         )
         self.metadata: PortalMetadata | None = None
+        self.identity: dict[str, str] | None = None
         self.copyable_credentials = ""
         self.verified_at = ""
         self.session.headers.update(
@@ -209,13 +222,23 @@ class PortalClient:
         with self.request_lock:
             for name, value in cookies.items():
                 self.session.cookies.set(name, value, domain="ieb.csair.com", path="/")
-        response = self._get(ENTRY_PATH, params={"random": _random_value()})
-        html = str(response.text or "")
-        soup = BeautifulSoup(html, "html.parser")
-        if soup.select_one("#nonproductionTaskImportForm") is None or soup.select_one("#lockType") is None:
-            self.metadata = None
-            raise PortalSessionExpired("凭据未进入非生产任务录入页，请重新复制已登录请求")
-        self.metadata = parse_portal_metadata(html)
+        try:
+            response = self._get(ENTRY_PATH, params={"random": _random_value()})
+            html = str(response.text or "")
+            soup = BeautifulSoup(html, "html.parser")
+            if soup.select_one("#nonproductionTaskImportForm") is None or soup.select_one("#lockType") is None:
+                raise PortalSessionExpired("凭据未进入非生产任务录入页，请重新复制已登录请求")
+            metadata = parse_portal_metadata(html)
+            identity_response = self._get(HOME_PATH)
+            identity = parse_current_identity(
+                str(getattr(identity_response, "text", "") or ""),
+                int(getattr(identity_response, "status_code", 0) or 0),
+            )
+        except Exception:
+            self.invalidate_credentials()
+            raise
+        self.metadata = metadata
+        self.identity = identity
         self.copyable_credentials = format_credentials(cookies)
         self.verified_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         return self.metadata
@@ -230,6 +253,7 @@ class PortalClient:
     def invalidate_credentials(self) -> None:
         with self.request_lock:
             self.metadata = None
+            self.identity = None
             self.copyable_credentials = ""
             self.verified_at = ""
             self.session.cookies.clear()
