@@ -61,7 +61,7 @@
   ],
   "requestDefinitions": [
     { "id": "entry-page", "name": "随机置位申请页", "purpose": "验证 SOC 会话并读取当前申请表单", "risk": "read", "method": "GET", "path": "/opws-web/pages/aircrew/querypages/KkTvlApply-saveByKkTvlApplyData.jsp", "parameters": [], "response": "HTML；有效页面包含 applyFm 和 KkTvlApply 表单。" },
-    { "id": "navigation-page", "name": "当前登录人信息", "purpose": "读取 SOC 外层页服务端渲染的当前登录姓名；员工号仅在页面明确返回时解析。", "risk": "read", "method": "GET", "path": "/opws-web/pages/public/soc.jsp?f=2&s=11&t=1", "parameters": [], "response": "HTML；当前登录姓名来自 #checkout_soc 或 #checkout 中的欢迎您文本，未返回员工号时不从业务员工号推断。" }
+    { "id": "navigation-page", "name": "当前登录人信息", "purpose": "读取 SOC 外层页服务端渲染的当前登录姓名。", "risk": "read", "method": "GET", "path": "/opws-web/pages/public/soc.jsp?f=2&s=11&t=1", "parameters": [], "response": "HTML；当前登录姓名来自 #checkout_soc 或 #checkout 中的欢迎您文本。" }
   ],
   "technicalNotes": [
     "SOC 与 IEB、OA 不共享 Cookie、Session 或接口事实。",

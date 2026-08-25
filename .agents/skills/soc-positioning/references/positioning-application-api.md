@@ -35,7 +35,7 @@ Content-Type: application/x-www-form-urlencoded; charset=UTF-8
 
 会话失效时，业务 action 返回 `302`，`Location` 指向 `http://soc.csair.com/opws-web/doSsoProxy`；继续跟随会进入 IAM 登录页。静态资源仍可能返回 200，因此必须用业务 action 验证会话。
 
-当前登录姓名可通过只读 `GET /opws-web/pages/public/soc.jsp?f=2&s=11&t=1` 取得。页面在 `#checkout_soc` 或 `#checkout` 中服务端渲染 `欢迎您，<姓名>`；一次真实会话确认该姓名与浏览器登录者一致。该页面当前没有返回员工号，因此客户端只能显示已确认姓名并标记员工号未识别，不能从随机置位业务员工号、Cookie 值或姓名反推登录员工号。
+当前登录姓名可通过只读 `GET /opws-web/pages/public/soc.jsp?f=2&s=11&t=1` 取得。页面在 `#checkout_soc` 或 `#checkout` 中服务端渲染 `欢迎您，<姓名>`；一次真实会话确认该姓名与浏览器登录者一致。SOC 客户端只解析并显示该姓名，不维护登录员工号识别逻辑。
 
 一次实测中，16:47 左右捕获的 Cookie 到 16:57 已不能重放。这只能证明会话可能很短，不能据此断言固定十分钟过期。捕获后应立即验证和使用。
 

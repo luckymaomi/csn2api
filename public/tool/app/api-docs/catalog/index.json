@@ -57,7 +57,7 @@
         "选择一条 soc.csair.com 的已登录请求，右键 Copy > Copy as cURL。",
         "把完整 cURL 粘贴到 Cookie 管理并点击验证。"
       ],
-      "credentialNote": "SOC 会话与 IEB、OA 完全独立；至少需要当前有效的 JSESSIONID，建议粘贴完整 Cookie Header。验证会额外只读读取外层页欢迎语显示当前登录姓名；页面未返回员工号时不推断员工号。",
+      "credentialNote": "SOC 会话与 IEB、OA 完全独立；至少需要当前有效的 JSESSIONID，建议粘贴完整 Cookie Header。验证会额外只读读取外层页欢迎语并显示当前登录姓名。",
       "session": {
         "validationRequestRef": "soc-positioning.entry-page",
         "identityRequestRef": "soc-positioning.navigation-page",

@@ -119,19 +119,15 @@ class SocPortalClient:
 
     @staticmethod
     def _parse_identity(html: str) -> dict[str, str] | None:
-        """解析 SOC 外层页服务端渲染的当前登录姓名；员工号仅接受页面明确返回值。"""
+        """解析 SOC 外层页服务端渲染的当前登录姓名。"""
         soup = BeautifulSoup(str(html or ""), "html.parser")
         node = soup.select_one("#checkout_soc, #checkout")
         text = node.get_text(" ", strip=True) if isinstance(node, Tag) else ""
-        match = re.search(r"欢迎您\s*[，,]\s*(.*?)\s*(?:退出|$)", text)
+        match = re.search(r"欢迎您\s*[，,]\s*([^\s]+)", text)
         name = re.sub(r"\s+", " ", match.group(1)).strip() if match else ""
         if not name:
             return None
-        staff_match = re.search(r"(?:员工号|staff(?:Num|No|Number)?)\s*[:：=]\s*(\d{6,})", text, re.I)
-        identity = {"name": name}
-        if staff_match:
-            identity["staffNumber"] = staff_match.group(1)
-        return identity
+        return {"name": name}
 
     def check_session(self) -> None:
         if not self.verified:

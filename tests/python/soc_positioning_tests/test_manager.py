@@ -26,7 +26,7 @@ class FakeSession:
     def get(self, url, **_kwargs):
         if "soc.jsp" in url:
             response = FakeResponse()
-            response.text = "<div id='checkout_soc'>欢迎您，测试用户<a>退出</a></div>"
+            response.text = "<div id='checkout_soc'>欢迎您，测试用户 <span>员工号：900001</span><a>退出</a></div>"
             return response
         return FakeResponse()
 

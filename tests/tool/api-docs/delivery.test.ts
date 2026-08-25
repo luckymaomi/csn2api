@@ -103,5 +103,6 @@ describe("API docs delivery", () => {
     expect(shell).toContain("<details class=\"nav-module\"");
     expect(shell).toContain("system.id === \"oa\"");
     expect(shell).toContain("data-endpoint-id");
+    expect(shell).not.toContain("员工号未识别");
   });
 });

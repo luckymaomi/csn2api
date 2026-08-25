@@ -21,7 +21,7 @@ IEB_HOME_HTML = """
 """
 
 SOC_NAVIGATION_HTML = """
-<div id="checkout_soc">欢迎您，测试 SOC 用户&nbsp;<span id="aocCheckIn"></span><a>退出</a></div>
+<div id="checkout_soc">欢迎您，测试用户 <span>员工号：900001</span><a>退出</a></div>
 """
 
 ENTRY_HTML = """
@@ -338,7 +338,7 @@ class ExecutorTests(unittest.TestCase):
         ])
         loaded = executor.load_credentials("JSESSIONID=soc-session", "soc")
         self.assertTrue(loaded["ready"])
-        self.assertEqual(loaded["identity"], {"name": "测试 SOC 用户"})
+        self.assertEqual(loaded["identity"], {"name": "测试用户"})
         self.assertEqual(
             [request["url"] for request in session.requests],
             [

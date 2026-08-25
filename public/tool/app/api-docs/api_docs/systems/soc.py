@@ -20,21 +20,17 @@ def random_keepalive_interval() -> int:
 
 
 def _parse_current_identity(html: str, status_code: int) -> dict[str, str] | None:
-    """解析 SOC 外层页的服务端欢迎语；员工号只接受页面明确返回的字段。"""
+    """解析 SOC 外层页服务端欢迎语中的当前登录姓名。"""
     if status_code != 200:
         return None
     soup = BeautifulSoup(str(html or ""), "html.parser")
     node = soup.select_one("#checkout_soc, #checkout")
     text = node.get_text(" ", strip=True) if isinstance(node, Tag) else ""
-    match = re.search(r"欢迎您\s*[，,]\s*(.*?)\s*(?:退出|$)", text)
+    match = re.search(r"欢迎您\s*[，,]\s*([^\s]+)", text)
     name = re.sub(r"\s+", " ", match.group(1)).strip() if match else ""
     if not name:
         return None
-    identity = {"name": name}
-    staff_match = re.search(r"(?:员工号|staff(?:Num|No|Number)?)\s*[:：=]\s*(\d{6,})", text, re.I)
-    if staff_match:
-        identity["staffNumber"] = staff_match.group(1)
-    return identity
+    return {"name": name}
 
 
 class SocAdapter:
