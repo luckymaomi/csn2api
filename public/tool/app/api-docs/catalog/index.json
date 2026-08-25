@@ -63,6 +63,18 @@
         "identityRequestRef": "soc-positioning.navigation-page",
         "keepAliveRequestRef": "soc-positioning.entry-page"
       }
+    },
+    {
+      "id": "caac-fsop",
+      "name": "CAAC 飞行标准监督管理系统",
+      "shortName": "CAAC",
+      "navigationUrl": "https://fsop.caac.gov.cn/yzzzm/rygl/pilotredirect",
+      "credentialRequestUrl": "https://fsop.caac.gov.cn/yzzzm/rygl/queryPilotByParamForPage",
+      "credentialInputLabel": "CAAC Cookie Header 或 Copy as cURL",
+      "credentialPlaceholder": "粘贴 fsop.caac.gov.cn 已登录请求的完整 Copy as cURL 或 Cookie Header",
+      "credentialSteps": [ "打开 CAAC 飞行标准监督管理系统并进入人员管理页面。", "打开 F12 Network，刷新人员列表。", "选择已登录的 fsop.caac.gov.cn 请求，右键 Copy > Copy as cURL。", "把完整 cURL 粘贴到本地工作台并点击验证。" ],
+      "credentialNote": "至少需要 yzzzm、JSESSIONID、home；Bash cURL 的 Unicode/下划线转义由本地解析器还原。当前目录未确认稳定的当前登录人字段。",
+      "session": { "validationRequestRef": "caac-pilot-export.pilot-list-session", "identityRequestRef": "caac-pilot-export.pilot-list-session", "keepAliveRequestRef": "caac-pilot-export.pilot-list-session" }
     }
   ],
   "modules": [
@@ -101,6 +113,12 @@
       "name": "SOC 随机置位申请接口",
       "description": "站点建议、动态航班、员工校验和授权单条随机置位提交",
       "source": "./soc-positioning.json"
+    },
+    {
+      "id": "caac-pilot-export",
+      "name": "CAAC 飞行员全量信息接口",
+      "description": "有效飞行员动态分页列表与按 pilotId 详情只读接口",
+      "source": "./caac-pilot-export.json"
     }
   ]
 }

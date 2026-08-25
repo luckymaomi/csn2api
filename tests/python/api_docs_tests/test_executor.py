@@ -80,6 +80,7 @@ QUALIFICATION_PAGE_INFO = json.dumps({
     "pageSize": 20,
     "hasNextPage": True,
 }, ensure_ascii=False)
+CAAC_LIST = json.dumps({"total": 2, "rows": [{"pilotId": "sample-1", "pilotname": "样例人员"}]}, ensure_ascii=False)
 
 OA_USER_INFO = json.dumps({"code": 200, "data": {"loginUserInfo": {"empId": "900001", "empName": "示例用户"}}}, ensure_ascii=False)
 OA_WAITING = json.dumps({
@@ -143,6 +144,9 @@ class FakeResponse:
         self.status_code = 200
         self.reason = "OK"
         self.headers = {"Content-Type": content_type, "Set-Cookie": "secret=value"}
+
+    def json(self) -> object:
+        return json.loads(self.text)
 
 
 class FakeSession:
@@ -210,6 +214,22 @@ class ExecutorTests(unittest.TestCase):
             session.requests[2]["url"],
             self.catalog.get_option_source("lock-types").url,
         )
+
+    def test_caac_session_is_independent_and_kept_alive(self) -> None:
+        executor, session = self.create_executor([
+            FakeResponse(CAAC_LIST, url="https://fsop.example.test/list", content_type="application/json"),
+            FakeResponse(CAAC_LIST, url="https://fsop.example.test/list", content_type="application/json"),
+        ])
+        loaded = executor.load_credentials(
+            r"yzzzm=a; JSESSIONID=session\u0021route; home=h\_1",
+            "caac-fsop",
+        )
+        self.assertTrue(loaded["ready"])
+        self.assertIsNone(loaded["identity"])
+        self.assertTrue(loaded["keepAlive"]["running"])
+        self.assertEqual(session.cookies.values["JSESSIONID"], "session!route")
+        result = executor.execute("caac-pilot-export.pilot-list", {"page": "1", "rows": "10"})
+        self.assertEqual(result["data"]["json"]["total"], 2)
 
     def test_flight_query_returns_table_json_and_raw_body(self) -> None:
         executor, session = self.create_executor([FakeResponse(QUERY_PAGE_HTML), FakeResponse(IEB_HOME_HTML), FakeResponse(FLIGHT_RESULT_HTML)])

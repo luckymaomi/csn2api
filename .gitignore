@@ -29,6 +29,7 @@ __pycache__/
 
 # 飞行经历查询（皇帝版）运行结果，禁止进入版本库
 /public/tool/app/http-flight-stats-helper/results/
+/public/tool/app/http-caac-pilot-export-helper/results/
 
 # 锁班皇帝（新）运行结果，禁止进入版本库
 /public/tool/app/http-lock-entry-helper/results/

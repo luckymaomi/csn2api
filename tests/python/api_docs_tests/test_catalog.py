@@ -32,7 +32,7 @@ class CatalogTests(unittest.TestCase):
             ["基础信息", "技术等级", "运行资格", "训练检查记录"],
         )
         systems = self.catalog.as_dict()["systems"]
-        self.assertEqual([system["id"] for system in systems], ["flight-portal", "oa", "soc"])
+        self.assertEqual([system["id"] for system in systems], ["flight-portal", "oa", "soc", "caac-fsop"])
         self.assertEqual(systems[0]["navigationUrl"], "https://ieb.csair.com/index/index")
         self.assertEqual(systems[1]["credentialRequestUrl"], "https://work.csair.com/oai/work/box/query/waiting")
         self.assertEqual(self.catalog.as_dict()["schemaVersion"], 2)
@@ -61,7 +61,7 @@ class CatalogTests(unittest.TestCase):
 
     def test_request_roles_separate_sessions_execution_and_related_requests(self) -> None:
         serialized = json.dumps(self.catalog.as_dict(), ensure_ascii=False)
-        self.assertEqual(len(self.catalog.request_definitions), 21)
+        self.assertEqual(len(self.catalog.request_definitions), 22)
 
         ieb_validation = self.catalog.get_session_request("flight-portal", "validation")
         ieb_keepalive = self.catalog.get_session_request("flight-portal", "keepAlive")
@@ -77,7 +77,7 @@ class CatalogTests(unittest.TestCase):
             for record in self.catalog.endpoints.values()
             if record.endpoint["execution"]["kind"] == "direct-http"
         ]
-        self.assertEqual(len(direct), 41)
+        self.assertEqual(len(direct), 43)
         for record in direct:
             primary = [
                 step
@@ -124,6 +124,8 @@ class CatalogTests(unittest.TestCase):
         self.assertEqual(self.catalog.get_related_requests("personnel-info"), [])
         self.assertEqual(self.catalog.get_session_request("soc", "validation").full_id, "soc-positioning.entry-page")
         self.assertEqual(self.catalog.get_session_request("soc", "identity").full_id, "soc-positioning.navigation-page")
+        self.assertEqual(self.catalog.get_session_request("caac-fsop", "validation").full_id, "caac-pilot-export.pilot-list-session")
+        self.assertEqual(self.catalog.get_session_request("caac-fsop", "keepAlive").full_id, "caac-pilot-export.pilot-list-session")
         self.assertEqual(self.catalog.get_endpoint("soc-positioning.submit").endpoint["risk"], "write")
 
     def test_personnel_info_keeps_verified_request_contracts(self) -> None:
