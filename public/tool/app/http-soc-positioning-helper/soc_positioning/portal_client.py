@@ -9,11 +9,11 @@ from datetime import datetime
 from typing import Any
 
 import requests
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, Tag
 from typing import Callable
 
 from .constants import (
-    BASE_URL, FLIGHTS_PATH, PAGE_PATH, STAFF_MOBILE_PATH, STAFF_VALIDATE_PATH,
+    BASE_URL, FLIGHTS_PATH, NAVIGATION_PATH, PAGE_PATH, STAFF_MOBILE_PATH, STAFF_VALIDATE_PATH,
     SUBMIT_PATH, SUGGEST_PATH,
 )
 from .credentials import format_credentials, parse_credentials
@@ -59,6 +59,7 @@ class SocPortalClient:
         self.copyable_credentials = ""
         self.verified_at = ""
         self.verified = False
+        self.identity: dict[str, str] | None = None
 
     def _headers(self, referer: str = PAGE_PATH) -> dict[str, str]:
         return {
@@ -105,10 +106,32 @@ class SocPortalClient:
         html = response.text or ""
         if "applyFm" not in html or "KkTvlApply" not in html:
             raise PortalSessionExpired("凭据未进入 SOC 随机置位页面")
+        identity_response = self._get(NAVIGATION_PATH)
+        self.identity = self._parse_identity(identity_response.text or "")
         self.copyable_credentials = format_credentials(cookies)
         self.verified_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         self.verified = True
-        return {"verifiedAt": self.verified_at, "cookieCount": len(cookies)}
+        return {
+            "verifiedAt": self.verified_at,
+            "cookieCount": len(cookies),
+            "identity": dict(self.identity) if self.identity else None,
+        }
+
+    @staticmethod
+    def _parse_identity(html: str) -> dict[str, str] | None:
+        """解析 SOC 外层页服务端渲染的当前登录姓名；员工号仅接受页面明确返回值。"""
+        soup = BeautifulSoup(str(html or ""), "html.parser")
+        node = soup.select_one("#checkout_soc, #checkout")
+        text = node.get_text(" ", strip=True) if isinstance(node, Tag) else ""
+        match = re.search(r"欢迎您\s*[，,]\s*(.*?)\s*(?:退出|$)", text)
+        name = re.sub(r"\s+", " ", match.group(1)).strip() if match else ""
+        if not name:
+            return None
+        staff_match = re.search(r"(?:员工号|staff(?:Num|No|Number)?)\s*[:：=]\s*(\d{6,})", text, re.I)
+        identity = {"name": name}
+        if staff_match:
+            identity["staffNumber"] = staff_match.group(1)
+        return identity
 
     def check_session(self) -> None:
         if not self.verified:
@@ -123,6 +146,7 @@ class SocPortalClient:
             self.copyable_credentials = ""
             self.verified_at = ""
             self.verified = False
+            self.identity = None
 
     def clear_credentials(self) -> None:
         self.keepalive.stop()

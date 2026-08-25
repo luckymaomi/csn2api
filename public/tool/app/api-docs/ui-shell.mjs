@@ -92,9 +92,11 @@ export function renderSessionStatus(elements, status, systemName = "当前系统
     if (elements.credentialStatusDetail) elements.credentialStatusDetail.textContent = detailText;
     if (elements.sessionState) elements.sessionState.textContent = statusText;
     if (elements.sessionDetail) elements.sessionDetail.textContent = detailText;
-    const identityText = status?.ready && identity.staffNumber && identity.name
-        ? `当前使用人 ${identity.staffNumber} · ${identity.name}`
-        : "当前使用人 未识别";
+    const identityText = status?.ready && identity.name
+        ? `当前使用人 ${identity.staffNumber ? `${identity.staffNumber} · ` : ""}${identity.name}${identity.staffNumber ? "" : " · 员工号未识别"}`
+        : status?.ready && identity.staffNumber
+            ? `当前使用人 ${identity.staffNumber} · 姓名未识别`
+            : "当前使用人 未识别";
     if (elements.credentialIdentity) elements.credentialIdentity.textContent = identityText;
     if (elements.sessionIdentity) elements.sessionIdentity.textContent = identityText;
     const ring = elements.keepAliveRing;

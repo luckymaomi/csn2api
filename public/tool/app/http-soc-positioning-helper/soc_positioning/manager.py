@@ -36,7 +36,7 @@ class RunManager:
         self.state: dict[str, object] = self._initial_state()
 
     def _initial_state(self) -> dict[str, object]:
-        return {"phase": "waiting_credentials", "message": "等待验证 SOC 凭据", "session": {"verified": False, "verifiedAt": "", "cookieCount": 0, "keepAlive": self.client.keepalive.status(False)}, "progress": {"total": 0, "completed": 0, "success": 0, "failed": 0, "current": ""}, "checks": {"checked": False, "validCount": 0, "invalidCount": 0, "errors": []}, "results": [], "logs": [], "downloads": {"result": False}}
+        return {"phase": "waiting_credentials", "message": "等待验证 SOC 凭据", "session": {"verified": False, "verifiedAt": "", "cookieCount": 0, "identity": None, "keepAlive": self.client.keepalive.status(False)}, "progress": {"total": 0, "completed": 0, "success": 0, "failed": 0, "current": ""}, "checks": {"checked": False, "validCount": 0, "invalidCount": 0, "errors": []}, "results": [], "logs": [], "downloads": {"result": False}}
 
     def snapshot(self) -> dict[str, object]:
         with self.lock:
@@ -64,7 +64,7 @@ class RunManager:
         except Exception as error:
             self.client.clear_credentials()
             with self.lock:
-                self.state["session"] = {"verified": False, "verifiedAt": "", "cookieCount": 0}
+                self.state["session"] = {"verified": False, "verifiedAt": "", "cookieCount": 0, "identity": None}
                 self.state["phase"] = "waiting_credentials"
                 self._log("error", str(error))
             raise
@@ -86,7 +86,7 @@ class RunManager:
         self.client.invalidate_credentials()
         with self.lock:
             self.stop_event.set()
-            self.state["session"] = {"verified": False, "verifiedAt": "", "cookieCount": 0}
+            self.state["session"] = {"verified": False, "verifiedAt": "", "cookieCount": 0, "identity": None}
             self.state["phase"] = "session_expired"
             self.state["message"] = "保活检查发现 SOC 会话已失效，已停止后续录入"
             self._log("error", str(self.state["message"]))
@@ -148,7 +148,7 @@ class RunManager:
         except PortalSessionExpired as error:
             self.client.clear_credentials()
             with self.lock:
-                self.state["session"] = {"verified": False, "verifiedAt": "", "cookieCount": 0}
+                self.state["session"] = {"verified": False, "verifiedAt": "", "cookieCount": 0, "identity": None}
                 self.state["phase"], self.state["message"] = "session_expired", str(error)
                 self._log("error", str(error))
         finally:

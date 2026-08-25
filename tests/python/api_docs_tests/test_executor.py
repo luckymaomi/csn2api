@@ -20,6 +20,10 @@ IEB_HOME_HTML = """
 <div class="detailInfo"><div class="empid"><span title="900001"></span></div></div>
 """
 
+SOC_NAVIGATION_HTML = """
+<div id="checkout_soc">欢迎您，测试 SOC 用户&nbsp;<span id="aocCheckIn"></span><a>退出</a></div>
+"""
+
 ENTRY_HTML = """
 <div id="showNonproductionTaskImportPage">
   <form id="nonproductionTaskImportForm">
@@ -123,6 +127,9 @@ class FakeCookies:
     def set(self, name: str, value: str, **_options: object) -> None:
         self.values[name] = value
 
+    def update(self, values: dict[str, str]) -> None:
+        self.values.update(values)
+
 
 class FakeResponse:
     def __init__(
@@ -147,7 +154,9 @@ class FakeSession:
         self.closed = False
         self.request_event = request_event
 
-    def request(self, **kwargs: object) -> FakeResponse:
+    def request(self, *args: object, **kwargs: object) -> FakeResponse:
+        if args:
+            kwargs = {"method": args[0], "url": args[1], **kwargs}
         self.requests.append(kwargs)
         if self.request_event is not None and len(self.requests) > 1:
             self.request_event.set()
@@ -321,6 +330,22 @@ class ExecutorTests(unittest.TestCase):
         self.assertEqual(session.requests[2]["method"], "GET")
         self.assertIn("showFlytimeManyQuery", str(session.requests[2]["url"]))
         self.assertIsNone(session.requests[2]["data"])
+
+    def test_soc_session_reports_server_rendered_name_without_inventing_staff_number(self) -> None:
+        executor, session = self.create_executor([
+            FakeResponse(QUERY_PAGE_HTML),
+            FakeResponse(SOC_NAVIGATION_HTML, url="https://soc.example.test/opws-web/pages/public/soc.jsp?f=2&s=11&t=1"),
+        ])
+        loaded = executor.load_credentials("JSESSIONID=soc-session", "soc")
+        self.assertTrue(loaded["ready"])
+        self.assertEqual(loaded["identity"], {"name": "测试 SOC 用户"})
+        self.assertEqual(
+            [request["url"] for request in session.requests],
+            [
+                self.catalog.get_session_request("soc", "validation").url,
+                self.catalog.get_session_request("soc", "identity").url,
+            ],
+        )
 
     def test_oa_count_workflow_scans_all_pages_and_returns_summary(self) -> None:
         executor, _session = self.create_executor([

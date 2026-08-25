@@ -55,6 +55,12 @@ class FakeSession:
 
 
 class SocPortalClientTests(unittest.TestCase):
+    def test_parses_server_rendered_login_name_without_guessing_staff_number(self):
+        identity = SocPortalClient._parse_identity(
+            "<div id='checkout_soc'>欢迎您，测试用户&nbsp;<a>退出</a></div>"
+        )
+        self.assertEqual(identity, {"name": "测试用户"})
+
     def test_keeps_dynamic_option_value_and_matches_display_number(self):
         session = FakeSession()
         client = SocPortalClient(session=session)

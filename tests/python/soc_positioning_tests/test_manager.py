@@ -23,7 +23,11 @@ class FakeSession:
     def __init__(self):
         self.cookies: dict[str, str] = {}
 
-    def get(self, _url, **_kwargs):
+    def get(self, url, **_kwargs):
+        if "soc.jsp" in url:
+            response = FakeResponse()
+            response.text = "<div id='checkout_soc'>欢迎您，测试用户<a>退出</a></div>"
+            return response
         return FakeResponse()
 
     def close(self):
@@ -37,6 +41,7 @@ class SocManagerTests(unittest.TestCase):
             manager = RunManager(Path(directory), client, keepalive_interval_factory=lambda: 60)
             state = manager.verify("JSESSIONID=session-value")
             self.assertTrue(state["session"]["verified"])
+            self.assertEqual(state["session"]["identity"], {"name": "测试用户"})
             self.assertTrue(state["session"]["keepAlive"]["running"])
             self.assertEqual(state["session"]["keepAlive"]["state"], "healthy")
             manager.shutdown()

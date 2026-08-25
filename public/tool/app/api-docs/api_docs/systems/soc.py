@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import random
+import re
 import time
 from threading import RLock
 from typing import Callable
 
 import requests
+from bs4 import BeautifulSoup, Tag
 
 from ..catalog import ApiCatalog, EndpointRecord
 from ..credentials import all_credential_summary, format_all_credentials, parse_all_credentials
@@ -17,6 +19,24 @@ def random_keepalive_interval() -> int:
     return random.randint(30, 60)
 
 
+def _parse_current_identity(html: str, status_code: int) -> dict[str, str] | None:
+    """解析 SOC 外层页的服务端欢迎语；员工号只接受页面明确返回的字段。"""
+    if status_code != 200:
+        return None
+    soup = BeautifulSoup(str(html or ""), "html.parser")
+    node = soup.select_one("#checkout_soc, #checkout")
+    text = node.get_text(" ", strip=True) if isinstance(node, Tag) else ""
+    match = re.search(r"欢迎您\s*[，,]\s*(.*?)\s*(?:退出|$)", text)
+    name = re.sub(r"\s+", " ", match.group(1)).strip() if match else ""
+    if not name:
+        return None
+    identity = {"name": name}
+    staff_match = re.search(r"(?:员工号|staff(?:Num|No|Number)?)\s*[:：=]\s*(\d{6,})", text, re.I)
+    if staff_match:
+        identity["staffNumber"] = staff_match.group(1)
+    return identity
+
+
 class SocAdapter:
     """维护独立 SOC 会话，按 catalog 调试只读请求和明确授权写请求。"""
 
@@ -26,6 +46,7 @@ class SocAdapter:
         self.timeout_seconds = timeout_seconds
         self.session: requests.Session | None = None
         self.cookies: dict[str, str] = {}
+        self.identity: dict[str, str] | None = None
         self.request_lock = RLock()
         self.keepalive = SessionKeepAlive(keepalive_interval_factory, timeout_seconds, "soc-cookie-keepalive")
 
@@ -39,6 +60,15 @@ class SocAdapter:
             self.session, self.cookies = session, cookies
         try:
             self._check_session()
+            identity_request = self.catalog.get_session_request("soc", "identity")
+            identity_response = self._request(
+                str(identity_request.endpoint["method"]),
+                identity_request.url,
+                identity_request,
+                {},
+            )
+            with self.request_lock:
+                self.identity = _parse_current_identity(str(identity_response.text or ""), identity_response.status_code)
         except Exception:
             self.clear_credentials()
             raise
@@ -50,13 +80,14 @@ class SocAdapter:
         self.keepalive.stop()
         with self.request_lock:
             self.cookies = {}
+            self.identity = None
             if self.session is not None:
                 self.session.close()
             self.session = None
 
     def session_status(self) -> dict[str, object]:
         with self.request_lock:
-            return {**all_credential_summary(self.cookies), "identity": None, "keepAlive": self.keepalive.status(bool(self.cookies))}
+            return {**all_credential_summary(self.cookies), "identity": dict(self.identity) if self.identity else None, "keepAlive": self.keepalive.status(bool(self.cookies))}
 
     def execute(self, record: EndpointRecord, supplied: dict[str, object]) -> dict[str, object]:
         started = time.perf_counter()

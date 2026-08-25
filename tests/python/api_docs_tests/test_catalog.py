@@ -61,7 +61,7 @@ class CatalogTests(unittest.TestCase):
 
     def test_request_roles_separate_sessions_execution_and_related_requests(self) -> None:
         serialized = json.dumps(self.catalog.as_dict(), ensure_ascii=False)
-        self.assertEqual(len(self.catalog.request_definitions), 20)
+        self.assertEqual(len(self.catalog.request_definitions), 21)
 
         ieb_validation = self.catalog.get_session_request("flight-portal", "validation")
         ieb_keepalive = self.catalog.get_session_request("flight-portal", "keepAlive")
@@ -123,6 +123,7 @@ class CatalogTests(unittest.TestCase):
         )
         self.assertEqual(self.catalog.get_related_requests("personnel-info"), [])
         self.assertEqual(self.catalog.get_session_request("soc", "validation").full_id, "soc-positioning.entry-page")
+        self.assertEqual(self.catalog.get_session_request("soc", "identity").full_id, "soc-positioning.navigation-page")
         self.assertEqual(self.catalog.get_endpoint("soc-positioning.submit").endpoint["risk"], "write")
 
     def test_personnel_info_keeps_verified_request_contracts(self) -> None:

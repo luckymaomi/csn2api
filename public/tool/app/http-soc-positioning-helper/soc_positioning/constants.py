@@ -22,6 +22,7 @@ HOT_CITIES: tuple[str, ...] = (
 )
 
 BASE_URL = "https://soc.csair.com"
+NAVIGATION_PATH = "/opws-web/pages/public/soc.jsp?f=2&s=11&t=1"
 PAGE_PATH = "/opws-web/pages/aircrew/querypages/KkTvlApply-saveByKkTvlApplyData.jsp"
 SUGGEST_PATH = "/opws-web/flightinfo-FlightPlan-findSuggest.action"
 REASONS_PATH = "/opws-web/aircrew-KkTvlApply-getApplyReasons.action"
