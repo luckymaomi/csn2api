@@ -27,11 +27,9 @@ describe("HTTP qualification query delivery", () => {
 
   it("registers the emperor edition and excludes production results", () => {
     const catalog = readFileSync(resolveFromRoot("src/tool/tools-data.ts"), "utf8");
-    const buildScript = readFileSync(resolveFromRoot("scripts/build.mts"), "utf8");
     const ignore = readFileSync(resolveFromRoot(".gitignore"), "utf8");
 
     expect(catalog).toContain('entry: "http-qualification-query-helper"');
-    expect(buildScript).toContain('"http-qualification-query-helper"');
     expect(ignore).toContain("/public/tool/app/http-qualification-query-helper/results/");
   });
 });

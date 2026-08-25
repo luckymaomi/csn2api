@@ -30,11 +30,9 @@ describe("HTTP flight stats delivery", () => {
 
   it("registers the tool and excludes result workbooks", () => {
     const catalog = readFileSync(resolveFromRoot("src/tool/tools-data.ts"), "utf8");
-    const buildScript = readFileSync(resolveFromRoot("scripts/build.mts"), "utf8");
     const ignore = readFileSync(resolveFromRoot(".gitignore"), "utf8");
 
     expect(catalog).toContain('entry: "http-flight-stats-helper"');
-    expect(buildScript).toContain('"http-flight-stats-helper"');
     expect(ignore).toContain("/public/tool/app/http-flight-stats-helper/results/");
   });
 });

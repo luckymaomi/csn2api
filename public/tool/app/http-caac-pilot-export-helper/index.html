@@ -1,5 +1,5 @@
 <!doctype html>
 <html lang="zh-CN">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>CAAC 飞行员全量信息导出</title><script src="../../../theme.js"></script><link rel="stylesheet" href="../../../theme.css"></head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>CAAC 飞行员全量信息导出</title><script src="../../../theme.js"></script><link rel="stylesheet" href="../../../libs/bootstrap.min.css"><link rel="stylesheet" href="../../../theme.css"></head>
 <body><main class="container py-4"><h1>CAAC 飞行员全量信息导出</h1><p>动态获取有效飞行员列表和每个人详情，保存为单 Sheet Excel。只读请求，严格串行，普通单人失败会记录并继续。</p><a class="btn btn-primary" href="./web/">打开工作台</a><a class="btn btn-outline-secondary ms-2" href="../../../index.html">返回工具首页</a><h2 class="h5 mt-4">运行</h2><pre>pip install -r requirements.txt
 python start.py</pre><p>需要 Python 3.10+、requests、openpyxl。凭据只存在本地进程内存。</p></main><script type="module" src="./app.js"></script></body></html>

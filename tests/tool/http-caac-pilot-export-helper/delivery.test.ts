@@ -15,5 +15,7 @@ describe("CAAC pilot export delivery", () => {
     expect(app).not.toContain("range(1, 42)");
     expect(catalog).toContain("queryPilotByParamForPage");
     expect(catalog).toContain("queryPilotDetails");
+    expect(catalog).not.toContain("不能写死");
+    expect(catalog).not.toContain("不下载图片");
   });
 });

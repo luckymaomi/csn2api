@@ -9,7 +9,6 @@ describe("HTTP lock entry delivery", () => {
     const landing = readFileSync(`${root}/index.html`, "utf8");
     const workbench = readFileSync(`${root}/web/index.html`, "utf8");
     const requirements = readFileSync(`${root}/requirements.txt`, "utf8");
-    const buildScript = readFileSync(resolveFromRoot("scripts/build.mts"), "utf8");
     const exporter = readFileSync(resolveFromRoot("scripts/tool-exports.mts"), "utf8");
     const pythonEntries = readdirSync(root).filter((name) => name.endsWith(".py")).sort();
 
@@ -27,7 +26,6 @@ describe("HTTP lock entry delivery", () => {
     expect(workbench).toContain('id="approveAfterSubmit" type="checkbox"');
     expect(requirements).toContain("requests");
     expect(requirements).not.toContain("playwright");
-    expect(buildScript).toContain('"http-lock-entry-helper"');
     expect(exporter).toContain('relativePath === "web/theme.js"');
   });
 

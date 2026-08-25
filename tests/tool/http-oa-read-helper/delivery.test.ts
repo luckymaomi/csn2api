@@ -10,7 +10,6 @@ describe("HTTP OA read helper delivery", () => {
     const workbench = readFileSync(`${root}/web/index.html`, "utf8");
     const workbenchStyles = readFileSync(`${root}/web/styles.css`, "utf8");
     const requirements = readFileSync(`${root}/requirements.txt`, "utf8");
-    const buildScript = readFileSync(resolveFromRoot("scripts/build.mts"), "utf8");
     const catalog = readFileSync(resolveFromRoot("src/tool/tools-data.ts"), "utf8");
     const pythonEntries = readdirSync(root).filter((name) => name.endsWith(".py")).sort();
 
@@ -28,7 +27,6 @@ describe("HTTP OA read helper delivery", () => {
     expect(workbenchStyles).toContain(".mode-switch .btn-check:checked + .btn");
     expect(workbenchStyles).toContain(".mode-switch .btn::before");
     expect(requirements).toContain("requests");
-    expect(buildScript).toContain('"http-oa-read-helper"');
     expect(catalog).toContain('entry: "http-oa-read-helper"');
   });
 });

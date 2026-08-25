@@ -178,7 +178,12 @@ async function buildPageEntries(): Promise<void> {
 }
 
 async function copyPythonWorkbenchAssets() {
-  for (const toolEntry of ["http-flight-stats-helper", "http-lock-entry-helper", "http-oa-read-helper", "http-qualification-query-helper", "http-qualification-monitor-helper", "http-caac-pilot-export-helper", "http-soc-positioning-helper"]) {
+  const toolEntries = [...new Set(
+    pageEntries
+      .map((entry) => toolEntryFromPage(entry.page))
+      .filter((entry) => entry.startsWith("http-") && entry.endsWith("-helper"))
+  )].sort();
+  for (const toolEntry of toolEntries) {
     const workbenchRoot = path.join(distRoot, "tool", "app", toolEntry, "web");
     const libraryRoot = path.join(workbenchRoot, "libs");
     await fs.mkdir(libraryRoot, { recursive: true });

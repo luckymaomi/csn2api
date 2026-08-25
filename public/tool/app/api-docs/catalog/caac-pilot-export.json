@@ -41,7 +41,7 @@
       "id": "pilot-list",
       "groupId": "pilot",
       "name": "有效飞行员分页列表",
-      "summary": "返回有效飞行员列表；页数由 total、rows 和实际返回行数动态收敛，不能写死。",
+      "summary": "返回有效飞行员分页列表，页数根据 total、rows 和实际返回行数动态计算。",
       "risk": "read",
       "method": "POST",
       "path": "/yzzzm/rygl/queryPilotByParamForPage?ajaxPrefilter={timestamp}",
@@ -61,19 +61,19 @@
         { "name": "sort", "in": "form", "label": "排序字段", "type": "text", "default": "archiveNo", "fixed": true },
         { "name": "order", "in": "form", "label": "排序方向", "type": "text", "default": "asc", "fixed": true }
       ],
-      "response": { "format": "JSON", "statuses": [ { "code": 200, "description": "{total:number, rows:object[]}；当前真实会话曾返回 total=409，数量随系统变化" } ], "fields": [ { "name": "total", "type": "number", "description": "有效人员总数" }, { "name": "rows", "type": "array", "description": "当前页人员列表，pilotId 唯一" } ] }
+      "response": { "format": "JSON", "statuses": [ { "code": 200, "description": "{total:number, rows:object[]}" } ], "fields": [ { "name": "total", "type": "number", "description": "有效人员总数" }, { "name": "rows", "type": "array", "description": "当前页人员列表，pilotId 唯一" } ] }
     },
     {
       "id": "pilot-detail",
       "groupId": "pilot",
       "name": "单个飞行员详情",
-      "summary": "按列表返回的 pilotId 获取基础信息、照片 URL、执照、资质树、教育、工作和检查记录。字段按实际响应动态变化；照片 URL 仅作为文本字段保留，不下载图片。",
+      "summary": "按列表返回的 pilotId 获取飞行员基础信息、执照、资质树、教育、工作和检查记录，字段随实际响应动态变化。",
       "risk": "read",
       "method": "POST",
       "path": "/yzzzm/rygl/queryPilotDetails",
       "requestEncoding": "application/x-www-form-urlencoded",
       "parameters": [ { "name": "pilotId", "in": "form", "label": "飞行员 ID", "type": "text", "required": true, "description": "来自分页列表，禁止猜测" } ],
-      "response": { "format": "JSON", "statuses": [ { "code": 200, "description": "顶层对象的 pilotId 必须与请求一致；数组和对象字段按实际键动态展开" } ], "fields": [ { "name": "pilotPhotoFileUrl", "type": "string|null", "description": "照片地址，仅作为动态详情文本列保留" }, { "name": "layerInfosList", "type": "array", "description": "递归资质树，单元格内按层级换行" }, { "name": "educationList/workexps/jzhxinfos/yjscinfos/printhis/printList/checkpcinfos", "type": "array", "description": "详情中的纵向记录，单元格内按记录换行" } ] }
+      "response": { "format": "JSON", "statuses": [ { "code": 200, "description": "顶层对象的 pilotId 必须与请求一致；数组和对象字段按实际键动态展开" } ], "fields": [ { "name": "layerInfosList", "type": "array", "description": "递归资质树" }, { "name": "educationList/workexps/jzhxinfos/yjscinfos/printhis/printList/checkpcinfos", "type": "array", "description": "教育、工作、检查和打印等详情记录" } ] }
     }
   ],
   "technicalNotes": [ "当前真实验证：列表返回过动态 total、每页 rows=10；按姓名筛选的唯一列表记录与其详情基础字段一致。", "Cookie 中 Bash $'...' 的 \\u0021、\\_ 转义必须先还原；直接把转义文本作为 Cookie 会被 302 到 login.jsp。", "当前已确认 CAAC 入口页未提供稳定当前登录人字段，APP 显示不可识别；不猜测身份。", "HTTP 200 不能单独证明业务契约，客户端仍校验 JSON、pilotId 归属和分页前进。" ]

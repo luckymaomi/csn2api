@@ -48,9 +48,11 @@ def create_server(app_directory: Path, port: int = 0, manager: RunManager | None
                 self.end_headers(); self.wfile.write(body); return
             relative = parsed.path.lstrip("/") or "web/index.html"
             target = (root / "web" / relative).resolve() if not relative.startswith("web/") else (root / relative).resolve()
-            if not target.is_file() and relative in {"theme.js", "theme.css"}:
+            if not target.is_file() and relative in {"theme.js", "theme.css", "libs/bootstrap.min.css"}:
                 target = (public_root / relative).resolve()
-            if root not in target.parents and target != root or not target.is_file():
+            allowed_roots = (root, public_root)
+            is_allowed = any(base == target or base in target.parents for base in allowed_roots)
+            if not is_allowed or not target.is_file():
                 self._json(404, {"error": "Not Found"}); return
             body = target.read_bytes()
             self.send_response(200)
