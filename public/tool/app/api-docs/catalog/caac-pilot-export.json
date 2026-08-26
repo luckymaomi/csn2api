@@ -2,9 +2,9 @@
   "schemaVersion": 2,
   "id": "caac-pilot-export",
   "systemId": "caac-fsop",
-  "name": "CAAC 飞行员全量信息接口",
+  "name": "CAAC 飞行员信息接口",
   "navigationGroup": "民航飞行标准监督管理",
-  "description": "获取有效飞行员分页清单及每个人的详细信息。",
+  "description": "获取飞行员分页或筛选清单及每个人的详细信息。",
   "baseUrl": "https://fsop.caac.gov.cn",
   "navigationUrl": "https://fsop.caac.gov.cn/yzzzm/rygl/pilotredirect",
   "cookies": [
@@ -41,7 +41,7 @@
       "id": "pilot-list",
       "groupId": "pilot",
       "name": "有效飞行员分页列表",
-      "summary": "返回有效飞行员分页列表，页数根据 total、rows 和实际返回行数动态计算。",
+      "summary": "返回飞行员分页列表，支持姓名和档案号筛选，页数根据 total、rows 和实际返回行数动态计算。",
       "risk": "read",
       "method": "POST",
       "path": "/yzzzm/rygl/queryPilotByParamForPage?ajaxPrefilter={timestamp}",
@@ -76,5 +76,5 @@
       "response": { "format": "JSON", "statuses": [ { "code": 200, "description": "顶层对象的 pilotId 必须与请求一致；数组和对象字段按实际键动态展开" } ], "fields": [ { "name": "layerInfosList", "type": "array", "description": "递归资质树" }, { "name": "educationList/workexps/jzhxinfos/yjscinfos/printhis/printList/checkpcinfos", "type": "array", "description": "教育、工作、检查和打印等详情记录" } ] }
     }
   ],
-  "technicalNotes": [ "当前真实验证：列表返回过动态 total、每页 rows=10；按姓名筛选的唯一列表记录与其详情基础字段一致。", "Cookie 中 Bash $'...' 的 \\u0021、\\_ 转义必须先还原；直接把转义文本作为 Cookie 会被 302 到 login.jsp。", "当前已确认 CAAC 入口页未提供稳定当前登录人字段，APP 显示不可识别；不猜测身份。", "HTTP 200 不能单独证明业务契约，客户端仍校验 JSON、pilotId 归属和分页前进。" ]
+  "technicalNotes": [ "本地工作台组合流程支持全量抓取和 Excel 名单抓取；名单按姓名精确匹配，可用档案号进一步唯一归属。", "Cookie 中 Bash $'...' 的 \\u0021、\\_ 转义由凭据解析器还原。", "当前已确认入口页和业务 JSON 未提供稳定的当前登录人字段。", "客户端同时校验 JSON、pilotId 归属和分页前进。" ]
 }

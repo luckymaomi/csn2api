@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>CAAC 飞行员全量信息导出</title>
+  <title>CAAC 飞行员信息导出</title>
   <script src="./theme.js"></script>
   <link rel="stylesheet" href="./libs/bootstrap.min.css">
   <link rel="stylesheet" href="./theme.css">
@@ -11,12 +11,127 @@
 </head>
 <body>
   <div class="workspace-shell">
-    <header class="workspace-header"><div><h1>CAAC 飞行员全量信息导出</h1><p id="message">等待验证登录凭据</p></div><div class="header-actions"><span id="phase" class="status-badge">待验证</span><button id="themeToggle" class="btn btn-outline-secondary btn-sm" type="button">主题</button></div></header>
+    <header class="workspace-header">
+      <div>
+        <h1>CAAC 飞行员信息导出</h1>
+        <p id="statusMessage">等待验证登录凭据</p>
+      </div>
+      <div class="header-actions">
+        <span id="statusBadge" class="status-badge is-waiting_credentials">待验证</span>
+        <button id="themeToggle" class="btn btn-outline-secondary btn-sm" type="button">主题</button>
+      </div>
+    </header>
+
     <main class="workspace-grid">
-      <section class="work-panel credential-panel"><div class="panel-heading"><h2>1. 登录凭据</h2><span id="sessionText">尚未验证</span></div><label class="form-label" for="credentials">CAAC Copy as cURL 或 Cookie Header</label><textarea id="credentials" class="form-control" rows="5" autocomplete="off" spellcheck="false" placeholder="粘贴 fsop.caac.gov.cn 已登录请求的完整 cURL 或 Cookie Header"></textarea><div class="stage-actions"><button id="verify" class="btn btn-primary" type="button">验证凭据</button><button id="copy" class="btn btn-outline-secondary" type="button" disabled>复制凭据</button></div><div class="credential-note">Cookie 只保存在当前 Python 进程内存；Bash cURL 转义会自动还原。</div><dl class="session-summary"><div><dt>有效人员数</dt><dd id="serverTotal">-</dd></div><div><dt>验证时间</dt><dd id="verifiedAt">-</dd></div><div class="session-identity"><dt>当前登录人</dt><dd id="identity">未从 CAAC 已确认接口识别</dd></div></dl><div class="keepalive-summary"><strong id="keepalive">保活未启动</strong><span id="keepaliveDetail">验证后按 30-60 秒随机间隔检查列表接口</span></div></section>
-      <section class="work-panel run-panel"><div class="panel-heading"><h2>2. 全量抓取</h2><span id="progressText">0 / 0</span></div><p class="muted">获取全部有效飞行员清单与详细信息。</p><div class="stage-actions"><button id="run" class="btn btn-success" type="button" disabled>开始全量抓取</button><button id="stop" class="btn btn-danger" type="button" disabled>停止后续请求</button></div><div class="progress" role="progressbar" aria-label="抓取进度" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div id="progressBar" class="progress-bar" style="width:0%"></div></div><dl class="run-summary"><div><dt>总数</dt><dd id="total">0</dd></div><div><dt>已完成</dt><dd id="completed">0</dd></div><div><dt>成功</dt><dd id="success">0</dd></div><div><dt>失败</dt><dd id="failed">0</dd></div></dl><div class="current-record"><span>当前人员</span><strong id="currentRecord">-</strong></div><a id="download" class="btn btn-outline-primary disabled" aria-disabled="true">下载单 Sheet Excel</a></section>
-      <section class="work-panel results-panel"><div class="panel-heading"><h2>3. 人员结果</h2><span id="resultCount">0 条</span></div><div class="table-viewport"><table id="results"><thead><tr><th>序号</th><th>飞行员ID</th><th>姓名</th><th>状态</th><th>错误</th></tr></thead><tbody></tbody></table></div></section>
-      <section class="work-panel log-panel"><div class="panel-heading"><h2>活动日志</h2></div><ol id="logs" class="log-list"><li>尚无运行记录</li></ol></section>
+      <section class="work-panel credential-panel" aria-labelledby="credentialHeading">
+        <div class="panel-heading">
+          <h2 id="credentialHeading">1. 登录凭据</h2>
+          <span id="sessionStatus">尚未验证</span>
+        </div>
+        <div class="credential-layout">
+          <div>
+            <label class="form-label" for="credentials">CAAC Copy as cURL 或 Cookie Header</label>
+            <textarea id="credentials" class="form-control" rows="4" autocomplete="off" spellcheck="false" placeholder="粘贴 fsop.caac.gov.cn 已登录请求"></textarea>
+          </div>
+          <button id="verifyButton" class="btn btn-primary" type="button">验证凭据</button>
+        </div>
+        <dl class="session-summary">
+          <div><dt>有效人员数</dt><dd id="serverTotal">-</dd></div>
+          <div><dt>验证时间</dt><dd id="sessionVerifiedAt">-</dd></div>
+          <div><dt>Cookie 字段</dt><dd id="cookieCount">0</dd></div>
+          <div><dt>当前登录人</dt><dd id="sessionIdentity">-</dd></div>
+        </dl>
+        <div class="keepalive-summary" data-keepalive-widget>
+          <div class="keepalive-ring" id="keepAliveRing" hidden>
+            <span id="keepAliveCountdown">--</span>
+          </div>
+          <div class="keepalive-copy">
+            <strong id="keepAliveStatus">保活未启动</strong>
+            <span id="keepAliveDetail">验证后启动保活独立检查</span>
+          </div>
+        </div>
+        <div id="savedCredentialsPanel" class="saved-credential-panel" hidden>
+          <div class="saved-credential-heading">
+            <label class="form-label" for="savedCredentials">当前页凭据</label>
+            <button id="copyCredentialsButton" class="btn btn-outline-secondary btn-sm" type="button">复制凭据</button>
+          </div>
+          <textarea id="savedCredentials" class="form-control saved-credential-text" rows="3" readonly spellcheck="false"></textarea>
+        </div>
+      </section>
+
+      <section class="work-panel input-panel" aria-labelledby="inputHeading">
+        <div class="panel-heading"><h2 id="inputHeading">2. 抓取范围</h2></div>
+        <div class="mode-switch" role="group" aria-label="抓取范围">
+          <input class="btn-check" type="radio" name="runMode" id="modeAll" value="all" checked>
+          <label class="btn btn-outline-secondary" for="modeAll">全量抓取</label>
+          <input class="btn-check" type="radio" name="runMode" id="modeSelected" value="selected">
+          <label class="btn btn-outline-secondary" for="modeSelected">名单抓取</label>
+        </div>
+        <div id="allModePanel" class="input-content">
+          <dl class="scope-summary">
+            <div><dt>当前接口人数</dt><dd id="allModeTotal">-</dd></div>
+            <div><dt>抓取方式</dt><dd>动态分页</dd></div>
+          </dl>
+        </div>
+        <div id="selectedModePanel" class="input-content" hidden>
+          <div class="file-actions">
+            <div>
+              <label class="form-label" for="excelFile">人员名单</label>
+              <input id="excelFile" class="form-control" type="file" accept=".xlsx,.xlsm">
+            </div>
+            <button id="templateDownload" class="btn btn-outline-secondary" type="button">下载名单模板</button>
+          </div>
+          <div id="dataCheckResult" class="health-check">
+            <span>名单检查</span>
+            <strong>尚未检查</strong>
+          </div>
+          <ul id="dataCheckErrors" class="check-errors" hidden></ul>
+        </div>
+        <div class="stage-actions">
+          <button id="dataCheckButton" class="btn btn-outline-secondary" type="button" hidden disabled>检查名单</button>
+          <button id="runButton" class="btn btn-success" type="button" disabled>开始抓取</button>
+          <button id="stopButton" class="btn btn-danger" type="button" disabled>停止后续请求</button>
+        </div>
+      </section>
+
+      <section class="work-panel status-panel" aria-labelledby="statusHeading">
+        <div class="panel-heading"><h2 id="statusHeading">3. 运行状态</h2><span id="progressText">0 / 0</span></div>
+        <div class="progress" role="progressbar" aria-label="抓取进度" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+          <div id="progressBar" class="progress-bar" style="width: 0%"></div>
+        </div>
+        <dl class="run-summary">
+          <div><dt>总数</dt><dd id="totalCount">0</dd></div>
+          <div><dt>已完成</dt><dd id="completedCount">0</dd></div>
+          <div><dt>成功</dt><dd id="successCount">0</dd></div>
+          <div><dt>失败</dt><dd id="failedCount">0</dd></div>
+        </dl>
+        <div class="current-record"><span>当前人员</span><strong id="currentRecord">-</strong></div>
+        <a id="excelDownload" class="btn btn-outline-secondary disabled" aria-disabled="true">下载结果 Excel</a>
+      </section>
+
+      <section class="work-panel results-panel" aria-labelledby="resultsHeading">
+        <div class="panel-heading">
+          <h2 id="resultsHeading">人员结果</h2>
+          <span id="resultsCount">0 条</span>
+        </div>
+        <div id="resultsViewport" class="result-viewport">
+          <div id="resultsEmpty" class="results-empty">尚无已返回结果</div>
+          <table id="resultsTable" class="result-table" hidden>
+            <thead></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div class="result-pagination">
+          <button id="previousPage" class="btn btn-outline-secondary btn-sm" type="button" disabled>上一页</button>
+          <span id="pageText">第 1 / 1 页</span>
+          <button id="nextPage" class="btn btn-outline-secondary btn-sm" type="button" disabled>下一页</button>
+        </div>
+      </section>
+
+      <section class="work-panel log-panel" aria-labelledby="logHeading">
+        <div class="panel-heading"><h2 id="logHeading">活动日志</h2></div>
+        <ol id="logList" class="log-list" aria-live="polite"><li class="is-muted">尚无运行记录</li></ol>
+      </section>
     </main>
   </div>
   <script type="module" src="./app.mjs"></script>

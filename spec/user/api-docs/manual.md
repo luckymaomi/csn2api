@@ -1,10 +1,10 @@
 # API 文档用户手册
 
-从工具首页顶栏打开“API 文档”。该入口不占用工具卡片；页面左侧按飞行门户原生模块、OA 系统和 SOC 随机置位分组当前 catalog 中的 GET/POST 接口，Cookie 管理统一展示各系统的登录网址、建议抓取请求和获取步骤。系统和模块都可以用箭头展开或收起。
+从工具首页顶栏打开“API 文档”。该入口不占用工具卡片；页面左侧按飞行门户、OA、SOC 和 CAAC 分组当前 catalog 中的 GET/POST 接口，Cookie 管理统一展示各系统的登录网址、建议抓取请求和获取步骤。系统和模块都可以用箭头展开或收起。
 
 ## Cookie
 
-Cookie 管理右侧把 IEB 与 OA 两个完整区域从上到下排列，两套凭据互不共享。后续新增系统会继续向下追加；右侧区域可以独立滚动。
+Cookie 管理右侧按 catalog 顺序纵向排列各系统区域，各套凭据互不共享；右侧区域可以独立滚动。
 
 IEB：打开 `https://ieb.csair.com/index/index` 并登录，在 F12 Network 中选择任意 `ieb.csair.com` 已登录请求，右键 Copy as cURL 后粘贴验证。`JSESSIONID` 与 `iebJSid` 为 HttpOnly，普通 `document.cookie` 无法完整读取。
 

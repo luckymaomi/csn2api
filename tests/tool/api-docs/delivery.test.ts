@@ -42,7 +42,7 @@ describe("API docs delivery", () => {
       "飞行人员信息查询接口",
       "OA 公文已阅接口",
       "SOC 随机置位申请接口",
-      "CAAC 飞行员全量信息接口"
+      "CAAC 飞行员信息接口"
     ]));
     expect(index.systems.map((system: { id: string }) => system.id)).toEqual(["flight-portal", "oa", "soc", "caac-fsop"]);
     expect(index.systems[0].navigationUrl).toBe("https://ieb.csair.com/index/index");

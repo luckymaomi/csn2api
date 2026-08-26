@@ -9,6 +9,7 @@ from urllib.parse import urljoin
 import requests
 
 from .credentials import credential_summary, format_credentials, parse_credentials
+from .input_data import archive_key
 from .models import PilotRecord, PilotOutcome
 from .session_keepalive import SessionKeepAlive, random_keepalive_interval
 
@@ -107,8 +108,8 @@ class PortalClient:
         return {**credential_summary(cookies), "verifiedAt": self.verified_at, "total": total}
 
     @staticmethod
-    def _list_form(page: int, rows: int = 10) -> dict[str, str]:
-        return {"archiveNo": "", "idCode": "", "regionId": "", "nationality": "", "pilotname": "", "orgId": "", "licenseType": "", "medicalStatus": "", "copType": "", "page": str(page), "rows": str(rows), "sort": "archiveNo", "order": "asc"}
+    def _list_form(page: int, rows: int = 10, pilotname: str = "", archive_no: str = "") -> dict[str, str]:
+        return {"archiveNo": archive_no, "idCode": "", "regionId": "", "nationality": "", "pilotname": pilotname, "orgId": "", "licenseType": "", "medicalStatus": "", "copType": "", "page": str(page), "rows": str(rows), "sort": "archiveNo", "order": "asc"}
 
     @staticmethod
     def _parse_page(payload: Any) -> tuple[list[dict[str, Any]], int]:
@@ -132,18 +133,18 @@ class PortalClient:
         if not self.cookies:
             raise PortalSessionExpired("请先验证 CAAC 登录凭据")
 
-    def fetch_page(self, page: int, page_size: int = 10) -> tuple[list[dict[str, Any]], int]:
+    def fetch_page(self, page: int, page_size: int = 10, *, pilotname: str = "", archive_no: str = "") -> tuple[list[dict[str, Any]], int]:
         self.require_credentials()
-        payload = _json(self._post(LIST_PATH, self._list_form(page, page_size)))
+        payload = _json(self._post(LIST_PATH, self._list_form(page, page_size, pilotname, archive_no)))
         return self._parse_page(payload)
 
-    def fetch_all_pilots(self, page_size: int = 10) -> tuple[list[PilotRecord], int]:
+    def _fetch_pilots(self, page_size: int = 10, *, pilotname: str = "", archive_no: str = "") -> tuple[list[PilotRecord], int]:
         records: list[PilotRecord] = []
         seen: set[str] = set()
         total: int | None = None
         page = 1
         while True:
-            rows, reported_total = self.fetch_page(page, page_size)
+            rows, reported_total = self.fetch_page(page, page_size, pilotname=pilotname, archive_no=archive_no)
             total = reported_total if total is None else total
             if reported_total != total:
                 raise PortalContractError("CAAC 分页 total 在批次内发生变化")
@@ -166,6 +167,35 @@ class PortalClient:
             page += 1
         return records, int(total)
 
+    def fetch_all_pilots(self, page_size: int = 10) -> tuple[list[PilotRecord], int]:
+        return self._fetch_pilots(page_size)
+
+    def resolve_pilot(self, requested: PilotRecord, page_size: int = 10) -> PilotRecord:
+        records, _total = self._fetch_pilots(
+            page_size,
+            pilotname=requested.input_name,
+            archive_no=requested.input_archive_no,
+        )
+        matches = [record for record in records if record.name == requested.input_name]
+        if requested.input_archive_no:
+            requested_archive = archive_key(requested.input_archive_no)
+            matches = [record for record in matches if archive_key(record.archive_no) == requested_archive]
+        label = f"{requested.input_name}（档案号 {requested.input_archive_no}）" if requested.input_archive_no else requested.input_name
+        if not matches:
+            raise PortalContractError(f"{requested.source or label}：未找到 {label} 的精确匹配")
+        if len(matches) != 1:
+            raise PortalContractError(f"{requested.source or label}：{label} 匹配到 {len(matches)} 人，无法唯一归属")
+        match = matches[0]
+        return PilotRecord(
+            requested.index,
+            match.listing,
+            requested.input_name,
+            requested.input_archive_no,
+            requested.source,
+            "",
+            requested.input_row,
+        )
+
     def fetch_detail(self, pilot_id: str) -> dict[str, Any]:
         self.require_credentials()
         response = self._post(DETAIL_PATH, {"pilotId": str(pilot_id)})
@@ -175,8 +205,9 @@ class PortalClient:
         return payload
 
     def query_one(self, record: PilotRecord) -> PilotOutcome:
-        detail = self.fetch_detail(record.pilot_id)
-        return PilotOutcome(record, "成功", detail=detail)
+        resolved = record if record.pilot_id else self.resolve_pilot(record)
+        detail = self.fetch_detail(resolved.pilot_id)
+        return PilotOutcome(resolved, "成功", detail=detail)
 
     def invalidate_credentials(self) -> None:
         self.clear_credentials()

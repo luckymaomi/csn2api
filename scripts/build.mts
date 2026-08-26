@@ -1,4 +1,5 @@
 import fs from "node:fs/promises";
+import { readdirSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { createHash } from "node:crypto";
@@ -36,17 +37,27 @@ function resolveDistRoot(): string {
   return resolvedRoot;
 }
 
-const pageEntries = [
+type PageEntry = { source: string; output: string; page: string };
+
+function discoverHttpWorkbenchEntries(): PageEntry[] {
+  const appSourceRoot = path.join(sourceRoot, "tool", "app");
+  return readdirSync(appSourceRoot, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory() && /^http-.+-helper$/.test(entry.name))
+    .map((entry) => entry.name)
+    .filter((entry) => readdirSync(path.join(appSourceRoot, entry)).includes("shell.ts"))
+    .sort()
+    .map((entry) => ({
+      source: `src/tool/app/${entry}/shell.ts`,
+      output: `tool/app/${entry}/app`,
+      page: `tool/app/${entry}/index.html`,
+    }));
+}
+
+const pageEntries: ReadonlyArray<PageEntry> = [
   { source: "src/tool/tools-render.ts", output: "tool/app", page: "tool/index.html" },
-  { source: "src/tool/app/http-flight-stats-helper/shell.ts", output: "tool/app/http-flight-stats-helper/app", page: "tool/app/http-flight-stats-helper/index.html" },
   { source: "src/tool/app/api-docs/main.ts", output: "tool/app/api-docs/app", page: "tool/app/api-docs/index.html" },
-  { source: "src/tool/app/http-lock-entry-helper/shell.ts", output: "tool/app/http-lock-entry-helper/app", page: "tool/app/http-lock-entry-helper/index.html" },
-  { source: "src/tool/app/http-oa-read-helper/shell.ts", output: "tool/app/http-oa-read-helper/app", page: "tool/app/http-oa-read-helper/index.html" },
-  { source: "src/tool/app/http-qualification-query-helper/shell.ts", output: "tool/app/http-qualification-query-helper/app", page: "tool/app/http-qualification-query-helper/index.html" },
-  { source: "src/tool/app/http-qualification-monitor-helper/shell.ts", output: "tool/app/http-qualification-monitor-helper/app", page: "tool/app/http-qualification-monitor-helper/index.html" },
-  { source: "src/tool/app/http-caac-pilot-export-helper/shell.ts", output: "tool/app/http-caac-pilot-export-helper/app", page: "tool/app/http-caac-pilot-export-helper/index.html" },
-  { source: "src/tool/app/http-soc-positioning-helper/shell.ts", output: "tool/app/http-soc-positioning-helper/app", page: "tool/app/http-soc-positioning-helper/index.html" }
-] as const;
+  ...discoverHttpWorkbenchEntries(),
+];
 
 const workerEntries: ReadonlyArray<{ source: string; output: string }> = [];
 
@@ -178,6 +189,7 @@ async function buildPageEntries(): Promise<void> {
 }
 
 async function copyPythonWorkbenchAssets() {
+  const standardKeepAlivePath = path.join(staticRoot, "tool", "app", "_shared", "session_keepalive.mjs");
   const toolEntries = [...new Set(
     pageEntries
       .map((entry) => toolEntryFromPage(entry.page))
@@ -189,7 +201,7 @@ async function copyPythonWorkbenchAssets() {
     await fs.mkdir(libraryRoot, { recursive: true });
     await fs.copyFile(path.join(staticRoot, "theme.js"), path.join(workbenchRoot, "theme.js"));
     await fs.copyFile(path.join(staticRoot, "theme.css"), path.join(workbenchRoot, "theme.css"));
-    await fs.copyFile(path.join(staticRoot, "tool", "app", toolEntry, "web", "session_keepalive.mjs"), path.join(workbenchRoot, "session_keepalive.mjs"));
+    await fs.copyFile(standardKeepAlivePath, path.join(workbenchRoot, "session_keepalive.mjs"));
     await fs.copyFile(
       path.join(staticRoot, "libs", "bootstrap.min.css"),
       path.join(libraryRoot, "bootstrap.min.css")

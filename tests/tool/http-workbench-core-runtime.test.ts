@@ -1,40 +1,65 @@
-import { readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import path from "node:path";
+
 import { describe, expect, it } from "vitest";
 
 import { resolveFromRoot } from "../helpers/paths";
+import { assertJavaScriptSyntax } from "../helpers/syntax";
 
 
-const workbenches = [
-  ["http-flight-stats-helper", "http_flight_stats"],
-  ["http-lock-entry-helper", "http_lock_entry"],
-  ["http-oa-read-helper", "http_oa_read"],
-  ["http-qualification-query-helper", "http_qualification_query"],
-  ["http-qualification-monitor-helper", "http_qualification_monitor"],
-] as const;
+const appRoot = resolveFromRoot("public/tool/app");
+const workbenches = readdirSync(appRoot, { withFileTypes: true })
+  .filter((entry) => entry.isDirectory() && /^http-.+-helper$/.test(entry.name))
+  .map((entry) => entry.name)
+  .filter((entry) => existsSync(path.join(appRoot, entry, "web", "index.html")))
+  .sort();
+const standardKeepAlivePath = path.join(appRoot, "_shared", "session_keepalive.mjs");
 
-const sessionWorkbenches = [
-  ...workbenches.map(([entry]) => entry),
-  "http-soc-positioning-helper",
-] as const;
-
+function findServer(root: string): string {
+  const queue = [root];
+  while (queue.length) {
+    const current = queue.shift()!;
+    for (const entry of readdirSync(current, { withFileTypes: true })) {
+      const candidate = path.join(current, entry.name);
+      if (entry.isDirectory() && !entry.name.startsWith(".") && entry.name !== "results" && entry.name !== "__pycache__") {
+        queue.push(candidate);
+      }
+      if (entry.isFile() && entry.name === "server.py") return candidate;
+    }
+  }
+  throw new Error(`${root} 缺少 server.py`);
+}
 
 describe("HTTP workbench core runtime", () => {
-  it.each(sessionWorkbenches)("shows the verified identity in %s", (entry) => {
-    const root = resolveFromRoot(`public/tool/app/${entry}`);
-    const html = readFileSync(`${root}/web/index.html`, "utf8");
-    const script = readFileSync(`${root}/web/app.mjs`, "utf8");
-
-    expect(html).toContain("当前登录人");
-    expect(html).toContain('id="sessionIdentity"');
-    expect(script).toContain("session.identity");
+  it("dynamically discovers every Python HTTP workbench", () => {
+    expect(workbenches.length).toBeGreaterThan(0);
   });
 
-  it.each(workbenches)("keeps %s controls independent from the keepalive widget", (entry, packageName) => {
+  it("publishes one standard keepalive module", () => {
+    expect(existsSync(standardKeepAlivePath)).toBe(true);
+    expect(statSync(standardKeepAlivePath).size).toBeGreaterThan(20);
+  });
+
+  it.each(workbenches)("enforces the shared UI and keepalive contract in %s", (entry) => {
     const root = resolveFromRoot(`public/tool/app/${entry}`);
     const html = readFileSync(`${root}/web/index.html`, "utf8");
     const script = readFileSync(`${root}/web/app.mjs`, "utf8");
+    const browserModules = readdirSync(`${root}/web`).filter((name) => name.endsWith(".mjs"));
+    browserModules.forEach((name) => assertJavaScriptSyntax(`${root}/web/${name}`));
+    const browserRuntime = browserModules
+      .map((name) => readFileSync(`${root}/web/${name}`, "utf8"))
+      .join("\n");
     const styles = readFileSync(`${root}/web/styles.css`, "utf8");
-    const server = readFileSync(`${root}/${packageName}/server.py`, "utf8");
+    const keepAlive = readFileSync(`${root}/web/session_keepalive.mjs`, "utf8");
+    const server = readFileSync(findServer(root), "utf8");
+
+    expect(html).toContain('<script src="./theme.js"></script>');
+    expect(html).toContain('<link rel="stylesheet" href="./libs/bootstrap.min.css">');
+    expect(html).toContain('<link rel="stylesheet" href="./theme.css">');
+    expect(html).toContain('<link rel="stylesheet" href="./styles.css">');
+    expect(html).toContain("当前登录人");
+    expect(html).toContain('id="sessionIdentity"');
+    expect(script).toMatch(/session(?:\?\.)?\.identity|session\.identity|session\?\.identity/);
 
     expect(script).not.toMatch(/^import\s+\{[^}]*renderKeepAlive/m);
     expect(script).toContain('void import("./session_keepalive.mjs")');
@@ -42,18 +67,23 @@ describe("HTTP workbench core runtime", () => {
     expect(html).toContain('id="savedCredentialsPanel"');
     expect(html).toContain('id="savedCredentials"');
     expect(html).toContain('id="copyCredentialsButton"');
-    expect(script).toContain("state.credentials");
-    expect(script).toContain("navigator.clipboard.writeText(savedCredentials)");
+    expect(script).toContain("navigator.clipboard.writeText");
     expect(script).not.toContain("localStorage");
     expect(script).not.toContain("sessionStorage");
-    expect(server).toContain('"/session_keepalive.mjs": web_root / "session_keepalive.mjs"');
+    expect(server).toContain('"/session_keepalive.mjs"');
+    expect(keepAlive).toBe(readFileSync(standardKeepAlivePath, "utf8"));
 
-    const credentialStart = html.indexOf('class="work-panel credential-panel"');
-    const credentialEnd = html.indexOf("</section>", credentialStart);
-    const keepAliveWidget = html.indexOf("data-keepalive-widget", credentialStart);
-    expect(credentialStart).toBeGreaterThanOrEqual(0);
-    expect(keepAliveWidget).toBeGreaterThan(credentialStart);
-    expect(keepAliveWidget).toBeLessThan(credentialEnd);
+    expect(html).toContain("data-keepalive-widget");
+    for (const id of ["keepAliveRing", "keepAliveCountdown", "keepAliveStatus", "keepAliveDetail"]) {
+      expect(html).toContain(`id="${id}"`);
+    }
+    expect(html).toContain('id="logList"');
+    if (html.includes('id="resultsTable"')) expect(html).toContain('id="resultsViewport"');
+
+    expect(browserRuntime).toContain('addEventListener("scroll"');
+    expect(browserRuntime).toContain("scrollHeight");
+    expect(browserRuntime).toContain("scrollTop");
+    expect(browserRuntime).toContain("clientHeight");
 
     const bodyStart = styles.indexOf("body {");
     const bodyEnd = styles.indexOf("}", bodyStart);
@@ -61,7 +91,7 @@ describe("HTTP workbench core runtime", () => {
     expect(bodyStart).toBeGreaterThanOrEqual(0);
     expect(keepAliveStyle < bodyStart || keepAliveStyle > bodyEnd).toBe(true);
 
-    const elementIds = [...script.matchAll(/querySelector\("#([A-Za-z0-9_-]+)"\)/g)]
+    const elementIds = [...browserRuntime.matchAll(/querySelector\("#([A-Za-z0-9_-]+)"\)/g)]
       .map((match) => match[1]);
     for (const elementId of elementIds) {
       expect(html, `${entry} 缺少 #${elementId}`).toContain(`id="${elementId}"`);

@@ -268,6 +268,8 @@ class CoreTests(unittest.TestCase):
             self.assertIn('id="progressBar"', html)
             self.assertIn('role="progressbar"', html)
             self.assertIn('aria-valuenow="0"', html)
+            self.assertIn('data-keepalive-widget', html)
+            self.assertIn('id="keepAliveCountdown"', html)
             for path in parser.paths:
                 with self.subTest(path=path):
                     with urllib.request.urlopen(f"http://{host}:{port}{path}", timeout=5) as response:

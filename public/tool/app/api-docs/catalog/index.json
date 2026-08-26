@@ -116,8 +116,8 @@
     },
     {
       "id": "caac-pilot-export",
-      "name": "CAAC 飞行员全量信息接口",
-      "description": "有效飞行员动态分页列表与按 pilotId 详情只读接口",
+      "name": "CAAC 飞行员信息接口",
+      "description": "飞行员动态分页与筛选列表、按 pilotId 详情只读接口",
       "source": "./caac-pilot-export.json"
     }
   ]

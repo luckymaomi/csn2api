@@ -20,6 +20,6 @@ describe("SOC positioning delivery", () => {
     expect(app).toContain("session_keepalive.mjs");
     expect(app).not.toContain("员工号未识别");
     expect(readFileSync(resolveFromRoot("src", "tool", "tools-data.ts"), "utf8")).toContain("http-soc-positioning-helper");
-    expect(readFileSync(resolveFromRoot("scripts", "build.mts"), "utf8")).toContain("http-soc-positioning-helper");
+    expect(readFileSync(resolveFromRoot("scripts", "build.mts"), "utf8")).toContain("discoverHttpWorkbenchEntries");
   });
 });

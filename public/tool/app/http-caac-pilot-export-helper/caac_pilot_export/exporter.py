@@ -12,11 +12,18 @@ from .flatten import flatten_detail, flatten_listing
 from .models import PilotOutcome
 
 
-BASE_HEADERS = ["序号", "抓取状态", "失败原因"]
+BASE_HEADERS = ["序号", "来源行", "输入姓名", "输入档案号", "抓取状态", "失败原因"]
 
 
-def _row(outcome: PilotOutcome) -> dict[str, str]:
-    row = {"序号": str(outcome.record.index + 1), "抓取状态": outcome.status, "失败原因": outcome.error}
+def build_export_row(outcome: PilotOutcome) -> dict[str, str]:
+    row = {
+        "序号": str(outcome.record.index + 1),
+        "来源行": outcome.record.source,
+        "输入姓名": outcome.record.input_name,
+        "输入档案号": outcome.record.input_archive_no,
+        "抓取状态": outcome.status,
+        "失败原因": outcome.error,
+    }
     row.update(flatten_listing(outcome.record.listing))
     if outcome.detail:
         row.update(flatten_detail(outcome.detail))
@@ -53,7 +60,7 @@ class ResultExporter:
         os.replace(self.temp_path, self.path)
 
     def append(self, outcome: PilotOutcome) -> Path:
-        row = _row(outcome)
+        row = build_export_row(outcome)
         new_headers = [header for header in row if header not in self.header_positions]
         for header in new_headers:
             self.headers.append(header)

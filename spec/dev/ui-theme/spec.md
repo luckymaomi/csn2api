@@ -4,7 +4,9 @@
 
 `public/theme.css` 是背景、表面、文字、边框、焦点、状态色、点缀色、硬阴影、圆角和 Bootstrap 变量的唯一公共来源。首页、支持页、备忘录、赞助页和各工具页面的 CSS 只维护布局、尺寸、滚动、canvas、文档预览及领域组件特判，不重复定义同义公共主题值。
 
-Python 工作台入口页和独立服务页面加载 Bootstrap、`public/theme.css`、`public/theme.js` 及页面专属样式。构建过程从已登记的 `http-*-helper` 页面入口自动发现工作台并复制公共资源；构建检查解析页面的本地资源引用并确认目标文件存在。各工作台服务测试通过实际 HTTP 请求确认独立运行时的 CSS/JS 路径可达。
+Python 工作台入口页和独立服务页面加载 Bootstrap、`public/theme.css`、`public/theme.js` 及页面专属样式。构建过程从 `src/tool/app/http-*-helper/shell.ts` 动态发现工作台入口并复制公共资源；合同测试从 `public/tool/app/http-*-helper/web/index.html` 动态发现独立页面，检查主题引用、标准保活模块、凭据区、结果区和可打断滚动跟随。各工作台服务测试按 Python 包目录动态导入 `create_server`，通过实际 HTTP 请求确认标准保活模块可达。
+
+工作台保活倒计时使用 `public/tool/app/_shared/session_keepalive.mjs` 作为标准来源。源码 APP 保留相同的本地副本，构建时由标准来源覆盖到每个独立分发包；具体系统只维护自己的保活请求和会话失效判断。
 
 通用视觉使用浅灰表面、方角完整边框、无模糊硬阴影和轻量位移反馈。状态通过完整边框、整体浅色背景和文字色表达，不使用彩色 `border-left`、`border-right`、伪元素侧条、status rail 或 accent stripe。
 

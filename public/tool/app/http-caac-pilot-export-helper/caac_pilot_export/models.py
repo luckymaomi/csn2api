@@ -8,6 +8,11 @@ from typing import Any
 class PilotRecord:
     index: int
     listing: dict[str, Any]
+    input_name: str = ""
+    input_archive_no: str = ""
+    source: str = ""
+    input_error: str = ""
+    input_row: int = 0
 
     @property
     def pilot_id(self) -> str:
@@ -15,7 +20,29 @@ class PilotRecord:
 
     @property
     def name(self) -> str:
-        return str(self.listing.get("pilotname") or self.listing.get("nameCn") or "").strip()
+        return str(self.listing.get("pilotname") or self.listing.get("nameCn") or self.input_name or "").strip()
+
+    @property
+    def archive_no(self) -> str:
+        return str(self.listing.get("archiveNo") or self.input_archive_no or "").strip()
+
+
+@dataclass(frozen=True)
+class InputIssue:
+    input_row: int
+    name: str
+    archive_no: str
+    message: str
+    source: str
+
+    def __str__(self) -> str:
+        return f"{self.source}：{self.message}"
+
+
+@dataclass(frozen=True)
+class InputPayload:
+    excel_name: str = ""
+    excel_bytes: bytes | None = None
 
 
 @dataclass

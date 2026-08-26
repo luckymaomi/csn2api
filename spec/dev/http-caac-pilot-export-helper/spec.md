@@ -1,41 +1,59 @@
-# CAAC 飞行员全量信息导出开发规格
+# CAAC 飞行员信息导出开发规格
 
 ## 产品边界
 
-`http-caac-pilot-export-helper` 是独立本地 Python APP，只读访问 `fsop.caac.gov.cn` 人员管理接口。它不创建、修改、删除人员，不使用 Playwright，不与 IEB、OA 或 SOC 共享 Cookie。凭据只存在当前 Python 进程内存，结果 Excel 写入 APP 的本地 `results/<runId>/`，该目录被 Git 忽略。
+`http-caac-pilot-export-helper` 是独立本地 Python APP，只读访问 `fsop.caac.gov.cn` 人员管理接口。凭据只存在当前 Python 进程内存，结果写入 APP 本地 `results/<runId>/`。CAAC 会话与 IEB、OA、SOC 相互独立。
 
-## 已验证接口
+## 接口契约
 
-- `POST /yzzzm/rygl/queryPilotByParamForPage?ajaxPrefilter=<timestamp>`：表单包含筛选空值、`medicalStatus`、`page`、`rows`、`sort=archiveNo`、`order=asc`；响应为 `{total, rows}`。
-- `POST /yzzzm/rygl/queryPilotDetails`：表单 `pilotId`；响应顶层对象的 `pilotId` 必须与请求一致。
-- 当前真实验证列表返回过动态 `total`、`rows=10`；人数和页数只作为运行时事实，绝不写死。
-- 指定样例人员筛选返回唯一列表记录；列表与详情的姓名、英文名、证件号、档案号、国籍和手机一致。
-- 详情包括基础标量、文件 URL、递归 `layerInfosList`，以及学习简历、工作经历、机长航线、应急生存、熟练检查和正式执照打印记录等数组；字段按实际响应动态并集。
-- 已使用真实详情 JSP 确认页面 1-24 区块及检查航段、检查状态、训练地点、考试员、打印人、同意日期等中文表头。页面标签用于翻译，不用于过滤接口字段。
+- `POST /yzzzm/rygl/queryPilotByParamForPage?ajaxPrefilter=<timestamp>`：表单包含姓名、档案号和其他筛选项，以及 `page`、`rows`、`sort=archiveNo`、`order=asc`；响应为 `{total, rows}`。
+- `POST /yzzzm/rygl/queryPilotDetails`：表单为 `pilotId`；响应顶层对象的 `pilotId` 与请求一致。
+- 分页按响应 `total`、实际行数和唯一 `pilotId` 动态收敛。空页、重复 ID、批次内 total 变化和缺少 ID 属于响应契约错误。
+- 详情响应包含基础标量、文件 URL、递归资质树和记录数组；字段按实际响应动态并集。已确认中文字段字典由 `field_mappings.py` 维护，未映射字段保留原始键名。
 
-## 执行规则
+## 抓取模式
 
-1. 解析 `yzzzm`、`JSESSIONID`、`home`，还原 Bash `$'...'` 中的 `\\u0021` 和 `\\_`，不执行 cURL 文本。
-2. 验证时请求第 1 页，确认 JSON、`total` 和 `rows` 契约；验证成功后启动 30-60 秒随机间隔只读保活。
-3. 按 `total`、实际行数和唯一 `pilotId` 动态分页；空页、重复 ID、total 变化或缺 ID 属于契约错误，停止当前批次。
-4. 详情严格串行，每个 `pilotId` 最多请求一次。普通 HTTP、解析或业务异常标记该行失败并继续；登录失效停止后续详情。
-5. Excel 只有一个 Sheet。每完成一名人员就把该行和运行中首次出现的新列原子保存到检查点工作簿；进程异常时保留最后一次完整保存。列表和详情的同义字段合并为中文业务列，详情值优先；已确认数组按中文字段生成单元格内的逐条换行文本，`layerInfosList` 保留层级缩进。
-6. 详情 response 的文件 URL、数组内部 ID、创建/更新审计字段、状态码和页面未展示字段全部保留并中文化；工具不请求文件 URL。未建立中文映射的动态字段以 `未映射字段（rawKey）` 保留，避免字段变化导致数据静默丢失。
-7. 字段字典独立维护在 `field_mappings.py`，`flatten.py` 只负责值归一、日期转换、层级和单元格文本格式化。
-8. 页面“执照备注”由英语语言等级及有效期、汉语语言等级及有效期和 `licenseLimit` 动态组合。Excel 保留各来源字段列和“执照备注原文”，并额外生成与页面业务表达一致的多行“执照备注”。
+### 全量抓取
 
-## 当前范围
+从无筛选列表第 1 页开始动态分页，取得当前会话范围内的全部列表记录，再按 `pilotId` 获取详情。
 
-当前授权会话在 `medicalStatus` 为空或 `0` 时均返回 `total=124040`。该数量与 owner 既有样例不一致；机构筛选条件确认前不得发起真实全量任务。
+### 名单抓取
 
-## UI 资源
+Excel 活动 Sheet 使用“姓名”必填列和“档案号”选填列。每个有效输入按姓名请求筛选列表，姓名必须精确一致；填写档案号时进一步按规范化档案号精确筛选。唯一候选的 `pilotId` 用于详情请求；无候选或多候选记录为该行失败。
 
-主站入口与独立工作台均加载 Bootstrap 和公共主题。独立服务在分发包中读取随包资源，在源码运行时回落到仓库 `public/`；页面引用的本地 CSS/JS 必须通过实际 HTTP 资源测试。
+缺姓名和重复输入记录为失败且不发起人员请求。名单结构错误阻止运行。模板由 `GET /api/template` 动态生成，不保存二进制模板文件。
+
+## 执行与保存
+
+详情严格串行，每个最终归属的 `pilotId` 请求一次。普通请求、匹配和解析异常记录失败并继续后续人员；登录失效停止后续请求；用户停止后等待当前请求结束并停止派发；不自动重试。
+
+Excel 只有“飞行员信息”一个 Sheet。每完成一人，`ResultExporter` 将列表和详情转换为一行中文业务数据，并通过临时文件替换原子保存检查点。运行中首次出现的新字段立即加入列集合。
+
+列表和详情同义字段合并，详情值优先。记录数组转换为单元格内逐条换行文本，资质树保留层级缩进；时间戳按本地业务日期转换。“执照备注”由语言等级、有效期和接口备注动态组合，同时保留各来源列。
+
+## 本地 API
+
+- `GET /api/status`：返回会话、保活、模式、检查、进度、下载状态和结果表版本。
+- `GET /api/results?offset=<n>&limit=<n>`：分页返回当前 Excel 同源列和行，`limit` 最大 200。
+- `GET /api/template`：下载人员名单模板。
+- `GET /api/download`：下载当前检查点或最终 Excel。
+- `POST /api/session/verify`：验证凭据并启动列表接口保活。
+- `POST /api/check-data`：检查名单；全量模式返回当前接口人数摘要。
+- `POST /api/run`：按 `mode=all|selected` 启动批次。
+- `POST /api/stop`：停止派发后续请求。
+
+## 页面行为
+
+页面加载 Bootstrap、公共主题和页面布局 CSS。登录区提供凭据验证、当前页凭据复制、当前登录人占位和圆形保活倒计时。抓取区提供全量/名单分段控件、模板下载、Excel 上传和名单检查。状态区显示进度及总数、完成、成功、失败。
+
+人员结果表消费 `/api/results`，动态展示与 Excel 相同的列和值；表头和首列固定，内容支持纵向和横向滚动及分页。结果表和活动日志默认跟随最新内容，用户滚动离开底部后保持其当前位置。
+
+## 工作台公共合同
+
+仓库从 `public/tool/app/http-*-helper/web/index.html` 动态发现 Python HTTP 工作台。每个工作台加载 `theme.js`、Bootstrap、`theme.css` 和 `styles.css`，使用标准身份、当前页凭据、保活 DOM、日志滚动区及结果滚动区命名。
+
+保活前端模块以 `public/tool/app/_shared/session_keepalive.mjs` 为标准来源。源码中的 APP 本地副本通过合同测试保持一致，构建阶段将标准模块复制到每个独立分发包。系统特判只保留在各 APP 的保活请求和会话判断中。
 
 ## 当前登录人
 
-已检查当前 CAAC 入口页和已确认 JSON，未发现稳定可归属的当前登录人字段。APP 和 API 文档显示“未从 CAAC 已确认接口识别”，不从 Cookie、人员列表或浏览器账号猜测姓名。
-
-## 错误边界
-
-普通单人异常继续；登录页重定向、响应契约变化、列表不前进、重复或归属不唯一停止；不自动重试、不并发。
+当前已确认 CAAC 入口页和业务 JSON 没有稳定可归属的当前登录人字段。已验证会话在页面显示“未识别”。
