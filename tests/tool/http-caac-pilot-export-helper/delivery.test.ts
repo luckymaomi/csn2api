@@ -1,6 +1,8 @@
 import { readFileSync } from "node:fs";
+import { pathToFileURL } from "node:url";
 import { describe, expect, it } from "vitest";
 import { resolveFromRoot } from "../../helpers/paths";
+import { isRuntimeGeneratedPath } from "../../../scripts/tool-exports.mjs";
 
 describe("CAAC pilot export delivery", () => {
   it("publishes the app, catalog and dynamic read-only workflow", () => {
@@ -28,5 +30,33 @@ describe("CAAC pilot export delivery", () => {
     expect(catalog).toContain("queryPilotDetails");
     expect(catalog).not.toContain("不能写死");
     expect(catalog).not.toContain("不下载图片");
+  });
+
+  it("limits long result cells to 100 Unicode characters in the browser only", async () => {
+    const root = resolveFromRoot("public/tool/app/http-caac-pilot-export-helper");
+    const module = await import(pathToFileURL(`${root}/web/results_table.mjs`).href) as {
+      formatResultCell(value: unknown): { fullText: string; text: string; truncated: boolean };
+    };
+
+    expect(module.formatResultCell("甲".repeat(100))).toEqual({
+      fullText: "甲".repeat(100),
+      text: "甲".repeat(100),
+      truncated: false,
+    });
+    expect(module.formatResultCell("乙".repeat(101))).toEqual({
+      fullText: "乙".repeat(101),
+      text: `${"乙".repeat(100)}...`,
+      truncated: true,
+    });
+    expect(module.formatResultCell("😀".repeat(100)).truncated).toBe(false);
+  });
+
+  it("keeps local runtime results out of every build output", () => {
+    const build = readFileSync(resolveFromRoot("scripts/build.mts"), "utf8");
+
+    expect(isRuntimeGeneratedPath("tool/app/http-caac-pilot-export-helper/results/run/result.xlsx")).toBe(true);
+    expect(isRuntimeGeneratedPath("tool/app/http-caac-pilot-export-helper/__pycache__/server.pyc")).toBe(true);
+    expect(isRuntimeGeneratedPath("tool/app/http-caac-pilot-export-helper/web/results_table.mjs")).toBe(false);
+    expect(build).toContain("isRuntimeGeneratedPath");
   });
 });

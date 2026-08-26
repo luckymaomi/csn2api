@@ -12,6 +12,7 @@ ROOT = Path(__file__).resolve().parents[3] / "public" / "tool" / "app" / "http-c
 sys.path.insert(0, str(ROOT))
 
 from caac_pilot_export.manager import RunManager  # noqa: E402
+from caac_pilot_export.exporter import TRAILING_HEADERS  # noqa: E402
 from caac_pilot_export.models import InputPayload, PilotOutcome, PilotRecord  # noqa: E402
 
 
@@ -60,7 +61,7 @@ class FakeClient:
             "",
             record.input_row,
         )
-        return PilotOutcome(resolved, "成功", {"pilotId": resolved.pilot_id, "pilotname": resolved.name, "dynamicField": "动态值"})
+        return PilotOutcome(resolved, "成功", {"pilotId": resolved.pilot_id, "pilotname": resolved.name, "dynamicField": "动态值" * 40})
 
     def invalidate_credentials(self) -> None:
         return
@@ -106,13 +107,16 @@ class ManagerTests(unittest.TestCase):
             preview = manager.results_page(0, 50)
             self.assertEqual(preview["total"], 2)
             self.assertIn("未映射字段（dynamicField）", preview["columns"])
+            self.assertEqual(preview["columns"][-len(TRAILING_HEADERS):], TRAILING_HEADERS)
 
             result_path = manager.download_path()
             self.assertIsNotNone(result_path)
             workbook = load_workbook(result_path, data_only=True)
             headers = [cell.value for cell in workbook.active[1]]
             rows = [dict(zip(headers, [cell.value for cell in row])) for row in workbook.active.iter_rows(min_row=2)]
+            self.assertEqual(preview["columns"], headers)
             self.assertEqual(rows[0]["未映射字段（dynamicField）"], preview["rows"][0]["未映射字段（dynamicField）"])
+            self.assertEqual(len(rows[0]["未映射字段（dynamicField）"]), 120)
             self.assertEqual([row["抓取状态"] for row in rows], ["成功", "失败"])
             workbook.close()
             manager.shutdown()

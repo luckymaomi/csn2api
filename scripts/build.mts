@@ -9,7 +9,7 @@ import { promisify } from "node:util";
 
 import { build } from "esbuild";
 import ts from "typescript";
-import { buildToolExports, type ToolExportDefinition } from "./tool-exports.mjs";
+import { buildToolExports, isRuntimeGeneratedPath, type ToolExportDefinition } from "./tool-exports.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -98,7 +98,8 @@ async function prepareDist() {
 async function copyStaticFiles() {
   await fs.cp(staticRoot, distRoot, {
     recursive: true,
-    force: true
+    force: true,
+    filter: (sourcePath) => !isRuntimeGeneratedPath(path.relative(staticRoot, sourcePath))
   });
 }
 

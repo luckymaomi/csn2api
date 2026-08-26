@@ -1,4 +1,16 @@
 const pageSize = 50;
+const maxCellCharacters = 100;
+
+export function formatResultCell(value) {
+  const fullText = String(value ?? "");
+  const characters = Array.from(fullText);
+  const truncated = characters.length > maxCellCharacters;
+  return {
+    fullText,
+    text: truncated ? `${characters.slice(0, maxCellCharacters).join("")}...` : fullText,
+    truncated,
+  };
+}
 
 function nearBottom(element) {
   return element.scrollHeight - element.scrollTop - element.clientHeight < 24;
@@ -41,7 +53,9 @@ export function createResultTable(showError) {
       for (const column of columns) {
         const cell = document.createElement("td");
         const value = row[column] ?? "";
-        cell.textContent = String(value);
+        const display = formatResultCell(value);
+        cell.textContent = display.text;
+        if (display.truncated) cell.title = display.fullText;
         if (column === "抓取状态") cell.className = value === "成功" ? "is-success" : "is-failed";
         tableRow.append(cell);
       }

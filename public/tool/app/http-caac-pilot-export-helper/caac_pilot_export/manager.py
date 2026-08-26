@@ -6,7 +6,7 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 
-from .exporter import BASE_HEADERS, ResultExporter, build_export_row
+from .exporter import BASE_HEADERS, ResultExporter, build_export_row, merge_export_headers
 from .input_data import read_input
 from .models import InputIssue, InputPayload, PilotOutcome, PilotRecord
 from .portal_client import PortalClient, PortalSessionExpired
@@ -163,9 +163,7 @@ class RunManager:
         exporter.append(outcome)
         row = build_export_row(outcome)
         with self._lock:
-            for header in row:
-                if header not in self._preview_headers:
-                    self._preview_headers.append(header)
+            self._preview_headers = merge_export_headers(self._preview_headers, row)
             self._preview_rows.append(row)
             self._preview_version += 1
             self._state["resultTable"] = {"total": len(self._preview_rows), "version": self._preview_version}

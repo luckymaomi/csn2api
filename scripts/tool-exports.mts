@@ -27,6 +27,13 @@ export type ToolExportResult = {
 
 const fixedZipDate = new Date(0);
 
+export function isRuntimeGeneratedPath(filePath: string): boolean {
+  const pathParts = filePath.replace(/\\/g, "/").split("/");
+  return pathParts.includes("results")
+    || pathParts.includes("__pycache__")
+    || filePath.toLowerCase().endsWith(".pyc");
+}
+
 export async function buildToolExports(options: ToolExportOptions): Promise<ToolExportResult[]> {
   await fs.rm(options.exportRoot, { recursive: true, force: true });
   await fs.mkdir(options.exportRoot, { recursive: true });
@@ -58,14 +65,11 @@ async function buildToolExport(options: ToolExportOptions, definition: ToolExpor
 
   const pageFiles = await listFiles(pageDirectory, (filePath) => {
     const relativePath = path.relative(pageDirectory, filePath).replace(/\\/g, "/");
-    const pathParts = relativePath.split("/");
     const isWorkbenchThemeScript = relativePath === "web/theme.js";
     return !relativePath.endsWith(".html")
       && (!relativePath.endsWith(".js") || isWorkbenchThemeScript)
       && !relativePath.endsWith(".map")
-      && !pathParts.includes("__pycache__")
-      && !pathParts.includes("results")
-      && !relativePath.endsWith(".pyc");
+      && !isRuntimeGeneratedPath(relativePath);
   });
   for (const pageFile of pageFiles) {
     const relativePath = path.relative(pageDirectory, pageFile).replace(/\\/g, "/");

@@ -15,7 +15,7 @@ ROOT = Path(__file__).resolve().parents[3] / "public" / "tool" / "app" / "http-c
 sys.path.insert(0, str(ROOT))
 
 from caac_pilot_export.credentials import parse_credentials  # noqa: E402
-from caac_pilot_export.exporter import ResultExporter  # noqa: E402
+from caac_pilot_export.exporter import ResultExporter, TRAILING_HEADERS  # noqa: E402
 from caac_pilot_export.models import PilotOutcome, PilotRecord  # noqa: E402
 from caac_pilot_export.portal_client import PortalClient, PortalContractError, PortalSessionExpired  # noqa: E402
 from caac_pilot_export.runner import BatchRunner  # noqa: E402
@@ -72,6 +72,8 @@ class CoreTests(unittest.TestCase):
             workbook = load_workbook(path)
             self.assertEqual(workbook.sheetnames, ["飞行员信息"])
             headers = [cell.value for cell in workbook.active[1]]
+            self.assertEqual(headers[0], "序号")
+            self.assertEqual(headers[-len(TRAILING_HEADERS):], TRAILING_HEADERS)
             self.assertIn("执照等级", headers)
             self.assertIn("学习简历", headers)
             self.assertIn("照片文件URL", headers)
@@ -79,7 +81,8 @@ class CoreTests(unittest.TestCase):
 
     def test_exporter_saves_each_completed_pilot_as_checkpoint(self) -> None:
         first = PilotOutcome(PilotRecord(0, {"pilotId": "1"}), "成功", {"pilotId": "1", "firstField": "A"})
-        second = PilotOutcome(PilotRecord(1, {"pilotId": "2"}), "成功", {"pilotId": "2", "laterField": "B"})
+        long_value = "长文本" * 40
+        second = PilotOutcome(PilotRecord(1, {"pilotId": "2"}), "成功", {"pilotId": "2", "laterField": "B", "longField": long_value})
         with tempfile.TemporaryDirectory() as directory:
             exporter = ResultExporter(Path(directory), "checkpoint")
             path = exporter.append(first)
@@ -88,7 +91,15 @@ class CoreTests(unittest.TestCase):
             exporter.append(second)
             second_book = load_workbook(path)
             self.assertEqual(second_book.active.max_row, 3)
-            self.assertIn("未映射字段（laterField）", [cell.value for cell in second_book.active[1]])
+            headers = [cell.value for cell in second_book.active[1]]
+            rows = [dict(zip(headers, [cell.value for cell in row])) for row in second_book.active.iter_rows(min_row=2)]
+            self.assertEqual(headers[0], "序号")
+            self.assertEqual(headers[-len(TRAILING_HEADERS):], TRAILING_HEADERS)
+            self.assertLess(headers.index("未映射字段（laterField）"), headers.index("来源行"))
+            self.assertEqual(rows[0]["未映射字段（firstField）"], "A")
+            self.assertEqual(rows[1]["未映射字段（longField）"], long_value)
+            first_book.close()
+            second_book.close()
 
     def test_epoch_milliseconds_and_deep_qualification_tree_are_readable(self) -> None:
         from caac_pilot_export.flatten import flatten_detail

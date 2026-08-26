@@ -12,22 +12,35 @@ from .flatten import flatten_detail, flatten_listing
 from .models import PilotOutcome
 
 
-BASE_HEADERS = ["序号", "来源行", "输入姓名", "输入档案号", "抓取状态", "失败原因"]
+LEADING_HEADERS = ["序号"]
+TRAILING_HEADERS = ["来源行", "输入姓名", "输入档案号", "抓取状态", "失败原因"]
+BASE_HEADERS = [*LEADING_HEADERS, *TRAILING_HEADERS]
+
+
+def merge_export_headers(existing: Iterable[str], incoming: Iterable[str]) -> list[str]:
+    fixed_headers = {*LEADING_HEADERS, *TRAILING_HEADERS}
+    dynamic_headers: list[str] = []
+    for header in [*existing, *incoming]:
+        if header not in fixed_headers and header not in dynamic_headers:
+            dynamic_headers.append(header)
+    return [*LEADING_HEADERS, *dynamic_headers, *TRAILING_HEADERS]
 
 
 def build_export_row(outcome: PilotOutcome) -> dict[str, str]:
-    row = {
+    business_fields = flatten_listing(outcome.record.listing)
+    if outcome.detail:
+        business_fields.update(flatten_detail(outcome.detail))
+    for header in BASE_HEADERS:
+        business_fields.pop(header, None)
+    return {
         "序号": str(outcome.record.index + 1),
+        **business_fields,
         "来源行": outcome.record.source,
         "输入姓名": outcome.record.input_name,
         "输入档案号": outcome.record.input_archive_no,
         "抓取状态": outcome.status,
         "失败原因": outcome.error,
     }
-    row.update(flatten_listing(outcome.record.listing))
-    if outcome.detail:
-        row.update(flatten_detail(outcome.detail))
-    return row
 
 
 class ResultExporter:
@@ -59,13 +72,21 @@ class ResultExporter:
         self.workbook.save(self.temp_path)
         os.replace(self.temp_path, self.path)
 
+    def _add_dynamic_headers(self, row_headers: Iterable[str]) -> list[str]:
+        next_headers = merge_export_headers(self.headers, row_headers)
+        new_headers = [header for header in next_headers if header not in self.header_positions]
+        if not new_headers:
+            return []
+        first_trailing_column = self.header_positions[TRAILING_HEADERS[0]]
+        self.sheet.insert_cols(first_trailing_column, amount=len(new_headers))
+        self.headers = next_headers
+        self.header_positions = {header: index for index, header in enumerate(self.headers, 1)}
+        self._write_headers(self.headers)
+        return new_headers
+
     def append(self, outcome: PilotOutcome) -> Path:
         row = build_export_row(outcome)
-        new_headers = [header for header in row if header not in self.header_positions]
-        for header in new_headers:
-            self.headers.append(header)
-            self.header_positions[header] = len(self.headers)
-        self._write_headers(new_headers)
+        new_headers = self._add_dynamic_headers(row)
         row_index = self.sheet.max_row + 1
         for header, value in row.items():
             cell = self.sheet.cell(row_index, self.header_positions[header], value)

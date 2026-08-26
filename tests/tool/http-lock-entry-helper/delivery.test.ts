@@ -36,6 +36,6 @@ describe("HTTP lock entry delivery", () => {
 
     expect(catalog).toContain('entry: "http-lock-entry-helper"');
     expect(ignore).toContain("/public/tool/app/http-lock-entry-helper/results/");
-    expect(exporter).toContain('!pathParts.includes("results")');
+    expect(exporter).toContain("!isRuntimeGeneratedPath(relativePath)");
   });
 });
