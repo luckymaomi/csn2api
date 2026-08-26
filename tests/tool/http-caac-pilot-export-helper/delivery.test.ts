@@ -7,6 +7,8 @@ describe("CAAC pilot export delivery", () => {
     const root = resolveFromRoot("public/tool/app/http-caac-pilot-export-helper");
     const page = readFileSync(`${root}/web/index.html`, "utf8");
     const browser = readFileSync(`${root}/web/app.mjs`, "utf8");
+    const resultTable = readFileSync(`${root}/web/results_table.mjs`, "utf8");
+    const styles = readFileSync(`${root}/web/styles.css`, "utf8");
     const server = readFileSync(`${root}/caac_pilot_export/server.py`, "utf8");
     const app = readFileSync(`${root}/caac_pilot_export/portal_client.py`, "utf8");
     const catalog = readFileSync(resolveFromRoot("public/tool/app/api-docs/catalog/caac-pilot-export.json"), "utf8");
@@ -15,6 +17,9 @@ describe("CAAC pilot export delivery", () => {
     expect(page).toContain("下载名单模板");
     expect(page).toContain("复制凭据");
     expect(browser).toContain('./results_table.mjs');
+    expect(styles).toMatch(/\.result-viewport\s*\{[^}]*height:\s*460px;[^}]*overflow:\s*auto;/s);
+    expect(resultTable).toContain('querySelector("tbody tr:last-child")');
+    expect(resultTable).not.toContain("elements.viewport.scrollHeight");
     expect(server).toContain('"/results_table.mjs"');
     expect(app).toContain("fetch_all_pilots");
     expect(app).toContain("queryPilotDetails");

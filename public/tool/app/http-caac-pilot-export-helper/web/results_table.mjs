@@ -19,6 +19,7 @@ export function createResultTable(showError) {
   let page = 0;
   let requestId = 0;
   let currentMeta = {};
+  let expectedScrollTop = null;
 
   function draw(payload) {
     const columns = payload.columns || [];
@@ -46,7 +47,14 @@ export function createResultTable(showError) {
       }
       return tableRow;
     }));
-    elements.viewport.scrollTop = followResults ? elements.viewport.scrollHeight : previousTop;
+    if (followResults) {
+      const lastRow = elements.table.querySelector("tbody tr:last-child");
+      const headerHeight = elements.table.querySelector("thead")?.offsetHeight || 0;
+      elements.viewport.scrollTop = Math.max(0, (lastRow?.offsetTop || 0) - headerHeight);
+      expectedScrollTop = elements.viewport.scrollTop;
+    } else {
+      elements.viewport.scrollTop = previousTop;
+    }
   }
 
   async function load() {
@@ -67,7 +75,14 @@ export function createResultTable(showError) {
     elements.next.disabled = page >= actualPages - 1;
   }
 
-  elements.viewport.addEventListener("scroll", () => { followResults = nearBottom(elements.viewport); });
+  elements.viewport.addEventListener("scroll", () => {
+    if (expectedScrollTop !== null && Math.abs(elements.viewport.scrollTop - expectedScrollTop) < 1) {
+      expectedScrollTop = null;
+      return;
+    }
+    expectedScrollTop = null;
+    followResults = nearBottom(elements.viewport);
+  });
   elements.previous.addEventListener("click", () => {
     followResults = false;
     page -= 1;
