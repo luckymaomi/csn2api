@@ -3,10 +3,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Literal
-
-
-WorkbenchMode = Literal["original", "smart"]
 
 
 @dataclass(frozen=True)
@@ -51,16 +47,7 @@ class InputPayload:
     pasted_text: str = ""
     whitelist_text: str = ""
     common_reason: str = ""
-    conflict_recovery: bool = False
     approve_after_submit: bool = False
-
-
-@dataclass(frozen=True)
-class BatchRunConfig:
-    run_id: str
-    mode: WorkbenchMode
-    output_directory: str
-    input_payload: InputPayload
 
 
 @dataclass(frozen=True)

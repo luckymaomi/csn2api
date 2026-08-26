@@ -101,7 +101,7 @@ holidayTypeDesc=<当前类型名称>
 random=<decimal>
 ```
 
-响应为 HTML。智能路由读取 `.hDiv table` 表头和 `.bDiv table` 数据，按字段名解析：
+响应为 HTML。页面在选定人员和类型后动态加载 `.hDiv table` 表头和 `.bDiv table` 数据，字段为：
 
 ```text
 休假类型
@@ -112,7 +112,7 @@ random=<decimal>
 可休天数
 ```
 
-只在 `RECU_LVE` 与 `ALV_FD` 之间按目标年份“可休天数”执行现有智能互换；其他类型原样提交。没有目标年份、重复年份、列数异常或非整数额度时归档预检失败，不猜额度。额度表中的 ALV_FD 可能显示为“年假（公休假）”，不能据此改成普通 `ALV`。
+额度提示不进入最终锁班提交 Body。`ALV`、`RECU_LVE` 与 `ALV_FD` 是当前动态类型列表中的独立 code，提交时不得根据额度表名称相互改写。
 
 ## 时间控件与校验
 

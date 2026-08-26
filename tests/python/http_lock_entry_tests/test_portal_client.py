@@ -138,19 +138,6 @@ class HttpPortalClientTest(unittest.TestCase):
         self.assertEqual(result.result_rows, [])
         self.assertEqual(len(result.conflict_rows), 1)
 
-    def test_quota_table_is_parsed_by_header_name(self):
-        html = """
-        <div class="hDiv"><table><tr>
-          <th>休假类型</th><th>年份</th><th>休假天数</th><th>锁班天数</th><th>解锁天数</th><th>可休天数</th>
-        </tr></table></div>
-        <div class="bDiv"><table><tbody><tr>
-          <td>健康疗养</td><td>2026</td><td>8</td><td>2</td><td>0</td><td>6</td>
-        </tr></tbody></table></div>
-        """
-        rows = self.make_client().parse_quota_result(html)
-        self.assertEqual(rows[0]["年份"], "2026")
-        self.assertEqual(rows[0]["可休天数"], "6")
-
     def test_query_pagination_keeps_checkbox_record_id(self):
         def query_html(record_id, page_link=""):
             return f"""

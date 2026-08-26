@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Callable
 
 from .input_data import read_input
-from .models import InputPayload, WorkbenchMode
+from .models import InputPayload
 from .portal_client import PortalClient, PortalSessionExpired
 from .session_keepalive import random_keepalive_interval
 from .result_store import ResultStore
@@ -20,21 +20,19 @@ from .runner import BatchRunner
 
 
 RunnerFactory = Callable[..., BatchRunner]
-StoreFactory = Callable[[str | Path, str, str], ResultStore]
+StoreFactory = Callable[[str | Path, str], ResultStore]
 
 
 class RunManager:
     def __init__(
         self,
         app_directory: Path,
-        mode: WorkbenchMode,
         client: PortalClient | None = None,
         runner_factory: RunnerFactory = BatchRunner,
         store_factory: StoreFactory = ResultStore,
         keepalive_interval_factory: Callable[[], int] = random_keepalive_interval,
     ):
         self.app_directory = app_directory.resolve()
-        self.mode = mode
         self.client = client or PortalClient(keepalive_interval_factory=keepalive_interval_factory)
         keepalive = getattr(self.client, "keepalive", None)
         if keepalive is not None and client is not None:
@@ -51,8 +49,6 @@ class RunManager:
         return {
             "phase": "waiting_credentials",
             "message": "等待验证登录凭据",
-            "mode": self.mode,
-            "modeLabel": "智能模式" if self.mode == "smart" else "原始模式",
             "session": {
                 "verified": False,
                 "verifiedAt": "",
@@ -201,7 +197,7 @@ class RunManager:
 
     def _parse(self, payload: InputPayload) -> tuple[list[dict[str, object]], list[str]]:
         metadata = self.client.require_metadata()
-        records, errors = read_input(payload, metadata, self.mode)
+        records, errors = read_input(payload, metadata)
         if payload.common_reason and len(payload.common_reason.strip()) > 60:
             errors.append("统一备注不能超过60个字符")
         return records, errors
@@ -255,8 +251,6 @@ class RunManager:
         runner_args = [
             self.client,
             store,
-            self.mode,
-            payload.conflict_recovery and self.mode == "smart",
             payload.common_reason,
             self._stop_event,
             self._handle_event,
@@ -306,7 +300,7 @@ class RunManager:
             raise ValueError("没有可录入的有效数据")
 
         run_id = f"{datetime.now():%Y%m%d_%H%M%S}_{uuid.uuid4().hex[:8]}"
-        store = self.store_factory(self.app_directory / "results", run_id, self.mode)
+        store = self.store_factory(self.app_directory / "results", run_id)
         with self._lock:
             self._result_path = store.path
             self._stop_event = threading.Event()

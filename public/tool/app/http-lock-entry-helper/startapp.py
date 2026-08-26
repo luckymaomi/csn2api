@@ -17,10 +17,10 @@ def parse_args() -> argparse.Namespace:
 def main() -> int:
     args = parse_args()
     app_directory = Path(__file__).resolve().parent
-    server = create_server(app_directory, "original", args.port)
+    server = create_server(app_directory, args.port)
     port = server.server_address[1]
     url = f"http://127.0.0.1:{port}/"
-    print(f"锁班皇帝（新·原始模式）：{url}")
+    print(f"锁班皇帝（新）：{url}")
     if not args.no_open:
         webbrowser.open(url)
     try:

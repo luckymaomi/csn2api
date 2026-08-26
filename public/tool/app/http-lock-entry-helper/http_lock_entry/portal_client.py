@@ -15,7 +15,6 @@ from bs4 import BeautifulSoup, Tag
 from .credentials import format_credentials, parse_credentials
 from .metadata import normalize_lock_type, normalize_text, parse_portal_metadata
 from .models import EmployeeIdentity, LockTypeMetadata, PortalMetadata, SubmitResult
-from .routing import available_days_for_year, parse_quota_rows
 from .session_keepalive import SessionKeepAlive, random_keepalive_interval
 
 
@@ -23,16 +22,12 @@ BASE_URL = "https://ieb.csair.com"
 HOME_PATH = "/index/index"
 ENTRY_PATH = "/newieb/nonproductionTask/showNonproductionTaskImportPage"
 EMPLOYEE_PATH = "/newieb/nonproductionTask/vaildStaffNum"
-QUOTA_PATH = "/newieb/nonproductionTask/showNonproductionHolidayRulesTips"
 SUBMIT_PATH = "/newieb/nonproductionTask/showNonproductionTaskImportResultPage"
 QUERY_PAGE_PATH = "/newieb/nonproductionTask/showNonproductionTaskPage"
 QUERY_PATH = "/newieb/nonproductionTask/showLockListPage"
 
 STATE_PATHS = {
     "approve": "/newieb/nonproductionTask/importNonproductionTaskLockListToSoc",
-    "revoke": "/newieb/nonproductionTask/deleteNonproductionTaskLock",
-    "unlock": "/newieb/nonproductionTask/unlockNonproductionTaskLock",
-    "reject": "/newieb/nonproductionTask/rejectNonproductionTaskLock",
 }
 
 STATUS_CODES = {
@@ -292,45 +287,6 @@ class PortalClient:
             raise PortalError("员工校验响应缺少姓名或部门")
         return EmployeeIdentity(employee_id=employee_id, name=name, department=department)
 
-    def fetch_available_days(self, employee_id: str, lock_type: str, year: int) -> int:
-        metadata = self.require_metadata()
-        item = metadata.lock_types.get(lock_type)
-        if item is None:
-            raise PortalError(f"当前门户没有锁班类型 {lock_type}")
-        response = self._post(
-            QUOTA_PATH,
-            data={
-                "staffnum": employee_id,
-                "holidayType": item.code,
-                "holidayTypeDesc": item.description,
-                "random": _random_value(),
-            },
-        )
-        rows = self.parse_quota_result(str(response.text or ""))
-        try:
-            return available_days_for_year(rows, year)
-        except ValueError as error:
-            raise PortalError(str(error)) from error
-
-    def parse_quota_result(self, html: str) -> list[dict[str, str]]:
-        soup = BeautifulSoup(html, "html.parser")
-        root = soup.select_one(".hDiv")
-        body = soup.select_one(".bDiv")
-        if root is None or body is None:
-            raise PortalError("休假限制响应缺少表格")
-        headers = _table_headers(root)
-        if not headers:
-            raise PortalError("休假限制响应缺少表头")
-        wrapper = BeautifulSoup("<div></div>", "html.parser").div
-        assert wrapper is not None
-        wrapper.append(body)
-        raw_rows = _table_rows(wrapper, headers)
-        values = [[row.get(header, "") for header in headers] for row in raw_rows]
-        try:
-            return parse_quota_rows(headers, values)
-        except ValueError as error:
-            raise PortalError(str(error)) from error
-
     def resolve_reason(self, record: dict[str, object], common_reason: str) -> str:
         metadata = self.require_metadata()
         item = metadata.lock_types.get(str(record.get("请假类型", "")))
@@ -589,17 +545,6 @@ class PortalClient:
             message = normalize_text(payload.get("errorMsg") if isinstance(payload, dict) else "")
             raise PortalError(message or "门户状态动作失败")
         return normalize_text(payload.get("successMsg")) or "门户状态动作成功"
-
-    def unlock_record(self, row: dict[str, str], reason: str) -> str:
-        message = self.perform_state_action("unlock", [row], reason)
-        employee_id = normalize_text(row.get("员工号"))
-        locked_rows = self.query_records(employee_id, "已锁")
-        if any(self._same_query_identity(candidate, row) for candidate in locked_rows):
-            raise PortalError("门户提示解锁成功，但目标仍在已锁列表")
-        unlocked_rows = self.query_records(employee_id, "已解锁")
-        if not any(self._same_query_identity(candidate, row) for candidate in unlocked_rows):
-            raise PortalError("解锁后未在已解锁列表中精确找到目标记录")
-        return message
 
     def approve_records(self, rows: list[dict[str, str]], reason: str) -> str:
         if not rows:

@@ -1,5 +1,4 @@
 const elements = {
-  modeLabel: document.querySelector("#modeLabel"),
   statusMessage: document.querySelector("#statusMessage"),
   statusBadge: document.querySelector("#statusBadge"),
   themeToggle: document.querySelector("#themeToggle"),
@@ -24,8 +23,6 @@ const elements = {
   pastedText: document.querySelector("#pastedText"),
   whitelistText: document.querySelector("#whitelistText"),
   commonReason: document.querySelector("#commonReason"),
-  smartOptions: document.querySelector("#smartOptions"),
-  conflictRecovery: document.querySelector("#conflictRecovery"),
   approveAfterSubmit: document.querySelector("#approveAfterSubmit"),
   dataCheckButton: document.querySelector("#dataCheckButton"),
   runButton: document.querySelector("#runButton"),
@@ -77,7 +74,6 @@ const phaseLabels = {
   failed: "失败",
 };
 
-let currentMode = "original";
 let followLog = true;
 let followResults = true;
 let pollingFailed = false;
@@ -187,7 +183,6 @@ async function inputPayload() {
     pastedText: "",
     whitelistText: elements.whitelistText.value.trim(),
     commonReason: elements.commonReason.value.trim(),
-    conflictRecovery: currentMode === "smart" && elements.conflictRecovery.checked,
     approveAfterSubmit: elements.approveAfterSubmit.checked,
   };
   if (inputMode === "excel") {
@@ -242,10 +237,6 @@ function render(state) {
   const completed = Number(progress.completed || 0);
   const percent = total ? Math.min(100, Math.round((completed / total) * 100)) : 0;
   if (!session.verified || phase === "session_expired") updateSavedCredentials("");
-  currentMode = state.mode || currentMode;
-
-  elements.modeLabel.textContent = state.modeLabel || "录入工作台";
-  elements.smartOptions.hidden = currentMode !== "smart";
   elements.statusMessage.textContent = state.message || "";
   elements.statusBadge.textContent = phaseLabels[phase] || phase;
   elements.statusBadge.className = `status-badge is-${phase}`;
@@ -258,7 +249,7 @@ function render(state) {
   elements.stopButton.disabled = !state.canStop;
   const inputDisabled = Boolean(state.canStop);
   document.querySelectorAll(
-    'input[name="inputMode"], #excelFile, #pastedText, #whitelistText, #commonReason, #conflictRecovery, #approveAfterSubmit',
+    'input[name="inputMode"], #excelFile, #pastedText, #whitelistText, #commonReason, #approveAfterSubmit',
   ).forEach((input) => {
     input.disabled = inputDisabled;
   });
@@ -322,7 +313,6 @@ function renderResults(results) {
   }
   const columns = [
     ["序号", "index"],
-    ["片段", "segmentIndex"],
     ["员工号", "employeeId"],
     ["姓名", "name"],
     ["输入类型", "inputType"],
@@ -333,8 +323,6 @@ function renderResults(results) {
     ["实际结束", "actualEndDateTime"],
     ["状态", "status"],
     ["门户结果", "portalStatus"],
-    ["尝试", "attempt"],
-    ["冲突回退", "recovery"],
     ["备注", "remark"],
     ["说明", "message"],
   ];

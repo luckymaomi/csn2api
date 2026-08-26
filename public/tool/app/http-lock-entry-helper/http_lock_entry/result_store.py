@@ -13,7 +13,6 @@ from openpyxl import Workbook, load_workbook
 
 RESULT_HEADERS = [
     ("序号", "index"),
-    ("片段", "segmentIndex"),
     ("来源行", "sourceRow"),
     ("员工号", "employeeId"),
     ("输入姓名", "expectedName"),
@@ -27,8 +26,6 @@ RESULT_HEADERS = [
     ("时间模式", "timeMode"),
     ("处理状态", "status"),
     ("门户结果", "portalStatus"),
-    ("尝试次数", "attempt"),
-    ("冲突回退", "recovery"),
     ("锁班备注", "remark"),
     ("说明", "message"),
     ("记录时间", "recordedAt"),
@@ -36,11 +33,10 @@ RESULT_HEADERS = [
 
 
 class ResultStore:
-    def __init__(self, output_root: str | Path, run_id: str, mode: str):
+    def __init__(self, output_root: str | Path, run_id: str):
         self.directory = Path(output_root).resolve() / run_id
         self.directory.mkdir(parents=True, exist_ok=True)
         self.path = str(self.directory / f"HTTP锁班结果_{run_id}.xlsx")
-        self.mode = mode
         self._lock = threading.RLock()
         workbook = Workbook()
         sheet = workbook.active

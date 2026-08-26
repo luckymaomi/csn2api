@@ -53,10 +53,11 @@ class HttpLockEntryServerTest(unittest.TestCase):
             "approveAfterSubmit": True,
         })
         self.assertTrue(payload.approve_after_submit)
+        self.assertFalse(hasattr(payload, "conflict_recovery"))
 
     def test_loopback_server_exposes_manual_steps_and_agent_start(self):
         manager = RecordingManager()
-        server = create_server(APP_DIR, "smart", 0, manager)
+        server = create_server(APP_DIR, 0, manager)
         thread = threading.Thread(target=server.serve_forever, daemon=True)
         thread.start()
         host, port = server.server_address
@@ -92,7 +93,7 @@ class HttpLockEntryServerTest(unittest.TestCase):
 
     def test_source_workbench_serves_shared_theme_assets(self):
         manager = RecordingManager()
-        server = create_server(APP_DIR, "original", 0, manager)
+        server = create_server(APP_DIR, 0, manager)
         thread = threading.Thread(target=server.serve_forever, daemon=True)
         thread.start()
         host, port = server.server_address

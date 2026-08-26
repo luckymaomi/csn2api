@@ -25,7 +25,7 @@
       "id": "submit",
       "groupId": "business",
       "name": "飞行人员锁班接口",
-      "summary": "单次调用会读取当前类型元数据、校验员工身份并提交完整锁班表单；不执行批量、智能类型互换、冲突解锁或自动通过。",
+      "summary": "单次调用会读取当前类型元数据、校验员工身份并提交完整锁班表单。",
       "risk": "write",
       "method": "POST",
       "path": "/newieb/nonproductionTask/showNonproductionTaskImportResultPage",
@@ -110,12 +110,12 @@
     {
       "id": "quota",
       "name": "休假额度与规则",
-      "purpose": "供独立智能锁班 APP 读取年度额度；单次文档调用不自动互换类型",
+      "purpose": "选定人员和锁班类型后读取页面展示的年度休假额度与规则",
       "risk": "read",
       "method": "POST",
       "path": "/newieb/nonproductionTask/showNonproductionHolidayRulesTips",
       "parameters": ["staffnum", "holidayType", "holidayTypeDesc", "random"],
-      "response": "HTML table；字段为休假类型、年份、休假天数、锁班天数、解锁天数、可休天数。RECU_LVE 与 ALV_FD 的智能互换属于独立 APP。"
+      "response": "HTML table；字段为休假类型、年份、休假天数、锁班天数、解锁天数、可休天数。额度不进入最终锁班提交 Body。"
     },
     {
       "id": "query-page",
@@ -190,7 +190,7 @@
   ],
   "relatedRequests": [
     { "requestRef": "lock-entry.entry-page", "kind": "option-source", "sourceId": "lock-types", "description": "提供当前 Session 可用的动态锁班类型" },
-    { "requestRef": "lock-entry.quota", "kind": "reference-query", "description": "供独立锁班工作台读取休假额度与规则" },
+    { "requestRef": "lock-entry.quota", "kind": "reference-query", "description": "选定人员和类型后动态展示休假额度与规则" },
     { "requestRef": "lock-entry.query-page", "kind": "reference-query", "description": "提供锁班查询表单和筛选项" },
     { "requestRef": "lock-entry.query-first-page", "kind": "reference-query", "description": "查询锁班列表第一页" },
     { "requestRef": "lock-entry.query-next-page", "kind": "reference-query", "description": "查询锁班列表后续页" },
@@ -205,6 +205,6 @@
     "门户只有小时和分钟控件，不支持自定义秒；结果中的秒显示为 00。",
     "模式 1 使用连续 startDt/endDt；模式 2 使用月份、重复 lockDaysNum 和每日起止时间。",
     "HTTP 200 不是成功依据；普通结果必须能唯一归属且冲突结果为空。",
-    "冲突自动解锁重提、额度智能互换、批量提交和自动通过属于独立锁班皇帝 APP，不属于本单次接口调试器。"
+    "独立锁班皇帝 APP 按 Excel 每行匹配到的当前动态类型原样串行提交；普通冲突记录后继续，不自动解锁或重提。"
   ]
 }

@@ -11,7 +11,7 @@ from openpyxl import load_workbook
 from openpyxl.utils.datetime import from_excel
 
 from .metadata import normalize_lock_type, normalize_text
-from .models import InputPayload, PortalMetadata, WorkbenchMode
+from .models import InputPayload, PortalMetadata
 
 
 REQUIRED_HEADERS = {
@@ -30,9 +30,6 @@ OPTIONAL_HEADERS = {
     "锁班日期": ("锁班日期", "日期列表"),
     "备注": ("备注", "锁班原因"),
 }
-
-SMART_LEAVE_TYPES = {"RECU_LVE", "ALV_FD"}
-
 
 def parse_whitelist(text: str) -> set[str]:
     return set(re.findall(r"\d{6}", str(text or "")))
@@ -150,7 +147,6 @@ def _value(row: tuple[object, ...], indexes: dict[str, int], field: str) -> obje
 def _finalize_record(
     raw: dict[str, object],
     metadata: PortalMetadata,
-    mode: WorkbenchMode,
 ) -> tuple[dict[str, object] | None, str]:
     employee_id = normalize_employee_id(raw.get("员工号"))
     if not re.fullmatch(r"\d{6}", employee_id):
@@ -192,8 +188,6 @@ def _finalize_record(
             and (datetime.combine(end, time.fromisoformat(end_time)) - datetime.combine(start, time.fromisoformat(start_time))).total_seconds() <= 8 * 3600
         ):
             return None, "相邻日期的开始时间和结束时间之间必须超过8小时"
-        if mode == "smart" and lock_type in SMART_LEAVE_TYPES and start.year != end.year:
-            return None, "智能路由暂不处理跨自然年记录"
     else:
         if not month and start_date and end_date:
             start = date.fromisoformat(start_date)
@@ -236,7 +230,6 @@ def _finalize_record(
 def parse_excel(
     content: bytes,
     metadata: PortalMetadata,
-    mode: WorkbenchMode,
     whitelist: set[str] | None = None,
 ) -> tuple[list[dict[str, object]], list[str]]:
     records: list[dict[str, object]] = []
@@ -265,7 +258,7 @@ def parse_excel(
                 "备注": _value(row, indexes, "备注"),
                 "来源行": row_number,
             }
-            record, problem = _finalize_record(raw, metadata, mode)
+            record, problem = _finalize_record(raw, metadata)
             if problem:
                 errors.append(f"第{row_number}行: {problem}")
             elif whitelist and record and record["员工号"] not in whitelist:
@@ -317,7 +310,6 @@ def _parse_freeform_line(line: str) -> dict[str, object]:
 def parse_pasted_text(
     text: str,
     metadata: PortalMetadata,
-    mode: WorkbenchMode,
     whitelist: set[str] | None = None,
 ) -> tuple[list[dict[str, object]], list[str]]:
     records: list[dict[str, object]] = []
@@ -326,7 +318,7 @@ def parse_pasted_text(
     for index, line in enumerate(lines, start=1):
         raw = _parse_delimited_line(line) or _parse_freeform_line(line)
         raw["来源行"] = index
-        record, problem = _finalize_record(raw, metadata, mode)
+        record, problem = _finalize_record(raw, metadata)
         if problem:
             errors.append(f"第{index}条: {problem}")
         elif whitelist and record and record["员工号"] not in whitelist:
@@ -339,15 +331,14 @@ def parse_pasted_text(
 def read_input(
     payload: InputPayload,
     metadata: PortalMetadata,
-    mode: WorkbenchMode,
 ) -> tuple[list[dict[str, object]], list[str]]:
     whitelist = parse_whitelist(payload.whitelist_text) or None
     if payload.input_mode == "excel":
         if not payload.excel_bytes:
             raise ValueError("请选择 Excel 文件")
-        return parse_excel(payload.excel_bytes, metadata, mode, whitelist)
+        return parse_excel(payload.excel_bytes, metadata, whitelist)
     if payload.input_mode == "paste":
         if not payload.pasted_text.strip():
             raise ValueError("请粘贴锁班数据")
-        return parse_pasted_text(payload.pasted_text, metadata, mode, whitelist)
+        return parse_pasted_text(payload.pasted_text, metadata, whitelist)
     raise ValueError(f"不支持的输入方式：{payload.input_mode}")

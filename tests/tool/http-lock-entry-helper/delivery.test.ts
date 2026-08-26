@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { resolveFromRoot } from "../../helpers/paths";
 
 describe("HTTP lock entry delivery", () => {
-  it("publishes two fixed-mode entries and the staged workbench", () => {
+  it("publishes one direct-entry app and the staged workbench", () => {
     const root = resolveFromRoot("public/tool/app/http-lock-entry-helper");
     const landing = readFileSync(`${root}/index.html`, "utf8");
     const workbench = readFileSync(`${root}/web/index.html`, "utf8");
@@ -12,17 +12,17 @@ describe("HTTP lock entry delivery", () => {
     const exporter = readFileSync(resolveFromRoot("scripts/tool-exports.mts"), "utf8");
     const pythonEntries = readdirSync(root).filter((name) => name.endsWith(".py")).sort();
 
-    expect(pythonEntries).toEqual(["startapp.py", "startsmartapp.py"]);
+    expect(pythonEntries).toEqual(["startapp.py"]);
     expect(landing).toContain("锁班皇帝（新）");
     expect(workbench).toContain("锁班皇帝（新）");
-    expect(readFileSync(`${root}/startapp.py`, "utf8")).toContain('create_server(app_directory, "original"');
-    expect(readFileSync(`${root}/startsmartapp.py`, "utf8")).toContain('create_server(app_directory, "smart"');
+    expect(readFileSync(`${root}/startapp.py`, "utf8")).toContain("create_server(app_directory, args.port)");
     expect(landing).toContain('href="../../../exports/http-lock-entry-helper.zip"');
     expect(workbench).toContain("验证凭据");
     expect(workbench).toContain("数据健康检查");
     expect(workbench).toContain("开始录入");
     expect(workbench).toContain("逐条录入结果");
-    expect(workbench).toContain('id="conflictRecovery" type="checkbox"');
+    expect(workbench).not.toContain("conflictRecovery");
+    expect(workbench).not.toContain("智能模式");
     expect(workbench).toContain('id="approveAfterSubmit" type="checkbox"');
     expect(requirements).toContain("requests");
     expect(requirements).not.toContain("playwright");

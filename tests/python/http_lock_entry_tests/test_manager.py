@@ -45,7 +45,7 @@ class FakeClient:
 
 
 class FakeRunner:
-    def __init__(self, _client, _store, _mode, _recovery, _reason, stop_event, emit):
+    def __init__(self, _client, _store, _reason, stop_event, emit):
         self.stop_event = stop_event
         self.emit = emit
 
@@ -82,7 +82,6 @@ class HttpLockEntryManagerTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             manager = RunManager(
                 Path(directory),
-                "original",
                 client=FakeClient(),
                 runner_factory=FakeRunner,
             )

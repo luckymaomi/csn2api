@@ -45,7 +45,7 @@ class HttpLockEntryCoreTest(unittest.TestCase):
         workbook.save(stream)
         workbook.close()
 
-        records, errors = parse_excel(stream.getvalue(), metadata, "original")
+        records, errors = parse_excel(stream.getvalue(), metadata)
         self.assertEqual(errors, [])
         self.assertEqual(records[0]["员工号"], "900001")
         self.assertEqual(records[0]["开始日期"], "2026-10-08")
