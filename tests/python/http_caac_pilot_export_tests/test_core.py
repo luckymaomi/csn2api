@@ -72,9 +72,9 @@ class CoreTests(unittest.TestCase):
             workbook = load_workbook(path)
             self.assertEqual(workbook.sheetnames, ["飞行员信息"])
             headers = [cell.value for cell in workbook.active[1]]
-            self.assertIn("资质信息", headers)
-            self.assertIn("教育经历", headers)
-            self.assertNotIn("详情.pilotPhotoFileUrl", headers)
+            self.assertIn("执照等级", headers)
+            self.assertIn("学习简历", headers)
+            self.assertIn("照片文件URL", headers)
             self.assertIn("根\n  子", [cell.value for cell in workbook.active[2]])
 
     def test_exporter_saves_each_completed_pilot_as_checkpoint(self) -> None:
@@ -92,12 +92,12 @@ class CoreTests(unittest.TestCase):
 
     def test_epoch_milliseconds_and_deep_qualification_tree_are_readable(self) -> None:
         from caac_pilot_export.flatten import flatten_detail
-        flattened = flatten_detail({"birthday": 297014400000, "medicalBirthday": "1979-06-01", "licenseLimit": "第一条</br>第二条", "layerInfosList": [{"layerinfo": "根", "sublayers": [{"layerinfo": "子", "sublayers": [{"layerinfo": "孙", "sublayers": []}]}]}]})
+        flattened = flatten_detail({"birthday": 297014400000, "medicalBirthday": "1979-06-01", "licenseLimit": "第一条</br>第二条", "layerInfosList": [{"layerId": "1", "layerinfo": "根", "limitEnglish": "限制", "sublayers": [{"layerId": "2", "layerinfo": "子", "sublayers": [{"layerId": "3", "layerinfo": "孙", "sublayers": []}]}]}]})
         self.assertEqual(flattened["出生日期"], "1979-06-01")
-        self.assertEqual(flattened["执照限制"], "第一条\n第二条")
-        self.assertEqual(flattened["资质信息"], "根\n  子\n    孙")
+        self.assertEqual(flattened["执照备注"], "第一条\n第二条")
+        self.assertEqual(flattened["执照等级"], "根；等级ID：1；英语限制：限制\n  子；等级ID：2\n    孙；等级ID：3")
 
-    def test_detail_cleaner_translates_records_and_hides_internal_fields(self) -> None:
+    def test_detail_cleaner_translates_records_and_preserves_backend_fields(self) -> None:
         from caac_pilot_export.flatten import flatten_detail
 
         flattened = flatten_detail({
@@ -108,6 +108,9 @@ class CoreTests(unittest.TestCase):
                     "printReason": "英语语言等级更新",
                     "agreeUser": "SYS",
                     "agreeDate": 1778947200000,
+                    "appId": "internal-app-id",
+                    "cardNo": "internal-card-no",
+                    "notes": "internal-note",
                     "creationBy": "SYS",
                     "creationDate": 1778947200000,
                     "extraFlag": "保留",
@@ -116,15 +119,85 @@ class CoreTests(unittest.TestCase):
             ]
         })
 
-        text = flattened["执照打印记录"]
+        text = flattened["正式执照打印情况"]
         self.assertIn("打印原因：英语语言等级更新", text)
-        self.assertIn("审批人：SYS", text)
-        self.assertIn("审批日期：2026-05-17", text)
+        self.assertIn("同意日期：2026-05-17", text)
+        self.assertIn("同意人：SYS", text)
+        self.assertIn("申请ID：internal-app-id", text)
+        self.assertIn("卡号：internal-card-no", text)
+        self.assertIn("备注：internal-note", text)
+        self.assertIn("创建人：SYS", text)
+        self.assertIn("打印记录ID：internal-print-id", text)
+        self.assertIn("执照ID：internal-license-id", text)
         self.assertIn("未映射字段（extraFlag）：保留", text)
-        self.assertIn("\n2. 打印原因：补发", text)
-        self.assertNotIn("printId", text)
-        self.assertNotIn("licenseId", text)
-        self.assertNotIn("creationBy", text)
+        self.assertIn("\n2. 同意日期：2026-05-18；打印原因：补发", text)
+        self.assertNotIn("appId=", text)
+        self.assertNotIn("printId=", text)
+
+    def test_detail_cleaner_uses_confirmed_page_section_labels(self) -> None:
+        from caac_pilot_export.flatten import flatten_detail
+
+        flattened = flatten_detail({
+            "address": "地址",
+            "idType": "证件",
+            "idCode": "编号",
+            "licenseTypeName": "执照",
+            "licenseLimit": "备注",
+            "englishLevel": "4",
+            "pilotPhotoFileUrl": "https://example.test/photo.jpg",
+            "jzhxinfos": [{"CHECKLINE": "航段", "EXAMINER": "检查员", "CHECKDATE": 1778947200000, "LASTEXPDATE": 1810483200000, "RESULT": "1", "CHECKPLACE": "内部地点"}],
+            "yjscinfos": [{"CHECKPLACE": "训练地点", "CHECKDATE": 1778947200000, "LASTEXPDATE": 1810483200000, "RESULT": "1", "CHECKLINE": "内部航段", "EXAMINER": "内部人员"}],
+            "checkpcinfos": [{"CHECKDATE": 1778947200000, "CHECKTYPE": "PC-PIC", "ACMODEL": "机型", "EXAMINER": "考试员", "NOTES": "备注", "NEXTDATE": 1810483200000, "RESULT": "1"}],
+            "printhis": [{"PRINTDATE": 1778947200000, "USERNAME": "打印人", "PRINTREASON": "打印原因"}],
+        })
+
+        self.assertEqual(flattened["永久住址"], "地址")
+        self.assertEqual(flattened["身份证明名称"], "证件")
+        self.assertEqual(flattened["身份证明编号"], "编号")
+        self.assertEqual(flattened["所持执照"], "执照")
+        self.assertEqual(flattened["执照备注"], "备注")
+        self.assertEqual(flattened["英语语言等级"], "4")
+        self.assertEqual(flattened["照片文件URL"], "https://example.test/photo.jpg")
+        self.assertIn("检查航段：航段", flattened["机长航线"])
+        self.assertIn("检查状态：1", flattened["机长航线"])
+        self.assertIn("检查地点：内部地点", flattened["机长航线"])
+        self.assertIn("训练地点：训练地点", flattened["应急生存"])
+        self.assertIn("训练日期：2026-05-17", flattened["应急生存"])
+        self.assertIn("检查航段：内部航段", flattened["应急生存"])
+        self.assertIn("检查员：内部人员", flattened["应急生存"])
+        self.assertIn("考试员：考试员", flattened["熟练检查"])
+        self.assertIn("下次检查日期：2027-05-17", flattened["熟练检查"])
+        self.assertIn("检查状态：1", flattened["熟练检查"])
+        self.assertIn("打印人：打印人", flattened["正式执照打印历史"])
+
+    def test_confirmed_response_schema_has_a_chinese_mapping_for_every_field(self) -> None:
+        from caac_pilot_export.field_mappings import RECORD_SPECS, TOP_LEVEL_FIELD_LABELS, TREE_FIELD_LABELS
+
+        top_fields = {
+            "address", "archiveNo", "birthday", "birthplace", "chineseLevel", "chineseLevelValidDate",
+            "chineseOrg", "country", "degree", "englishLevel", "idCode", "idType", "licenseLimit",
+            "licenseNo", "licenseStatus", "licenseTypeName", "mailaddr", "medicalBirthday", "medicalno",
+            "mobile", "nation", "pilotDegreeFileUrl", "pilotId", "pilotIdFileUrl", "pilotPhotoFileUrl",
+            "pilotgrade", "pilotname", "pilotnameeng", "regionName", "sex", "validDate", "zipcode",
+            "nameCn", "expDate", "enddate", "copType",
+        }
+        record_fields = {
+            "educationList": {"college", "creationBy", "creationDate", "degree", "eduId", "eindex", "endDate", "major", "note", "pilotId", "school", "startDate", "updateBy", "updateDate", "validFlag"},
+            "workexps": {"creationBy", "creationDate", "eindex", "endDate", "location", "note", "organization", "pilotId", "startDate", "title", "updateBy", "updateDate", "validFlag", "workExpId"},
+            "jzhxinfos": {"CHECKDATE", "CHECKLINE", "CHECKPLACE", "CHECK_ID", "EXAMINER", "LASTEXPDATE", "RESULT"},
+            "yjscinfos": {"CHECKDATE", "CHECKLINE", "CHECKPLACE", "CHECK_ID", "EXAMINER", "LASTEXPDATE", "RESULT"},
+            "printhis": {"PRINTDATE", "PRINTREASON", "USERNAME"},
+            "printList": {"agreeDate", "agreeUser", "appId", "cardId", "cardNo", "creationBy", "creationDate", "licenseId", "notes", "printDate", "printId", "printReason", "printStatus", "printUser", "receiveFlag", "updateBy", "updateDate", "validDate", "validUser"},
+            "checkpcinfos": {"ACMODEL", "ACMODELID", "BASEMONTH", "CHECKDATE", "CHECKTYPE", "EXAMINER", "LASTEXPDATE", "NEXTDATE", "NEXTEXPDATE", "NEXT_MONTH", "NOTES", "PCID", "RESULT"},
+        }
+
+        self.assertFalse(top_fields - set(TOP_LEVEL_FIELD_LABELS))
+        self.assertEqual(TOP_LEVEL_FIELD_LABELS["licenseTypeName"], "所持执照")
+        self.assertEqual(TOP_LEVEL_FIELD_LABELS["nameCn"], "所持执照")
+        self.assertFalse({"layerId", "layerinfo", "limitEN", "limitEnglish", "limitZN"} - set(TREE_FIELD_LABELS))
+        for section, fields in record_fields.items():
+            with self.subTest(section=section):
+                self.assertFalse(fields - set(RECORD_SPECS[section].fields))
 
     def test_detail_values_override_listing_values_without_duplicate_raw_headers(self) -> None:
         outcome = PilotOutcome(
