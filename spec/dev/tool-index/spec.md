@@ -12,4 +12,6 @@ src/tool/tools-data.ts 是首页工具内容和独立应用导出的唯一清单
 
 homepageState 只有 enabled、beta、cooling 三种状态。未填写或为 enabled 时显示“已启用”；beta 显示“Beta 测试”；cooling 显示“冷却中”。该状态只作用于首页入口，工具固定 URL 和构建产物保持可访问。
 
-生产构建在 dist/exports/ 中按工具 entry 逐项生成 ZIP，导出数量始终等于当前工具清单数量。每个 ZIP 根目录包含 index.html、独立应用脚本、离线运行时、主题和页面实际需要的库、Python 文件及依赖说明，不包含其他工具、缓存或仓库开发文件。
+生产构建在 dist/exports/ 中按工具 entry 逐项生成 ZIP，导出数量始终等于当前工具清单数量。每个工具的详情入口提供对应 ZIP 下载；每个 ZIP 根目录包含 index.html、独立应用脚本、离线运行时、主题和页面实际需要的库、Python 文件及依赖说明，不包含其他工具、缓存或仓库开发文件。
+
+工具登记同时进入统一交付合同。合同从当前工具清单动态检查详情入口、ZIP、`csn2api-tool.json` 和包内页面资源闭包；Python 工作台还必须在包内加载 Bootstrap、公共主题和页面专属样式。新增工具不维护单独测试名单。

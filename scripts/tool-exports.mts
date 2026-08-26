@@ -58,7 +58,7 @@ async function buildToolExport(options: ToolExportOptions, definition: ToolExpor
   for (const htmlFile of htmlFiles) {
     const relativePath = path.relative(pageDirectory, htmlFile).replace(/\\/g, "/");
     const source = await fs.readFile(htmlFile, "utf8");
-    const transformed = rewriteStandaloneHtml(source);
+    const transformed = rewriteStandaloneHtml(source, relativePath);
     htmlSources.set(relativePath, transformed);
     addZipText(zip, addedFiles, relativePath, transformed);
   }
@@ -216,13 +216,15 @@ async function listFiles(rootDirectory: string, predicate: (filePath: string) =>
   return files;
 }
 
-function rewriteStandaloneHtml(source: string): string {
+function rewriteStandaloneHtml(source: string, htmlPath: string): string {
   const rewritten = source.replace(
     /\b(src|href|download)=(['"])([^'"]+)\2/gi,
     (_match, attribute: string, quote: string, value: string) => `${attribute}=${quote}${rewriteStandalonePath(value)}${quote}`
   );
   const classicScripts = rewritten.replace(/<script([^>]*?)\s+type=(['"])module\2([^>]*)>/gi, "<script$1$3>");
-  return classicScripts.replace(/<\/head>/i, "    <script src=\"./standalone-runtime.js\"></script>\n</head>");
+  const relativeRuntimePath = path.posix.relative(path.posix.dirname(htmlPath), "standalone-runtime.js");
+  const runtimePath = relativeRuntimePath.startsWith(".") ? relativeRuntimePath : `./${relativeRuntimePath}`;
+  return classicScripts.replace(/<\/head>/i, `    <script src="${runtimePath}"></script>\n</head>`);
 }
 
 function rewriteStandalonePath(value: string): string {

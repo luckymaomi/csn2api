@@ -1,5 +1,52 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="zh-CN">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>CAAC 飞行员信息导出</title><script src="../../../theme.js"></script><link rel="stylesheet" href="../../../libs/bootstrap.min.css"><link rel="stylesheet" href="../../../theme.css"></head>
-<body><main class="container py-4"><h1>CAAC 飞行员信息导出</h1><p>支持全量或按 Excel 名单抓取飞行员详情，页面表格与单 Sheet Excel 使用同一份数据。</p><a class="btn btn-primary" href="./web/">打开工作台</a><a class="btn btn-outline-secondary ms-2" href="../../../index.html">返回工具首页</a><h2 class="h5 mt-4">运行</h2><pre>pip install -r requirements.txt
-python start.py</pre><p>需要 Python 3.10+、requests、openpyxl。凭据只存在本地进程内存。</p></main><script type="module" src="./app.js"></script></body></html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CAAC 飞行员信息导出</title>
+    <script src="../../../theme.js"></script>
+    <link rel="stylesheet" href="../../../libs/bootstrap.min.css">
+    <link rel="stylesheet" href="../../../theme.css">
+    <style>body { background: transparent; padding: 20px; }</style>
+</head>
+<body>
+    <main class="container">
+        <section class="card mb-4">
+            <div class="card-body text-center position-relative">
+                <a href="../../../index.html" class="position-absolute start-0 top-50 translate-middle-y ms-3 text-decoration-none">返回首页</a>
+                <h1 class="h4 card-title mb-1">CAAC 飞行员信息导出</h1>
+                <p class="text-muted mb-0 small">支持全量或按 Excel 名单抓取飞行员详情，并保存为单 Sheet Excel</p>
+            </div>
+        </section>
+
+        <section class="card mb-4">
+            <div class="card-body">
+                <h2 class="h5 card-title border-bottom pb-2 mb-3">运行方式</h2>
+                <p>下载独立应用，在应用目录安装依赖后运行：</p>
+                <pre class="bg-light p-2"><code>pip install -r requirements.txt
+python start.py</code></pre>
+                <a class="btn btn-outline-secondary" href="./web/">打开工作台页面</a>
+            </div>
+        </section>
+
+        <section class="card mb-4">
+            <div class="card-body">
+                <h2 class="h5 card-title border-bottom pb-2 mb-3">下载</h2>
+                <a href="../../../exports/http-caac-pilot-export-helper.zip" download="http-caac-pilot-export-helper.zip" class="btn btn-primary">下载独立应用</a>
+                <a href="../../../index.html" class="btn btn-outline-secondary ms-2">返回工具首页</a>
+            </div>
+        </section>
+
+        <section class="card">
+            <div class="card-body">
+                <h2 class="h5 card-title border-bottom pb-2 mb-3">依赖</h2>
+                <ul class="mb-0">
+                    <li>Python 3.10+</li>
+                    <li>requests、openpyxl</li>
+                </ul>
+            </div>
+        </section>
+    </main>
+    <script type="module" src="./app.js"></script>
+</body>
+</html>
