@@ -230,6 +230,10 @@ class CoreTests(unittest.TestCase):
             parser = _AssetParser()
             parser.feed(html)
             self.assertIn("/libs/bootstrap.min.css", parser.paths)
+            self.assertIn('id="progressText"', html)
+            self.assertIn('id="progressBar"', html)
+            self.assertIn('role="progressbar"', html)
+            self.assertIn('aria-valuenow="0"', html)
             for path in parser.paths:
                 with self.subTest(path=path):
                     with urllib.request.urlopen(f"http://{host}:{port}{path}", timeout=5) as response:

@@ -4,7 +4,7 @@
   "systemId": "caac-fsop",
   "name": "CAAC 飞行员全量信息接口",
   "navigationGroup": "民航飞行标准监督管理",
-  "description": "动态分页读取全部有效飞行员，再按 pilotId 读取每个人的详情；本地组合工作流只读、严格串行。",
+  "description": "获取有效飞行员分页清单及每个人的详细信息。",
   "baseUrl": "https://fsop.caac.gov.cn",
   "navigationUrl": "https://fsop.caac.gov.cn/yzzzm/rygl/pilotredirect",
   "cookies": [
