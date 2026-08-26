@@ -53,13 +53,13 @@ CONFLICT_HTML = """
 </div>
 <div id="showNonproductionTaskImportResultPage2">
   <table><thead><tr>
-    <th>锁班结果</th><th>员工号</th><th>姓名</th><th>开始日期</th><th>结束日期</th>
-    <th>锁班类型</th><th>锁班原因</th><th>冲突说明</th>
+    <th>序号</th><th>锁班结果</th><th>员工号</th><th>姓名</th><th>部门</th>
+    <th>开始日期</th><th>结束日期</th><th>锁班天数</th><th>锁班类型</th><th>锁班原因</th><th>冲突</th>
   </tr></thead>
   <tbody class="list"><tr>
-    <td>冲突</td><td>900001</td><td>测试甲</td><td>2026-10-08 08:17:00</td>
-    <td>2026-10-08 18:43:00</td><td>业务学习(占值勤期类别)</td>
-    <td>批量测试</td><td>与既有任务冲突</td>
+    <td>1</td><td>冲突</td><td>900001</td><td>测试甲</td><td>测试部门</td>
+    <td>2026-10-08 08:17:00</td><td>2026-10-08 18:43:00</td><td>1</td>
+    <td>业务学习(占值勤期类别)</td><td>批量测试</td><td>年度年假锁班天数不足</td>
   </tr></tbody></table>
 </div>
 """

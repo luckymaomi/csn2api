@@ -8,6 +8,7 @@ describe("HTTP lock entry delivery", () => {
     const root = resolveFromRoot("public/tool/app/http-lock-entry-helper");
     const landing = readFileSync(`${root}/index.html`, "utf8");
     const workbench = readFileSync(`${root}/web/index.html`, "utf8");
+    const browser = readFileSync(`${root}/web/app.mjs`, "utf8");
     const requirements = readFileSync(`${root}/requirements.txt`, "utf8");
     const exporter = readFileSync(resolveFromRoot("scripts/tool-exports.mts"), "utf8");
     const pythonEntries = readdirSync(root).filter((name) => name.endsWith(".py")).sort();
@@ -21,6 +22,7 @@ describe("HTTP lock entry delivery", () => {
     expect(workbench).toContain("数据健康检查");
     expect(workbench).toContain("开始录入");
     expect(workbench).toContain("逐条录入结果");
+    expect(browser).toContain('["冲突原因", "conflictReason"]');
     expect(workbench).not.toContain("conflictRecovery");
     expect(workbench).not.toContain("智能模式");
     expect(workbench).toContain('id="approveAfterSubmit" type="checkbox"');

@@ -137,6 +137,10 @@ class HttpPortalClientTest(unittest.TestCase):
         result = client.parse_submit_result(CONFLICT_HTML)
         self.assertEqual(result.result_rows, [])
         self.assertEqual(len(result.conflict_rows), 1)
+        self.assertEqual(result.conflict_rows[0]["序号"], "1")
+        self.assertEqual(result.conflict_rows[0]["部门"], "测试部门")
+        self.assertEqual(result.conflict_rows[0]["锁班天数"], "1")
+        self.assertEqual(result.conflict_rows[0]["冲突"], "年度年假锁班天数不足")
 
     def test_query_pagination_keeps_checkbox_record_id(self):
         def query_html(record_id, page_link=""):

@@ -75,6 +75,8 @@ class HttpLockEntryRunnerTest(unittest.TestCase):
         self.assertEqual(summary["failed"], 1)
         self.assertEqual([call[0] for call in client.calls], ["validate", "submit"])
         self.assertEqual(store.rows[-1]["status"], "冲突")
+        self.assertEqual(store.rows[-1]["conflictReason"], "年度年假锁班天数不足")
+        self.assertEqual(store.rows[-1]["message"], "")
 
     def test_leave_types_are_submitted_once_without_quota_routing(self):
         parser = PortalClient()

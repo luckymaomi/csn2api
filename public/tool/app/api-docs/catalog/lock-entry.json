@@ -73,7 +73,7 @@
         ],
         "fields": [
           { "name": "普通结果", "type": "table", "description": "锁班状态、员工号、姓名、部门、日期、天数、类型和原因" },
-          { "name": "冲突结果", "type": "table", "description": "锁班结果、身份、日期、类型、原因和冲突说明" }
+          { "name": "冲突结果", "type": "table", "description": "序号、锁班结果、员工号、姓名、部门、开始日期、结束日期、锁班天数、锁班类型、锁班原因和冲突；冲突数据行必须包含“冲突”表头" }
         ],
         "example": "{\"summary\":{\"resultCount\":1,\"conflictCount\":0,\"outcome\":\"已返回锁班结果\"},\"tables\":[{\"id\":\"results\",\"rows\":[{\"锁班状态\":\"待审批\"}]}]}"
       }

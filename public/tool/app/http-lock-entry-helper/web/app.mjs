@@ -323,6 +323,7 @@ function renderResults(results) {
     ["实际结束", "actualEndDateTime"],
     ["状态", "status"],
     ["门户结果", "portalStatus"],
+    ["冲突原因", "conflictReason"],
     ["备注", "remark"],
     ["说明", "message"],
   ];

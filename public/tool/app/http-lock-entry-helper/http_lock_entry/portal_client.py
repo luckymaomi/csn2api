@@ -358,7 +358,9 @@ class PortalClient:
     def parse_submit_result(self, html: str) -> SubmitResult:
         soup = BeautifulSoup(html, "html.parser")
         _result_headers, result_rows = _parse_section(soup, "#showNonproductionTaskImportResultPage1")
-        _conflict_headers, conflict_rows = _parse_section(soup, "#showNonproductionTaskImportResultPage2")
+        conflict_headers, conflict_rows = _parse_section(soup, "#showNonproductionTaskImportResultPage2")
+        if conflict_rows and "冲突" not in conflict_headers:
+            raise PortalError("门户冲突结果缺少“冲突”列")
         return SubmitResult(result_rows=result_rows, conflict_rows=conflict_rows)
 
     def _expected_ranges(self, record: dict[str, object]) -> list[tuple[str, str]]:

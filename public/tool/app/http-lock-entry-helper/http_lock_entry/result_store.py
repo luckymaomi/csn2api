@@ -26,6 +26,7 @@ RESULT_HEADERS = [
     ("时间模式", "timeMode"),
     ("处理状态", "status"),
     ("门户结果", "portalStatus"),
+    ("冲突原因", "conflictReason"),
     ("锁班备注", "remark"),
     ("说明", "message"),
     ("记录时间", "recordedAt"),

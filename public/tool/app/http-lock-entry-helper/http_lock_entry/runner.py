@@ -42,6 +42,7 @@ class BatchRunner:
         *,
         portal_row: dict[str, str] | None = None,
         remark: str = "",
+        conflict_reason: str = "",
         message: str = "",
     ) -> dict[str, object]:
         portal_row = portal_row or {}
@@ -74,6 +75,7 @@ class BatchRunner:
             "timeMode": record.get("时间模式", 1),
             "status": status,
             "portalStatus": normalize_text(portal_row.get("锁班结果") or portal_row.get("锁班状态")),
+            "conflictReason": conflict_reason,
             "remark": remark,
             "message": message,
         }
@@ -159,6 +161,7 @@ class BatchRunner:
 
         conflict_rows, conflict_problem = self.client.attribute_conflict_result(result, record, identity)
         portal_row = conflict_rows[0] if conflict_rows else result.conflict_rows[0]
+        conflict_reason = normalize_text(portal_row.get("冲突"))
         self._persist_and_emit(self._result_row(
             index,
             record,
@@ -166,7 +169,8 @@ class BatchRunner:
             "冲突",
             portal_row=portal_row,
             remark=reason,
-            message=conflict_problem or normalize_text(portal_row.get("冲突说明")),
+            conflict_reason=conflict_reason,
+            message=conflict_problem,
         ))
         return False
 
