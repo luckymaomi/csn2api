@@ -6,7 +6,13 @@ from datetime import datetime, timedelta, timezone
 from html import unescape
 from typing import Any
 
-from .field_mappings import RECORD_SPECS, TOP_LEVEL_FIELD_LABELS, TREE_FIELD_LABELS, RecordSpec
+from .field_mappings import (
+    LICENSE_REMARK_LABELS,
+    RECORD_SPECS,
+    TOP_LEVEL_FIELD_LABELS,
+    TREE_FIELD_LABELS,
+    RecordSpec,
+)
 
 
 CAAC_TIMEZONE = timezone(timedelta(hours=8))
@@ -91,6 +97,38 @@ def _record_text(value: Any, spec: RecordSpec) -> str:
     return "\n".join(rows)
 
 
+def _language_qualification(level: Any, valid_date: Any, language_label: str, valid_date_label: str) -> str:
+    level_text = _scalar(level)
+    if not level_text:
+        return ""
+    if not level_text.endswith("级"):
+        level_text += "级"
+    parts = [f"{language_label} {level_text}", LICENSE_REMARK_LABELS["qualification"]]
+    valid_date_text = _scalar(valid_date)
+    if valid_date_text:
+        parts.append(f"{valid_date_label} {valid_date_text}")
+    return "，".join(parts)
+
+
+def _license_remarks(detail: dict[str, Any]) -> str:
+    lines = [
+        _language_qualification(
+            detail.get("englishLevel"),
+            detail.get("validDate"),
+            LICENSE_REMARK_LABELS["englishLevel"],
+            LICENSE_REMARK_LABELS["validDate"],
+        ),
+        _language_qualification(
+            detail.get("chineseLevel"),
+            detail.get("chineseLevelValidDate"),
+            LICENSE_REMARK_LABELS["chineseLevel"],
+            LICENSE_REMARK_LABELS["chineseLevelValidDate"],
+        ),
+        _scalar(detail.get("licenseLimit")),
+    ]
+    return "\n".join(line for line in lines if line)
+
+
 def _flatten_scalars(payload: dict[str, Any]) -> dict[str, str]:
     flattened: dict[str, str] = {}
     for key, label in TOP_LEVEL_FIELD_LABELS.items():
@@ -106,6 +144,8 @@ def _flatten_scalars(payload: dict[str, Any]) -> dict[str, str]:
 
 def flatten_detail(detail: dict[str, Any]) -> dict[str, str]:
     flattened = _flatten_scalars(detail)
+    if any(key in detail for key in ("englishLevel", "validDate", "chineseLevel", "chineseLevelValidDate", "licenseLimit")):
+        flattened["执照备注"] = _license_remarks(detail)
     if "layerInfosList" in detail:
         flattened["执照等级"] = "\n".join(_tree_lines(detail["layerInfosList"]))
     for key, value in detail.items():

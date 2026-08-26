@@ -39,13 +39,21 @@ TOP_LEVEL_FIELD_LABELS = {
     "validDate": "英语语言等级有效期",
     "chineseLevel": "汉语语言等级",
     "chineseLevelValidDate": "汉语语言等级有效期",
-    "licenseLimit": "执照备注",
+    "licenseLimit": "执照备注原文",
     "degree": "学历",
     "medicalno": "体检合格证编号",
     "expDate": "执照有效期",
     "enddate": "体检合格证有效期",
     "copType": "副驾驶类别",
     "pilotgrade": "飞行员等级",
+}
+
+LICENSE_REMARK_LABELS = {
+    "englishLevel": "英语语言能力",
+    "chineseLevel": "汉语语言能力",
+    "validDate": "有效期至",
+    "chineseLevelValidDate": "有效期至",
+    "qualification": "无线电通信资格",
 }
 
 TREE_FIELD_LABELS = {

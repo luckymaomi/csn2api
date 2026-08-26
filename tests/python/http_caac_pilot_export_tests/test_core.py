@@ -95,7 +95,39 @@ class CoreTests(unittest.TestCase):
         flattened = flatten_detail({"birthday": 297014400000, "medicalBirthday": "1979-06-01", "licenseLimit": "第一条</br>第二条", "layerInfosList": [{"layerId": "1", "layerinfo": "根", "limitEnglish": "限制", "sublayers": [{"layerId": "2", "layerinfo": "子", "sublayers": [{"layerId": "3", "layerinfo": "孙", "sublayers": []}]}]}]})
         self.assertEqual(flattened["出生日期"], "1979-06-01")
         self.assertEqual(flattened["执照备注"], "第一条\n第二条")
+        self.assertEqual(flattened["执照备注原文"], "第一条\n第二条")
         self.assertEqual(flattened["执照等级"], "根；等级ID：1；英语限制：限制\n  子；等级ID：2\n    孙；等级ID：3")
+
+    def test_license_remarks_combine_every_page_source_field(self) -> None:
+        from caac_pilot_export.flatten import flatten_detail
+
+        flattened = flatten_detail({
+            "englishLevel": "4",
+            "validDate": 1831564800000,
+            "chineseLevel": "6级",
+            "chineseLevelValidDate": None,
+            "licenseLimit": "第一条</br>第二条",
+        })
+
+        self.assertEqual(
+            flattened["执照备注"],
+            "英语语言能力 4级，无线电通信资格，有效期至 2028-01-16\n"
+            "汉语语言能力 6级，无线电通信资格\n"
+            "第一条\n第二条",
+        )
+        self.assertEqual(flattened["英语语言等级"], "4")
+        self.assertEqual(flattened["英语语言等级有效期"], "2028-01-16")
+        self.assertEqual(flattened["汉语语言等级"], "6级")
+        self.assertEqual(flattened["执照备注原文"], "第一条\n第二条")
+
+    def test_detail_cleaner_preserves_every_dynamic_record(self) -> None:
+        from caac_pilot_export.flatten import flatten_detail
+
+        records = [{"PCID": str(index), "CHECKDATE": 1778947200000} for index in range(1, 51)]
+        text = flatten_detail({"checkpcinfos": records})["熟练检查"]
+
+        self.assertEqual(len(text.splitlines()), 50)
+        self.assertIn("50. 检查日期：2026-05-17；熟练检查ID：50", text)
 
     def test_detail_cleaner_translates_records_and_preserves_backend_fields(self) -> None:
         from caac_pilot_export.flatten import flatten_detail
@@ -155,7 +187,8 @@ class CoreTests(unittest.TestCase):
         self.assertEqual(flattened["身份证明名称"], "证件")
         self.assertEqual(flattened["身份证明编号"], "编号")
         self.assertEqual(flattened["所持执照"], "执照")
-        self.assertEqual(flattened["执照备注"], "备注")
+        self.assertEqual(flattened["执照备注"], "英语语言能力 4级，无线电通信资格\n备注")
+        self.assertEqual(flattened["执照备注原文"], "备注")
         self.assertEqual(flattened["英语语言等级"], "4")
         self.assertEqual(flattened["照片文件URL"], "https://example.test/photo.jpg")
         self.assertIn("检查航段：航段", flattened["机长航线"])
@@ -194,6 +227,7 @@ class CoreTests(unittest.TestCase):
         self.assertFalse(top_fields - set(TOP_LEVEL_FIELD_LABELS))
         self.assertEqual(TOP_LEVEL_FIELD_LABELS["licenseTypeName"], "所持执照")
         self.assertEqual(TOP_LEVEL_FIELD_LABELS["nameCn"], "所持执照")
+        self.assertEqual(TOP_LEVEL_FIELD_LABELS["licenseLimit"], "执照备注原文")
         self.assertFalse({"layerId", "layerinfo", "limitEN", "limitEnglish", "limitZN"} - set(TREE_FIELD_LABELS))
         for section, fields in record_fields.items():
             with self.subTest(section=section):
