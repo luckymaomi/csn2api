@@ -4,6 +4,8 @@
 
 `http-caac-pilot-export-helper` 是独立本地 Python APP，只读访问 `fsop.caac.gov.cn` 人员管理接口。凭据只存在当前 Python 进程内存，结果写入 APP 本地 `results/<runId>/`。CAAC 会话与 IEB、OA、SOC 相互独立。
 
+APP 与 API 文档共用 `caac_protocol`。该 core 统一维护 Cookie、列表表单、分页、姓名精确匹配、档案号消歧、会话失效、详情请求和 `pilotId` 归属；APP 只增加批量状态、检查点、Excel 和页面，API 文档只增加单次结构化展示。构建把同一 core 封装进独立 APP，不形成跨入口运行时依赖。
+
 ## 接口契约
 
 - `POST /yzzzm/rygl/queryPilotByParamForPage?ajaxPrefilter=<timestamp>`：表单包含姓名、档案号和其他筛选项，以及 `page`、`rows`、`sort=archiveNo`、`order=asc`；响应为 `{total, rows}`。

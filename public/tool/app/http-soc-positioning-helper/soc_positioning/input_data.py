@@ -9,7 +9,7 @@ from io import BytesIO
 from openpyxl import load_workbook
 from openpyxl.utils.datetime import from_excel
 
-from .constants import APPLY_REASON_CODES, APPLY_REASON_LABELS
+from soc_protocol import APPLY_REASON_CODES, APPLY_REASON_LABELS
 from .models import InputPayload
 
 

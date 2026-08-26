@@ -36,9 +36,10 @@
 
 ## 文件职责
 
-- `credentials.py`：Cookie/cURL 文本解析、规范化复制值与摘要。
+- `ieb_protocol/base.py`：IEB Cookie、Session、身份和会话失效。
+- `ieb_protocol/personnel.py`、`personnel_contract.py`：人员正向查询链路、分页、解析和人员归属。
 - `input_data.py`：Excel 与粘贴输入归一化。
-- `portal_client.py`：Session、请求构造、登录判断、人员归属和 HTML/JSON 解析。
+- `portal_client.py`：把共享 core 结果组装为 APP 的逐人 `QueryResult`，并维护保活状态。
 - `exporter.py`：Excel、JSON、原子保存和文本报告。
 - `runner.py`：逐人执行、逐人事件和停止边界。
 - `manager.py`：内存 Session、线程、阶段、结果和下载路径。

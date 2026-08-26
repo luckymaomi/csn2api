@@ -10,7 +10,7 @@ try:
 except ImportError:
     from common import APP_ROOT, ooxml_bytes  # type: ignore[no-redef]  # noqa: F401
 from http_qualification_monitor.exporter import NativeExportStore
-from http_qualification_monitor.models import QualificationGroup, QualificationItem
+from ieb_protocol.qualification_monitor_models import QualificationGroup, QualificationItem
 from http_qualification_monitor.portal_client import PortalSessionExpired
 from http_qualification_monitor.runner import ExportRunner
 

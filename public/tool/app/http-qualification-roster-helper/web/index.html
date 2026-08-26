@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>运行资质人员名册</title>
+  <script src="./theme.js"></script>
+  <link rel="stylesheet" href="./libs/bootstrap.min.css">
+  <link rel="stylesheet" href="./theme.css">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <div class="workspace-shell">
+    <header class="workspace-header">
+      <div>
+        <h1>运行资质人员名册</h1>
+        <p id="statusMessage">等待验证飞行门户 Cookie</p>
+      </div>
+      <div class="header-actions">
+        <span id="statusBadge" class="status-badge is-waiting_credentials">待验证</span>
+        <button id="themeToggle" class="btn btn-outline-secondary btn-sm" type="button">主题</button>
+      </div>
+    </header>
+
+    <main class="workspace-grid">
+      <section class="work-panel credential-panel" aria-labelledby="credentialHeading">
+        <div class="panel-heading"><h2 id="credentialHeading">登录凭据</h2><span id="sessionStatus">尚未验证</span></div>
+        <div class="credential-layout">
+          <div>
+            <label class="form-label" for="credentials">IEB Cookie Header 或 Copy as cURL</label>
+            <textarea id="credentials" class="form-control" rows="4" autocomplete="off" spellcheck="false" placeholder="粘贴已登录 IEB 请求的 Cookie Header 或完整 Copy as cURL"></textarea>
+          </div>
+          <button id="verifyButton" class="btn btn-primary" type="button">验证并加载筛选</button>
+        </div>
+        <dl class="session-summary">
+          <div><dt>会话</dt><dd id="sessionVerified">未验证</dd></div>
+          <div><dt>验证时间</dt><dd id="sessionVerifiedAt">-</dd></div>
+          <div><dt>运行资格</dt><dd id="qualificationCount">0 项</dd></div>
+          <div><dt>当前登录人</dt><dd id="sessionIdentity">-</dd></div>
+        </dl>
+        <div class="keepalive-summary" data-keepalive-widget>
+          <div class="keepalive-ring" id="keepAliveRing" hidden><span id="keepAliveCountdown">--</span></div>
+          <div class="keepalive-copy"><strong id="keepAliveStatus">保活未启动</strong><span id="keepAliveDetail">验证后启动保活独立检查</span></div>
+        </div>
+        <div id="savedCredentialsPanel" class="saved-credential-panel" hidden>
+          <div class="saved-credential-heading"><label class="form-label" for="savedCredentials">当前页 Cookie</label><button id="copyCredentialsButton" class="btn btn-outline-secondary btn-sm" type="button">复制凭据</button></div>
+          <textarea id="savedCredentials" class="form-control saved-credential-text" rows="3" readonly spellcheck="false"></textarea>
+        </div>
+      </section>
+
+      <section class="work-panel filter-panel" aria-labelledby="filterHeading">
+        <div class="panel-heading"><h2 id="filterHeading">筛选条件</h2><span>与门户字段一致</span></div>
+        <div id="filterFields" class="filter-fields"><div class="empty-state">验证 Cookie 后加载筛选项</div></div>
+      </section>
+
+      <section class="work-panel qualification-panel" aria-labelledby="qualificationHeading">
+        <div class="panel-heading"><h2 id="qualificationHeading">运行资格</h2><span id="selectedQualificationCount">0 项已选</span></div>
+        <div class="qualification-toolbar">
+          <input id="qualificationSearch" class="form-control" type="search" placeholder="搜索代码或中文描述" autocomplete="off">
+          <button id="selectDefaultsButton" class="btn btn-outline-secondary" type="button" disabled>恢复默认 13 项</button>
+          <button id="clearQualificationsButton" class="btn btn-outline-secondary" type="button" disabled>清空</button>
+        </div>
+        <div id="qualificationList" class="qualification-list"><div class="empty-state">验证 Cookie 后加载动态运行资格</div></div>
+      </section>
+
+      <section class="work-panel action-panel" aria-labelledby="actionHeading">
+        <div class="panel-heading"><h2 id="actionHeading">执行</h2><span id="selectedFilterSummary">尚未选择</span></div>
+        <div class="action-copy">每个资质单独查询并核对人数，再合并为一张四列表格。</div>
+        <div class="primary-actions">
+          <button id="runButton" class="btn btn-success" type="button" disabled>查询并生成名册</button>
+          <button id="stopButton" class="btn btn-danger" type="button" disabled>停止后续资质</button>
+          <a id="excelDownload" class="btn btn-outline-secondary disabled" aria-disabled="true">下载 Excel</a>
+        </div>
+      </section>
+
+      <section class="work-panel progress-panel" aria-labelledby="progressHeading">
+        <div class="panel-heading"><h2 id="progressHeading">运行进度</h2><span id="progressText">0 / 0</span></div>
+        <div class="progress" role="progressbar" aria-label="查询进度" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div id="progressBar" class="progress-bar" style="width:0%"></div></div>
+        <dl class="run-summary">
+          <div><dt>资质总数</dt><dd id="totalCount">0</dd></div>
+          <div><dt>已完成</dt><dd id="completedCount">0</dd></div>
+          <div><dt>成功</dt><dd id="successCount">0</dd></div>
+          <div><dt>失败</dt><dd id="failedCount">0</dd></div>
+          <div><dt>关系明细</dt><dd id="relationshipCount">0</dd></div>
+        </dl>
+        <div class="current-record"><span>当前资质</span><strong id="currentRecord">-</strong></div>
+      </section>
+
+      <section class="work-panel results-panel" aria-labelledby="resultsHeading">
+        <div class="panel-heading"><h2 id="resultsHeading">人员资质明细</h2><span id="resultsCount">0 条</span></div>
+        <div id="resultsViewport" class="result-viewport"><div id="resultsEmpty" class="results-empty">尚无已返回结果</div><table id="resultsTable" class="result-table" hidden><thead></thead><tbody></tbody></table></div>
+      </section>
+
+      <section class="work-panel log-panel" aria-labelledby="logHeading">
+        <div class="panel-heading"><h2 id="logHeading">活动日志</h2></div>
+        <ol id="logList" class="log-list" aria-live="polite"><li class="is-muted">尚无运行记录</li></ol>
+      </section>
+    </main>
+  </div>
+  <script type="module" src="./app.mjs"></script>
+</body>
+</html>

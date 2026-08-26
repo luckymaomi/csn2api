@@ -142,9 +142,11 @@ GET  /api/status
 
 | 模块 | 职责 |
 |---|---|
-| `credentials.py` | cURL/Cookie 解析与无值摘要 |
-| `models.py` | 待办、分类、扫描和批次模型 |
-| `portal_client.py` | Session、动态分页、业务码和已阅 |
+| `oa_protocol/credentials.py` | cURL/Cookie、User-Agent 和 waiting 模板解析 |
+| `oa_protocol/models.py`、`contract.py` | 待办、分类、分页、业务码和会话失效契约 |
+| `oa_protocol/client.py` | Session、动态分页和单条已阅生产请求 |
+| `models.py` | APP 批次结果模型 |
+| `portal_client.py` | 共享 core 的 APP 会话与保活适配 |
 | `runner.py` | 逐条执行、停止边界和逐条事件 |
 | `manager.py` | Session、扫描快照、批次线程和状态 |
 | `server.py` | loopback API 与静态页面 |

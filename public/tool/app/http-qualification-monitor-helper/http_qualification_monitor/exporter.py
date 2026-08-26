@@ -4,7 +4,7 @@ import re
 import zipfile
 from pathlib import Path
 
-from .models import QualificationGroup, QualificationItem
+from ieb_protocol.qualification_monitor_models import QualificationGroup, QualificationItem
 
 
 INVALID_FILENAME = re.compile(r'[<>:"/\\|?*\x00-\x1f]')

@@ -3,10 +3,12 @@ from __future__ import annotations
 import unittest
 
 from .common import APP_DIR, CONFLICT_HTML, ENTRY_HTML, SUCCESS_HTML  # noqa: F401
-from http_lock_entry.metadata import parse_portal_metadata
-from http_lock_entry.credentials import format_credentials
-from http_lock_entry.models import EmployeeIdentity
-from http_lock_entry.portal_client import PortalClient, PortalSessionExpired, parse_current_identity
+from http_lock_entry.portal_client import PortalClient, PortalSessionExpired
+from ieb_protocol import IebContractError, format_credentials
+from ieb_protocol.base import parse_current_identity
+from ieb_protocol.lock_metadata import parse_portal_metadata
+from ieb_protocol.lock_models import EmployeeIdentity
+from ieb_protocol.lock_results import parse_query_result, parse_submit_result
 
 
 HOME_HTML = """
@@ -50,13 +52,10 @@ class FakeSession:
         self.post_responses = list(post_responses or [])
         self.calls = []
 
-    def get(self, url, **kwargs):
-        self.calls.append(("GET", url, kwargs))
-        return self.get_responses.pop(0)
-
-    def post(self, url, **kwargs):
-        self.calls.append(("POST", url, kwargs))
-        return self.post_responses.pop(0)
+    def request(self, method, url, **kwargs):
+        self.calls.append((method, url, kwargs))
+        responses = self.get_responses if method == "GET" else self.post_responses
+        return responses.pop(0)
 
 
 class HttpPortalClientTest(unittest.TestCase):
@@ -68,7 +67,7 @@ class HttpPortalClientTest(unittest.TestCase):
             parse_current_identity(HOME_HTML, 200),
             {"staffNumber": "900001", "name": "测试用户"},
         )
-        with self.assertRaisesRegex(ValueError, "当前登录人"):
+        with self.assertRaisesRegex(IebContractError, "当前登录人"):
             parse_current_identity("<html></html>", 200)
 
     def test_verify_credentials_requires_real_entry_form(self):
@@ -116,7 +115,7 @@ class HttpPortalClientTest(unittest.TestCase):
     def test_submit_result_requires_exact_employee_type_and_minutes(self):
         client = self.make_client()
         client.metadata = parse_portal_metadata(ENTRY_HTML)
-        result = client.parse_submit_result(SUCCESS_HTML)
+        result = parse_submit_result(SUCCESS_HTML)
         record = {
             "员工号": "900001", "请假类型": "BS_STUDY", "时间模式": 1,
             "开始日期": "2026-10-08", "结束日期": "2026-10-08",
@@ -134,7 +133,7 @@ class HttpPortalClientTest(unittest.TestCase):
 
     def test_conflict_table_is_not_reported_as_success(self):
         client = self.make_client()
-        result = client.parse_submit_result(CONFLICT_HTML)
+        result = parse_submit_result(CONFLICT_HTML)
         self.assertEqual(result.result_rows, [])
         self.assertEqual(len(result.conflict_rows), 1)
         self.assertEqual(result.conflict_rows[0]["序号"], "1")
@@ -164,7 +163,9 @@ class HttpPortalClientTest(unittest.TestCase):
             ],
             get_responses=[FakeResponse(query_html("record-b"))],
         )
-        rows = self.make_client(session).query_records("900001", "已锁")
+        client = self.make_client(session)
+        client.ieb.cookies = {"JSESSIONID": "a", "iebJSid": "b"}
+        rows = client.query_records("900001", "已锁")
         self.assertEqual([row["记录ID"] for row in rows], ["record-a", "record-b"])
         self.assertEqual(session.calls[0][2]["data"]["lockStatus"], "1")
         self.assertEqual(session.calls[1][0], "GET")
@@ -181,7 +182,7 @@ class HttpPortalClientTest(unittest.TestCase):
           <td>2026-10-01 19:59:00</td><td>BS_STUDY</td>
         </tr></tbody></table></div><div class="footer"><a href="javascript:goPageTwo('x','y','z','1');">最后一页</a></div></div>
         """
-        rows, pages = self.make_client().parse_query_result(html)
+        rows, pages = parse_query_result(html)
         self.assertEqual(pages, 1)
         self.assertEqual(rows[0]["状态"], "待审批")
         self.assertEqual(rows[0]["员工号"], "900001")
@@ -195,14 +196,15 @@ class HttpPortalClientTest(unittest.TestCase):
         }
         client = self.make_client()
         calls = []
-        client.perform_state_action = lambda action, rows, reason: calls.append((action, rows, reason)) or "通过成功"
-        client.query_records = lambda employee_id, status: [{**row, "状态": "已锁"}] if status == "已锁" else []
+        client.protocol.perform_state_action = lambda action, rows, reason: calls.append((action, rows, reason)) or "通过成功"
+        client.protocol.query_records = lambda employee_id, status: [{**row, "状态": "已锁"}] if status == "已锁" else []
         self.assertEqual(client.approve_records([row], "by agent"), "通过成功")
         self.assertEqual(calls[0][0], "approve")
 
     def test_approve_state_action_posts_repeated_ids_and_query_fields(self):
         session = FakeSession(post_responses=[FakeResponse(json_value={"success": "true", "successMsg": "通过成功"})])
         client = self.make_client(session)
+        client.ieb.cookies = {"JSESSIONID": "a", "iebJSid": "b"}
         rows = [{"记录ID": "record-a", "员工号": "900001"}, {"记录ID": "record-b", "员工号": "900001"}]
         self.assertEqual(client.perform_state_action("approve", rows, "by agent"), "通过成功")
         method, url, kwargs = session.calls[0]

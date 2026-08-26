@@ -12,9 +12,11 @@ from unittest.mock import Mock
 from openpyxl import load_workbook
 
 ROOT = Path(__file__).resolve().parents[3] / "public" / "tool" / "app" / "http-caac-pilot-export-helper"
+SHARED_ROOT = Path(__file__).resolve().parents[3] / "public" / "tool" / "app" / "_shared"
 sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(SHARED_ROOT))
 
-from caac_pilot_export.credentials import parse_credentials  # noqa: E402
+from caac_protocol import parse_credentials  # noqa: E402
 from caac_pilot_export.exporter import ResultExporter, TRAILING_HEADERS  # noqa: E402
 from caac_pilot_export.models import PilotOutcome, PilotRecord  # noqa: E402
 from caac_pilot_export.portal_client import PortalClient, PortalContractError, PortalSessionExpired  # noqa: E402

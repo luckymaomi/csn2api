@@ -4,6 +4,8 @@
 
 `http-soc-positioning-helper` 是独立的 SOC 本地 Python APP，不属于 IEB 首页工具，也不复用 IEB 或 OA Cookie。它以 Excel 活动 Sheet 表头为输入，严格串行执行飞行人员随机置位申请。
 
+APP 与 API 文档共用 `soc_protocol`。该 core 统一维护 Cookie、页面验证、当前登录姓名、站点建议、原因字典、动态航班、航班唯一匹配、员工校验、提交表单、会话失效和业务成功判据；APP 只增加 Excel、严格串行、逐条结果、进度和保活，API 文档只增加单次参数调试与结构化展示。构建把同一 core 封装进两个独立交付目录。
+
 ## 输入与模板
 
 “当前登录人”只显示 SOC 外层导航页欢迎语返回的姓名，不推测员工号。身份只保存在内存 Session，会话失效时与 SOC Cookie 同步清除。
@@ -19,3 +21,13 @@
 ## 结果
 
 结果 Excel 即时保存来源行、员工、航线、航班、原因、状态和说明；结果目录被 Git 忽略。只有 JSON `message=录入成功！` 记为成功，HTTP 200 不单独作为成功依据。
+
+## 文件职责
+
+- `soc_protocol/credentials.py`：SOC Cookie/cURL 解析与规范化凭据。
+- `soc_protocol/models.py`、`contract.py`：稳定模型、路径、原因、请求表单、响应解析和唯一归属。
+- `soc_protocol/client.py`：页面、站点、航班、员工和提交生产请求。
+- `input_data.py`、`models.py`：APP Excel/粘贴输入与输入模型。
+- `portal_client.py`：把 APP 记录映射到共享 core，并维护当前 APP 的保活状态。
+- `runner.py`、`result_store.py`：逐条串行执行与即时结果 Excel。
+- `manager.py`、`server.py`、`web/`：批次状态、loopback API 和工作台界面。

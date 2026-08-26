@@ -1,0 +1,138 @@
+{
+  "schemaVersion": 2,
+  "id": "qualification-roster",
+  "systemId": "flight-portal",
+  "name": "运行资质人员名册接口",
+  "navigationGroup": "飞行人员信息",
+  "description": "按门户技术资料组合筛选逐个运行资格查询人员，并调用普通人员导出提取员工号、姓名；本地工作流再合并为四列名册。",
+  "baseUrl": "https://ieb.csair.com",
+  "navigationUrl": "https://ieb.csair.com/newieb/basics/showEmpprofileCompositeListPageNew",
+  "cookies": [
+    { "name": "JSESSIONID", "required": true, "description": "门户 Session Cookie，HttpOnly" },
+    { "name": "iebJSid", "required": true, "description": "IEB 会话 Cookie，HttpOnly" }
+  ],
+  "commonHeaders": [
+    { "name": "Accept", "value": "text/html, */*; q=0.01", "description": "门户 HTML/XHR 响应" },
+    { "name": "Referer", "value": "https://ieb.csair.com/index/index", "description": "已验证请求来源" },
+    { "name": "X-Requested-With", "value": "XMLHttpRequest", "description": "门户 XHR 标记" },
+    { "name": "Accept-Language", "value": "zh-CN,zh;q=0.9", "description": "中文响应" }
+  ],
+  "groups": [
+    { "id": "metadata", "name": "筛选与资格" },
+    { "id": "query", "name": "人员查询" },
+    { "id": "workflow", "name": "本地名册" }
+  ],
+  "endpoints": [
+    {
+      "id": "filter-page",
+      "groupId": "metadata",
+      "name": "技术资料筛选页面",
+      "summary": "返回当前 Session 可用的注册基地、运行基地、技术基地、执飞机型、技术等级、状态和其他筛选项。",
+      "risk": "read",
+      "method": "GET",
+      "path": "/newieb/basics/showEmpprofileCompositeListPageNew",
+      "parameters": [{ "name": "random", "in": "query", "label": "防缓存参数", "type": "text", "auto": "timestamp", "fixed": true }],
+      "execution": { "kind": "direct-http", "steps": [{ "id": "request", "requestRef": "$endpoint", "role": "primary", "cardinality": "once" }] },
+      "response": { "format": "HTML form", "statuses": [{ "code": 200, "description": "必须包含 #showEmpProfileCompositeListPageForm；选项由当前页面动态提供" }], "fields": [{ "name": "select options", "type": "object", "description": "按实际表单字段动态读取" }] }
+    },
+    {
+      "id": "operating-qualifications",
+      "groupId": "metadata",
+      "name": "动态运行资格列表",
+      "summary": "先打开运行资格选择器，再读取当前动态资格代码、中文描述和资格类型。",
+      "risk": "read",
+      "method": "GET",
+      "path": "/newieb/basics/showChooseOperQualificationList",
+      "parameters": [{ "name": "qualCd", "in": "query", "label": "资格代码筛选", "type": "text", "default": "", "includeWhenEmpty": true }, { "name": "chnDesc", "in": "query", "label": "中文描述筛选", "type": "text", "default": "", "includeWhenEmpty": true }],
+      "execution": { "kind": "direct-http", "steps": [{ "id": "open-dialog", "requestRef": "qualification-roster.qualification-dialog", "role": "prerequisite", "cardinality": "once" }, { "id": "request", "requestRef": "$endpoint", "role": "primary", "cardinality": "once" }] },
+      "response": { "format": "HTML table", "statuses": [{ "code": 200, "description": "资格代码读取 .qualCdTd[data-qualCd]，复选框 value 是内部 ID，不是查询代码" }], "fields": [{ "name": "资格代码", "type": "string" }, { "name": "中文描述", "type": "string" }, { "name": "资格类型", "type": "string" }] }
+    },
+    {
+      "id": "query",
+      "groupId": "query",
+      "name": "按单个运行资格查询人员",
+      "summary": "按当前筛选条件和一个运行资格代码查询人员总数；多个资格必须由调用方逐个请求。",
+      "risk": "read",
+      "method": "GET",
+      "path": "/newieb/basics/showEmpProfileCompositeResult",
+      "parameters": [
+        { "name": "personName", "in": "query", "label": "员工号/姓名", "type": "text", "default": "", "includeWhenEmpty": true },
+        { "name": "staffNumAllDesc", "in": "query", "label": "员工号描述", "type": "text", "default": "", "includeWhenEmpty": true },
+        { "name": "primaryBaseArray", "in": "query", "label": "注册基地", "type": "text", "default": "", "includeWhenEmpty": true },
+        { "name": "baseArray", "in": "query", "label": "运行基地", "type": "text", "default": "", "includeWhenEmpty": true },
+        { "name": "techBase", "in": "query", "label": "技术基地", "type": "text", "default": "", "includeWhenEmpty": true },
+        { "name": "fleetCdToArray", "in": "query", "label": "执飞机型", "type": "text", "required": true, "repeatable": true, "description": "重复参数；来自当前动态筛选页" },
+        { "name": "bolMultiQualCd", "in": "query", "label": "是否混飞", "type": "text", "default": "", "includeWhenEmpty": true },
+        { "name": "qualTypeArray", "in": "query", "label": "技术等级", "type": "text", "repeatable": true, "description": "未选择时省略，不补空值" },
+        { "name": "bolPriBase", "in": "query", "label": "是否帮飞", "type": "text", "default": "", "includeWhenEmpty": true },
+        { "name": "bolJCY", "in": "query", "label": "检查员/教员", "type": "text", "default": "", "includeWhenEmpty": true },
+        { "name": "activeStatusArray", "in": "query", "label": "在职状态", "type": "text", "required": true, "repeatable": true, "description": "全部状态需重复发送 ZAIZHI、WAIBU、TUIXIU、LIZHI" },
+        { "name": "fleetCdbranch", "in": "query", "label": "分部", "type": "text", "default": "", "includeWhenEmpty": true },
+        { "name": "isOperQual", "in": "query", "label": "运行资格", "type": "text", "default": "Y", "fixed": true },
+        { "name": "operQualArray", "in": "query", "label": "运行资格代码", "type": "text", "required": true, "description": "每次只填写一个代码；多代码 OR 不能归属单项资格" },
+        { "name": "isPl", "in": "query", "label": "偏离", "type": "text", "default": "", "includeWhenEmpty": false },
+        { "name": "page", "in": "query", "label": "页码", "type": "number", "default": "1", "required": true },
+        { "name": "currentStr", "in": "query", "label": "防缓存参数", "type": "text", "auto": "timestamp", "fixed": true }
+      ],
+      "execution": { "kind": "direct-http", "steps": [{ "id": "request", "requestRef": "$endpoint", "role": "primary", "cardinality": "once" }] },
+      "response": { "format": "HTML table", "statuses": [{ "code": 200, "description": "按页面表头读取员工号、姓名和动态总数；HTTP 200 不等于已登录或有结果" }], "fields": [{ "name": "员工号", "type": "string" }, { "name": "姓名", "type": "string" }, { "name": "总记录数", "type": "number" }] }
+    },
+    {
+      "id": "native-export",
+      "groupId": "query",
+      "name": "普通人员清单导出",
+      "summary": "导出当前单个运行资格筛选命中的人员清单；API 文档按实际表头展示完整数据，本地 APP 提取员工号和姓名。",
+      "risk": "read",
+      "method": "GET",
+      "path": "/newieb/basics/createEmpProfileCompositeExcel",
+      "parameters": [
+        { "name": "personName", "in": "query", "label": "员工号/姓名", "type": "text", "default": "", "includeWhenEmpty": true },
+        { "name": "staffNumAllDesc", "in": "query", "label": "员工号描述", "type": "text", "default": "", "includeWhenEmpty": true },
+        { "name": "primaryBaseArray", "in": "query", "label": "注册基地", "type": "text", "default": "", "includeWhenEmpty": true },
+        { "name": "baseArray", "in": "query", "label": "运行基地", "type": "text", "default": "", "includeWhenEmpty": true },
+        { "name": "techBase", "in": "query", "label": "技术基地", "type": "text", "default": "", "includeWhenEmpty": true },
+        { "name": "fleetCdToArray", "in": "query", "label": "执飞机型", "type": "text", "repeatable": true, "required": true },
+        { "name": "bolMultiQualCd", "in": "query", "label": "是否混飞", "type": "text", "default": "", "includeWhenEmpty": true },
+        { "name": "qualTypeArray", "in": "query", "label": "技术等级", "type": "text", "repeatable": true },
+        { "name": "bolPriBase", "in": "query", "label": "是否帮飞", "type": "text", "default": "", "includeWhenEmpty": true },
+        { "name": "bolJCY", "in": "query", "label": "检查员/教员", "type": "text", "default": "", "includeWhenEmpty": true },
+        { "name": "activeStatusArray", "in": "query", "label": "在职状态", "type": "text", "repeatable": true, "required": true },
+        { "name": "fleetCdbranch", "in": "query", "label": "分部", "type": "text", "default": "", "includeWhenEmpty": true },
+        { "name": "isOperQual", "in": "query", "label": "运行资格", "type": "text", "default": "Y", "fixed": true },
+        { "name": "operQualArray", "in": "query", "label": "运行资格代码", "type": "text", "required": true },
+        { "name": "isPl", "in": "query", "label": "偏离", "type": "text", "default": "", "includeWhenEmpty": false },
+        { "name": "currentStr", "in": "query", "label": "防缓存参数", "type": "text", "auto": "timestamp", "fixed": true }
+      ],
+      "execution": { "kind": "direct-http", "steps": [{ "id": "request", "requestRef": "$endpoint", "role": "primary", "cardinality": "once" }] },
+      "response": { "format": "OOXML ZIP", "statuses": [{ "code": 200, "description": "文件名可能为 .xls，响应体实际需检查 PK 魔数、workbook、worksheet、表头和数据行" }], "fields": [{ "name": "Excel columns", "type": "object", "description": "按当前普通导出的实际表头动态展示全部列" }] }
+    },
+    {
+      "id": "roster",
+      "groupId": "workflow",
+      "name": "逐资格合并四列名册",
+      "summary": "本地工作流逐个运行资格查询和普通导出，按员工号/姓名/当前资格追加到同一 Sheet。",
+      "risk": "read",
+      "method": "POST",
+      "path": "/api/execute",
+      "parameters": [{ "name": "qualificationCodes", "in": "workflow", "label": "运行资格代码", "type": "text", "required": true, "repeatable": true }, { "name": "filters", "in": "workflow", "label": "门户筛选条件", "type": "object", "required": true }],
+      "execution": { "kind": "local-workflow", "steps": [{ "id": "query-each", "requestRef": "qualification-roster.query-request", "role": "item-loop", "cardinality": "one-or-more", "stopCondition": "完成所有用户选择的资格；每项单独核对查询人数与导出人数" }, { "id": "export-each", "requestRef": "qualification-roster.native-export-request", "role": "item-loop", "cardinality": "one-or-more", "stopCondition": "完成当前资格后追加到工作簿；会话失效停止，普通错误标记后继续" }] },
+      "response": { "format": "Local workflow result", "statuses": [{ "code": 200, "description": "四列 Excel：序号、员工号、姓名、资质类别；跨资格同一员工保留多行" }], "fields": [{ "name": "sequence", "type": "number" }, { "name": "staffNumber", "type": "string" }, { "name": "name", "type": "string" }, { "name": "qualificationCode", "type": "string" }] }
+    }
+  ],
+  "requestDefinitions": [
+    { "id": "qualification-dialog", "name": "打开运行资格选择器", "purpose": "建立动态运行资格列表请求上下文。", "risk": "read", "method": "POST", "path": "/newieb/basics/showChooseOperQualificationDialog", "parameters": [], "response": "HTML/选择器上下文；不直接作为业务结果。" },
+    { "id": "query-request", "name": "逐个资格人员查询请求", "purpose": "本地工作流按一个运行资格代码读取人员总数。", "risk": "read", "method": "GET", "path": "/newieb/basics/showEmpProfileCompositeResult", "parameters": ["personName", "staffNumAllDesc", "primaryBaseArray", "baseArray", "techBase", "fleetCdToArray", "bolMultiQualCd", "qualTypeArray", "bolPriBase", "bolJCY", "activeStatusArray", "fleetCdbranch", "isOperQual", "operQualArray", "page", "currentStr"], "response": "HTML；按当前页面表头和动态总数解析。" },
+    { "id": "native-export-request", "name": "逐个资格普通导出请求", "purpose": "本地工作流读取当前单个运行资格的普通人员导出。", "risk": "read", "method": "GET", "path": "/newieb/basics/createEmpProfileCompositeExcel", "parameters": ["personName", "staffNumAllDesc", "primaryBaseArray", "baseArray", "techBase", "fleetCdToArray", "bolMultiQualCd", "qualTypeArray", "bolPriBase", "bolJCY", "activeStatusArray", "fleetCdbranch", "isOperQual", "operQualArray", "currentStr"], "response": "OOXML ZIP；文件名可能为 .xls，需读取真实 worksheet 行。" }
+  ],
+  "relatedRequests": [
+    { "requestRef": "qualification-roster.qualification-dialog", "kind": "metadata", "description": "动态运行资格列表的前置页面请求" },
+    { "requestRef": "qualification-roster.native-export-request", "kind": "export", "description": "当前单个运行资格的门户普通人员清单导出" }
+  ],
+  "technicalNotes": [
+    "运行资格列表当前一次返回的数量和代码完全动态；复选框 value 是内部 ID，查询必须使用行内 data-qualCd。",
+    "operQualArray 多代码查询语义为 OR；本地名册工作流按资格逐项执行，不能把一次 OR 结果猜测成单项资质。",
+    "普通导出必须复刻实际表单参数存在性；未选择的 qualTypeArray 不补空参数。",
+    "普通导出响应体按 OOXML ZIP 处理，worksheet dimension 可能错误为 A1，解析时必须读取真实行节点。",
+    "本地工作流默认直飞机型 777、全部人员状态和 owner 指定的 13 个默认资格；默认值仅用于页面初始选择，资格选项不写死。"
+  ]
+}

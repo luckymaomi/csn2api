@@ -5,14 +5,14 @@ import unittest
 import requests
 
 from .common import APP_ROOT  # noqa: F401
-from http_oa_read.models import WaitingRecord
 from http_oa_read.portal_client import (
     PortalBusinessError,
     PortalClient,
     PortalError,
     PortalSessionExpired,
-    _parse_current_identity,
 )
+from oa_protocol.contract import parse_identity
+from oa_protocol.models import WaitingRecord
 
 
 class FakeResponse:
@@ -46,13 +46,10 @@ class FakeSession:
         self.calls = []
         self.closed = False
 
-    def get(self, url, **kwargs):
-        self.calls.append(("GET", url, kwargs))
-        return self.get_responses.pop(0)
-
-    def post(self, url, **kwargs):
-        self.calls.append(("POST", url, kwargs))
-        return self.post_responses.pop(0)
+    def request(self, method, url, **kwargs):
+        self.calls.append((method, url, kwargs))
+        responses = self.get_responses if method == "GET" else self.post_responses
+        return responses.pop(0)
 
     def close(self):
         self.closed = True
@@ -102,11 +99,11 @@ def user_info():
 class PortalClientTests(unittest.TestCase):
     def test_parses_current_session_identity_from_user_info(self) -> None:
         self.assertEqual(
-            _parse_current_identity({"data": {"loginUserInfo": {"empId": "900001", "empName": "测试用户"}}}),
+            parse_identity({"data": {"loginUserInfo": {"empId": "900001", "empName": "测试用户"}}}),
             {"staffNumber": "900001", "name": "测试用户"},
         )
         with self.assertRaisesRegex(PortalError, "当前登录人"):
-            _parse_current_identity({"data": {}})
+            parse_identity({"data": {}})
 
     def test_verify_requires_business_success_and_keeps_cookie_values_private(self) -> None:
         session = FakeSession(get_responses=[user_info()])
@@ -149,8 +146,8 @@ class PortalClientTests(unittest.TestCase):
 
     def test_verify_reports_timeout_and_closes_candidate_session(self) -> None:
         class TimeoutSession(FakeSession):
-            def get(self, url, **kwargs):
-                self.calls.append(("GET", url, kwargs))
+            def request(self, method, url, **kwargs):
+                self.calls.append((method, url, kwargs))
                 raise requests.Timeout("timed out")
 
         session = TimeoutSession()

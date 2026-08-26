@@ -5,7 +5,7 @@ from __future__ import annotations
 import threading
 from typing import Callable
 
-from .metadata import normalize_text
+from ieb_protocol.lock_metadata import normalize_text
 from .portal_client import PortalClient, PortalError, PortalSessionExpired
 from .result_store import ResultStore
 

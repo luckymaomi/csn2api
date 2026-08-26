@@ -8,8 +8,8 @@ from pathlib import Path
 
 from .common import APP_DIR, ENTRY_HTML  # noqa: F401
 from http_lock_entry.manager import RunManager
-from http_lock_entry.metadata import parse_portal_metadata
 from http_lock_entry.models import InputPayload
+from ieb_protocol.lock_metadata import parse_portal_metadata
 
 
 class FakeCookieJar:

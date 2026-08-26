@@ -1,0 +1,43 @@
+[
+  {
+    "systemId": "caac-fsop",
+    "protocol": "caac_protocol",
+    "apiPackage": "caac",
+    "catalogModules": ["caac-pilot-export"],
+    "targets": ["api-docs", "http-caac-pilot-export-helper"]
+  },
+  {
+    "systemId": "flight-portal",
+    "protocol": "ieb_protocol",
+    "apiPackage": "flight_portal",
+    "catalogModules": [
+      "flight-stats",
+      "lock-entry",
+      "personnel-info",
+      "qualification-monitor",
+      "qualification-roster"
+    ],
+    "targets": [
+      "api-docs",
+      "http-flight-stats-helper",
+      "http-lock-entry-helper",
+      "http-qualification-monitor-helper",
+      "http-qualification-query-helper",
+      "http-qualification-roster-helper"
+    ]
+  },
+  {
+    "systemId": "oa",
+    "protocol": "oa_protocol",
+    "apiPackage": "oa",
+    "catalogModules": ["oa-read"],
+    "targets": ["api-docs", "http-oa-read-helper"]
+  },
+  {
+    "systemId": "soc",
+    "protocol": "soc_protocol",
+    "apiPackage": "soc",
+    "catalogModules": ["soc-positioning"],
+    "targets": ["api-docs", "http-soc-positioning-helper"]
+  }
+]

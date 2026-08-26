@@ -15,6 +15,8 @@
   "commonHeaders": [
     { "name": "Accept", "value": "application/json, text/javascript, */*; q=0.01", "description": "JSON/XHR 响应" },
     { "name": "Content-Type", "value": "application/x-www-form-urlencoded; charset=UTF-8", "description": "表单请求" },
+    { "name": "Origin", "value": "https://fsop.caac.gov.cn", "description": "同源请求来源" },
+    { "name": "Referer", "value": "https://fsop.caac.gov.cn/yzzzm/rygl/pilotredirect", "description": "人员管理页面" },
     { "name": "X-Requested-With", "value": "XMLHttpRequest", "description": "XHR 标记" }
   ],
   "groups": [ { "id": "pilot", "name": "飞行员信息" } ],
@@ -22,8 +24,8 @@
   "requestDefinitions": [
     {
       "id": "pilot-list-session",
-      "name": "飞行员列表会话检查",
-      "purpose": "验证、身份占位和保活共用的只读业务 JSON 请求；当前响应不提供登录人字段。",
+      "name": "飞行员列表请求",
+      "purpose": "验证、保活、姓名筛选和详情唯一归属共用的只读业务 JSON 请求；当前响应不提供登录人字段。",
       "risk": "read",
       "method": "POST",
       "path": "/yzzzm/rygl/queryPilotByParamForPage?ajaxPrefilter={timestamp}",
@@ -33,7 +35,17 @@
         { "name": "licenseType", "default": "" }, { "name": "medicalStatus", "default": "" }, { "name": "copType", "default": "" },
         { "name": "page", "default": "1" }, { "name": "rows", "default": "1" }, { "name": "sort", "default": "archiveNo" }, { "name": "order", "default": "asc" }
       ],
-      "response": "JSON {total, rows}；只校验业务会话和响应契约，不从人员数据猜测当前登录人。"
+      "response": "JSON {total, rows}；分页按 total 和实际 rows 动态收敛，不从人员数据猜测当前登录人。"
+    },
+    {
+      "id": "pilot-detail-request",
+      "name": "飞行员详情请求",
+      "purpose": "使用姓名列表唯一结果返回的 pilotId 获取该飞行员全部详情。",
+      "risk": "read",
+      "method": "POST",
+      "path": "/yzzzm/rygl/queryPilotDetails",
+      "parameters": [ { "name": "pilotId", "description": "来自姓名列表唯一匹配行" } ],
+      "response": "JSON 顶层对象；pilotId 必须与请求一致，其他字段按当前响应动态保留。"
     }
   ],
   "endpoints": [
@@ -66,15 +78,25 @@
     {
       "id": "pilot-detail",
       "groupId": "pilot",
-      "name": "单个飞行员详情",
-      "summary": "按列表返回的 pilotId 获取飞行员基础信息、执照、资质树、教育、工作和检查记录，字段随实际响应动态变化。",
+      "name": "按姓名查询单个飞行员详情",
+      "summary": "先按姓名查询有效飞行员列表，姓名和可选档案号唯一归属后，再用列表返回的 pilotId 获取全部详情。",
       "risk": "read",
       "method": "POST",
-      "path": "/yzzzm/rygl/queryPilotDetails",
-      "requestEncoding": "application/x-www-form-urlencoded",
-      "parameters": [ { "name": "pilotId", "in": "form", "label": "飞行员 ID", "type": "text", "required": true, "description": "来自分页列表，禁止猜测" } ],
-      "response": { "format": "JSON", "statuses": [ { "code": 200, "description": "顶层对象的 pilotId 必须与请求一致；数组和对象字段按实际键动态展开" } ], "fields": [ { "name": "layerInfosList", "type": "array", "description": "递归资质树" }, { "name": "educationList/workexps/jzhxinfos/yjscinfos/printhis/printList/checkpcinfos", "type": "array", "description": "教育、工作、检查和打印等详情记录" } ] }
+      "path": "/api/execute",
+      "requestEncoding": "local-workflow",
+      "parameters": [
+        { "name": "pilotname", "in": "workflow", "label": "飞行员姓名", "type": "text", "required": true, "description": "发送给有效飞行员列表接口并按响应姓名精确匹配" },
+        { "name": "archiveNo", "in": "workflow", "label": "档案号", "type": "text", "default": "", "description": "姓名重名时用于精确归属" }
+      ],
+      "execution": {
+        "kind": "local-workflow",
+        "steps": [
+          { "id": "lookup-pilot", "requestRef": "caac-pilot-export.pilot-list-session", "role": "page-loop", "cardinality": "one-or-more", "stopCondition": "按 total 和实际 rows 动态收敛；姓名及可选档案号必须唯一匹配" },
+          { "id": "fetch-detail", "requestRef": "caac-pilot-export.pilot-detail-request", "role": "primary", "cardinality": "once" }
+        ]
+      },
+      "response": { "format": "Local workflow result", "statuses": [ { "code": 200, "description": "详情响应 pilotId 与列表唯一匹配行一致；顶层、数组和对象字段按当前响应动态展示" } ], "fields": [ { "name": "scalar fields", "type": "object", "description": "当前详情顶层标量字段" }, { "name": "nested fields", "type": "array", "description": "当前详情对象、资质树、教育、工作、检查和打印记录" } ] }
     }
   ],
-  "technicalNotes": [ "本地工作台组合流程支持全量抓取和 Excel 名单抓取；名单按姓名精确匹配，可用档案号进一步唯一归属。", "Cookie 中 Bash $'...' 的 \\u0021、\\_ 转义由凭据解析器还原。", "当前已确认入口页和业务 JSON 未提供稳定的当前登录人字段。", "客户端同时校验 JSON、pilotId 归属和分页前进。" ]
+  "technicalNotes": [ "API 文档和本地工作台共用 CAAC protocol core；姓名列表、分页、会话失效、精确匹配和 pilotId 归属只有一套实现。", "本地工作台组合流程支持全量抓取和 Excel 名单抓取；名单按姓名精确匹配，可用档案号进一步唯一归属。", "Cookie 中 Bash $'...' 的 \\u0021、\\_ 转义由凭据解析器还原。", "当前已确认入口页和业务 JSON 未提供稳定的当前登录人字段。" ]
 }

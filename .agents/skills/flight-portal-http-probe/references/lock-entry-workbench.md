@@ -57,10 +57,10 @@
 
 | 模块 | 职责 |
 |---|---|
-| `credentials.py` | 凭据解析和规范化 |
-| `metadata.py` | 动态类型与默认原因 |
+| `ieb_protocol/base.py` | 共享 Cookie、Session、登录失效与当前身份协议 |
+| `ieb_protocol/lock_*.py` | 共享动态类型、表单、结果、查询和状态动作协议 |
 | `input_data.py` | Excel/粘贴归一和检查 |
-| `portal_client.py` | Session、员工校验、提交、查询和直接通过 |
+| `portal_client.py` | APP 会话生命周期与共享协议的薄适配 |
 | `runner.py` | 严格串行单次提交 |
 | `result_store.py` | 逐条原子保存 |
 | `manager.py` | Session、批次状态和下载 |

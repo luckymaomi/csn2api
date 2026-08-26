@@ -97,6 +97,12 @@
       "source": "./personnel-info.json"
     },
     {
+      "id": "qualification-roster",
+      "name": "运行资质人员名册接口",
+      "description": "技术资料组合筛选、动态运行资格和普通人员导出；多资格合并属于本地工作流",
+      "source": "./qualification-roster.json"
+    },
+    {
       "id": "oa-read",
       "name": "OA 公文已阅接口",
       "description": "全量待办数量与按任意正整数逐条执行公文已阅的组合工作流",
@@ -117,7 +123,7 @@
     {
       "id": "caac-pilot-export",
       "name": "CAAC 飞行员信息接口",
-      "description": "飞行员动态分页与筛选列表、按 pilotId 详情只读接口",
+      "description": "飞行员动态分页列表，以及按姓名唯一定位后读取详情的只读正向链路",
       "source": "./caac-pilot-export.json"
     }
   ]

@@ -5,8 +5,10 @@ from __future__ import annotations
 import threading
 from typing import Callable
 
-from .models import BatchResult, WaitingRecord
-from .portal_client import PortalSessionExpired
+from oa_protocol import OaSessionExpired
+from oa_protocol.models import WaitingRecord
+
+from .models import BatchResult
 
 
 Event = dict[str, object]
@@ -44,7 +46,7 @@ class BatchRunner:
                 status = "成功"
                 message = "已阅接口返回成功"
                 level = "success"
-            except PortalSessionExpired as error:
+            except OaSessionExpired as error:
                 failed += 1
                 session_expired = True
                 error_message = str(error)

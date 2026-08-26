@@ -5,9 +5,11 @@ import sys
 from pathlib import Path
 
 APP_ROOT = Path(__file__).resolve().parents[3] / "public" / "tool" / "app" / "http-soc-positioning-helper"
+SHARED_ROOT = Path(__file__).resolve().parents[3] / "public" / "tool" / "app" / "_shared"
 sys.path.insert(0, str(APP_ROOT))
+sys.path.insert(0, str(SHARED_ROOT))
 
-from soc_positioning.models import FlightOption, StaffIdentity, SubmitOutcome  # noqa: E402
+from soc_protocol import FlightOption, StaffIdentity, SubmitOutcome  # noqa: E402
 from soc_positioning.portal_client import PortalError, PortalSessionExpired  # noqa: E402
 from soc_positioning.result_store import ResultStore  # noqa: E402
 from soc_positioning.runner import BatchRunner  # noqa: E402

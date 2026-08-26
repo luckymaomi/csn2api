@@ -1,4 +1,4 @@
-"""Stable models for the SOC positioning workbench."""
+"""SOC 工作台输入模型。"""
 
 from __future__ import annotations
 
@@ -12,30 +12,3 @@ class InputPayload:
     excel_bytes: bytes | None = None
     pasted_text: str = ""
     common_remark: str = ""
-
-
-@dataclass(frozen=True)
-class StaffIdentity:
-    employee_id: str
-    name: str
-    mobile: str
-
-
-@dataclass(frozen=True)
-class FlightOption:
-    display_number: str
-    flight_number: str
-    sequence_number: str
-    flight_date: str
-    route: str
-    flight_time: str
-    crew_departure: str
-    subfleet_type: str
-    airline_code: str
-    value: str
-
-
-@dataclass(frozen=True)
-class SubmitOutcome:
-    success: bool
-    message: str

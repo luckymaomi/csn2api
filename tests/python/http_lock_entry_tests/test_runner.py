@@ -4,8 +4,9 @@ import threading
 import unittest
 
 from .common import APP_DIR, CONFLICT_HTML, ENTRY_HTML, SUCCESS_HTML  # noqa: F401
-from http_lock_entry.metadata import parse_portal_metadata
-from http_lock_entry.models import EmployeeIdentity
+from ieb_protocol.lock_metadata import parse_portal_metadata
+from ieb_protocol.lock_models import EmployeeIdentity
+from ieb_protocol.lock_results import parse_submit_result
 from http_lock_entry.portal_client import PortalClient
 from http_lock_entry.runner import BatchRunner
 
@@ -22,8 +23,7 @@ class RecordingStore:
 class RecordingClient:
     def __init__(self, responses=None):
         self.metadata = parse_portal_metadata(ENTRY_HTML)
-        self.parser = PortalClient()
-        self.responses = list(responses or [self.parser.parse_submit_result(SUCCESS_HTML)])
+        self.responses = list(responses or [parse_submit_result(SUCCESS_HTML)])
         self.calls = []
 
     def validate_employee(self, employee_id):
@@ -66,8 +66,7 @@ class HttpLockEntryRunnerTest(unittest.TestCase):
         }
 
     def test_conflict_is_saved_without_query_unlock_or_retry(self):
-        parser = PortalClient()
-        client = RecordingClient([parser.parse_submit_result(CONFLICT_HTML)])
+        client = RecordingClient([parse_submit_result(CONFLICT_HTML)])
         store = RecordingStore()
         runner = BatchRunner(client, store, "", threading.Event(), lambda _event: None)
         summary = runner.run([self.record()])
@@ -79,10 +78,9 @@ class HttpLockEntryRunnerTest(unittest.TestCase):
         self.assertEqual(store.rows[-1]["message"], "")
 
     def test_leave_types_are_submitted_once_without_quota_routing(self):
-        parser = PortalClient()
         client = RecordingClient([
-            parser.parse_submit_result(SUCCESS_HTML),
-            parser.parse_submit_result(SUCCESS_HTML),
+            parse_submit_result(SUCCESS_HTML),
+            parse_submit_result(SUCCESS_HTML),
         ])
         records = [
             {**self.record(), "请假类型": lock_type, "来源行": index + 2}
@@ -101,7 +99,7 @@ class HttpLockEntryRunnerTest(unittest.TestCase):
 
     def test_records_are_submitted_in_input_order(self):
         client = RecordingClient()
-        client.responses = [client.parser.parse_submit_result(SUCCESS_HTML) for _index in range(3)]
+        client.responses = [parse_submit_result(SUCCESS_HTML) for _index in range(3)]
         records = [
             {**self.record(), "员工号": employee_id, "来源行": index + 2}
             for index, employee_id in enumerate(("900001", "900002", "900003"))
@@ -120,7 +118,7 @@ class HttpLockEntryRunnerTest(unittest.TestCase):
 
     def test_approve_after_submit_runs_serial_approval_and_reports_locked(self):
         client = RecordingClient()
-        client.responses = [client.parser.parse_submit_result(SUCCESS_HTML)]
+        client.responses = [parse_submit_result(SUCCESS_HTML)]
         store = RecordingStore()
         runner = BatchRunner(
             client,

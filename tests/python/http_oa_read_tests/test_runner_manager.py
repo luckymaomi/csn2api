@@ -7,8 +7,8 @@ from pathlib import Path
 
 from .common import APP_ROOT  # noqa: F401
 from http_oa_read.manager import RunManager
-from http_oa_read.models import ScanSnapshot, WaitingRecord
 from http_oa_read.portal_client import PortalBusinessError, PortalSessionExpired
+from oa_protocol.models import ScanSnapshot, WaitingRecord
 from http_oa_read.runner import BatchRunner
 
 

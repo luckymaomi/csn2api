@@ -6,6 +6,9 @@ from pathlib import Path
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 APP_ROOT = REPOSITORY_ROOT / "public" / "tool" / "app" / "http-qualification-query-helper"
+SHARED_ROOT = REPOSITORY_ROOT / "public" / "tool" / "app" / "_shared"
 if str(APP_ROOT) not in sys.path:
     sys.path.insert(0, str(APP_ROOT))
+if str(SHARED_ROOT) not in sys.path:
+    sys.path.insert(0, str(SHARED_ROOT))
 

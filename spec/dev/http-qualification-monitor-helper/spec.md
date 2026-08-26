@@ -4,6 +4,8 @@
 
 本工具是独立的本地 HTTP APP，只读访问 IEB“资质监控 -> 按资质查询”。用户提供已登录 Cookie Header 或 Copy as cURL；Cookie 只保存在 Python 进程内存中，验证成功响应一次性返回规范化 Cookie Header 供当前页复制，状态响应不返回 Cookie。服务只监听 `127.0.0.1`，不使用 Playwright，不调用解除或恢复警告接口。
 
+APP 与 API 文档共用 `ieb_protocol` 中的资质监控 core。分类树、动态子类、筛选参数、分页契约、OOXML 校验、身份和会话失效由 core 维护；APP 只增加全量串行导出、文件保存、ZIP、进度、停止边界和保活状态。
+
 ## 核心工作流
 
 凭据验证还会只读请求 `GET /index/index`。员工号来自 `.detailInfo .empid span[title]`，姓名来自 `#personalInfo .name-txt`；身份缺失时验证失败。页面显示“员工号 · 姓名”，身份只保存在内存 Session，会话失效时与 Cookie 同步清除。

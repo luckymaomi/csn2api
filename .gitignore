@@ -37,6 +37,9 @@ __pycache__/
 # 飞行人员信息查询（皇帝版）运行结果，禁止进入版本库
 /public/tool/app/http-qualification-query-helper/results/
 
+# 运行资质人员名册运行结果，禁止进入版本库
+/public/tool/app/http-qualification-roster-helper/results/
+
 # 资质监控（皇帝版）运行结果，禁止进入版本库
 /public/tool/app/http-qualification-monitor-helper/results/
 

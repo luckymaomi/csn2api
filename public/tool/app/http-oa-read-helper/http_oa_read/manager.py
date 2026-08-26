@@ -8,7 +8,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Callable
 
-from .models import ScanSnapshot
+from oa_protocol.models import ScanSnapshot
 from .portal_client import PortalClient, PortalSessionExpired
 from .runner import BatchRunner, Event
 from .session_keepalive import random_keepalive_interval

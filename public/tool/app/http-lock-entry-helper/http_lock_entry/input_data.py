@@ -10,8 +10,10 @@ from io import BytesIO
 from openpyxl import load_workbook
 from openpyxl.utils.datetime import from_excel
 
-from .metadata import normalize_lock_type, normalize_text
-from .models import InputPayload, PortalMetadata
+from ieb_protocol.lock_metadata import normalize_lock_type, normalize_text
+from ieb_protocol.lock_models import PortalMetadata
+
+from .models import InputPayload
 
 
 REQUIRED_HEADERS = {

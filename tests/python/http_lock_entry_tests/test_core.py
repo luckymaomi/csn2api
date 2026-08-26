@@ -7,9 +7,9 @@ from io import BytesIO
 from openpyxl import Workbook
 
 from .common import APP_DIR, ENTRY_HTML  # noqa: F401
-from http_lock_entry.credentials import credential_summary, parse_credentials
 from http_lock_entry.input_data import normalize_business_date, parse_excel
-from http_lock_entry.metadata import parse_portal_metadata
+from ieb_protocol import credential_summary, parse_credentials
+from ieb_protocol.lock_metadata import parse_portal_metadata
 
 
 class HttpLockEntryCoreTest(unittest.TestCase):

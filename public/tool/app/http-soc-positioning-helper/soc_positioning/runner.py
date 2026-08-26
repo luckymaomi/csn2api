@@ -5,7 +5,7 @@ from __future__ import annotations
 import threading
 from typing import Callable
 
-from .models import FlightOption
+from soc_protocol import FlightOption
 from .portal_client import PortalError, PortalSessionExpired, SocPortalClient
 from .result_store import ResultStore
 

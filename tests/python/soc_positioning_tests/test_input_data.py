@@ -7,10 +7,12 @@ from pathlib import Path
 from openpyxl import Workbook, load_workbook
 
 APP_ROOT = Path(__file__).resolve().parents[3] / "public" / "tool" / "app" / "http-soc-positioning-helper"
+SHARED_ROOT = Path(__file__).resolve().parents[3] / "public" / "tool" / "app" / "_shared"
 TEMPLATE_PATH = APP_ROOT / "template.xlsx"
 sys.path.insert(0, str(APP_ROOT))
+sys.path.insert(0, str(SHARED_ROOT))
 
-from soc_positioning.constants import APPLY_REASON_LABELS  # noqa: E402
+from soc_protocol import APPLY_REASON_LABELS  # noqa: E402
 from soc_positioning.input_data import normalize_date, parse_excel  # noqa: E402
 
 

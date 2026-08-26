@@ -13,7 +13,7 @@ try:
     from .common import APP_ROOT, CLASSIFICATION_PAYLOAD, ooxml_bytes  # noqa: F401
 except ImportError:
     from common import APP_ROOT, CLASSIFICATION_PAYLOAD, ooxml_bytes  # type: ignore[no-redef]  # noqa: F401
-from http_qualification_monitor.models import QualificationGroup, QualificationItem
+from ieb_protocol.qualification_monitor_models import QualificationGroup, QualificationItem
 from http_qualification_monitor.manager import RunManager
 from http_qualification_monitor.server import create_server
 

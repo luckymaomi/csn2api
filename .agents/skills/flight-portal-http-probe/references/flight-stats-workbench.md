@@ -38,9 +38,10 @@
 
 | 模块 | 职责 |
 |---|---|
-| `credentials.py` | 解析目标 Cookie，不回显凭据 |
+| `ieb_protocol/base.py` | 共享 Cookie、Session、登录失效与当前身份协议 |
+| `ieb_protocol/flight_stats*.py` | 共享查询参数、动态表格解析和员工唯一归属协议 |
 | `input_data.py` | Excel/粘贴输入归一 |
-| `portal_client.py` | 会话验证、查询参数、动态表格和身份归属 |
+| `portal_client.py` | APP 会话生命周期与共享协议的薄适配 |
 | `exporter.py` | 预设筛选和最终双文件 |
 | `runner.py` | 串行循环、中断、事件和原顺序结果 |
 | `manager.py` | 内存 Session、阶段、线程和下载状态 |

@@ -9,6 +9,7 @@ import { promisify } from "node:util";
 
 import { build } from "esbuild";
 import ts from "typescript";
+import { readProtocolCoreDefinitions } from "./protocol-cores.mjs";
 import { buildToolExports, isRuntimeGeneratedPath, type ToolExportDefinition } from "./tool-exports.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -207,6 +208,25 @@ async function copyPythonWorkbenchAssets() {
       path.join(staticRoot, "libs", "bootstrap.min.css"),
       path.join(libraryRoot, "bootstrap.min.css")
     );
+  }
+
+  const registeredToolTargets = (await readToolCatalog())
+    .map((tool) => tool.entry)
+    .filter((entry) => entry.startsWith("http-") && entry.endsWith("-helper"));
+  const sharedProtocolCopies = await readProtocolCoreDefinitions({
+    projectRoot,
+    staticRoot,
+    registeredToolTargets
+  });
+  for (const item of sharedProtocolCopies) {
+    const source = path.join(staticRoot, "tool", "app", "_shared", item.protocol);
+    for (const target of item.targets) {
+      await fs.cp(source, path.join(distRoot, "tool", "app", target, item.protocol), {
+        recursive: true,
+        force: true,
+        filter: (sourcePath) => !isRuntimeGeneratedPath(path.relative(source, sourcePath))
+      });
+    }
   }
 }
 

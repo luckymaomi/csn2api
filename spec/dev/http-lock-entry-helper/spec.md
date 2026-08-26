@@ -127,10 +127,12 @@ POST /api/start
 
 | 模块 | 职责 |
 |---|---|
-| `credentials.py` | cURL/Cookie 解析与规范化 |
-| `metadata.py` | 动态类型、默认原因模板和类型归一 |
+| `ieb_protocol/base.py` | IEB Cookie、Session、身份和会话失效 |
+| `ieb_protocol/lock_metadata.py` | 动态类型、默认原因模板和类型归一 |
+| `ieb_protocol/lock_submission.py`、`lock_results.py` | 提交表单、普通结果、冲突和唯一归属 |
+| `ieb_protocol/lock_protocol.py` | 员工校验、提交、查询和状态动作的生产请求 |
 | `input_data.py` | Excel/粘贴、日期时间和输入检查 |
-| `portal_client.py` | Session、员工校验、提交、查询和直接通过 |
+| `portal_client.py` | 把 APP 记录映射为共享锁班模型并维护保活状态 |
 | `result_store.py` | 原子即时结果 Excel |
 | `runner.py` | 单片段严格串行执行与中断边界 |
 | `manager.py` | Session、批次线程、状态和下载 |

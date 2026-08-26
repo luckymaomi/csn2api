@@ -30,6 +30,11 @@ class FakeSession:
             return response
         return FakeResponse()
 
+    def request(self, method, url, **kwargs):
+        if method != "GET":
+            raise AssertionError("manager verification only performs GET requests")
+        return self.get(url, **kwargs)
+
     def close(self):
         return None
 

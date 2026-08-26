@@ -42,9 +42,10 @@
 
 ## 文件职责
 
-- `credentials.py`：cURL/Cookie 脱敏解析。
+- `ieb_protocol/base.py`：IEB Cookie、Session、身份和会话失效。
+- `ieb_protocol/flight_stats.py`、`flight_stats_contract.py`：飞行经历请求、参数、动态表格和人员归属。
 - `input_data.py`：Excel/粘贴输入边界归一。
-- `portal_client.py`：凭据验证、单个 Session、请求参数和动态表格归属。
+- `portal_client.py`：把 APP 的逐人模型映射到共享 core，并维护当前 APP 的保活状态。
 - `exporter.py`：范围筛选与最终原版/去分钟版双文件。
 - `runner.py`：逐条循环、事件、中断、会话失效和原顺序结果。
 - `manager.py`：内存 Session、阶段、批次线程、状态和结果路径。

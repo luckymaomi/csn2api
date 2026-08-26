@@ -2,8 +2,10 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
+from ieb_protocol.qualification_monitor_models import QualificationGroup, QualificationItem
+
 from .exporter import NativeExportStore
-from .models import ExportSummary, QualificationGroup, QualificationItem
+from .models import ExportSummary
 from .portal_client import PortalSessionExpired
 
 

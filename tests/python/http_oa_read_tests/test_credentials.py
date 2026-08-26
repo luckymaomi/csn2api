@@ -3,12 +3,12 @@ from __future__ import annotations
 import unittest
 
 from .common import APP_ROOT  # noqa: F401
-from http_oa_read.credentials import (
+from oa_protocol.credentials import (
     credential_summary,
-    format_all_credentials,
+    format_credentials,
     parse_browser_headers,
     parse_credentials,
-    parse_waiting_payload,
+    parse_waiting_template,
 )
 
 
@@ -20,7 +20,7 @@ class CredentialTests(unittest.TestCase):
         summary = credential_summary(cookies)
         self.assertEqual(summary, {"cookieCount": 3})
         self.assertNotIn("secret", str(summary))
-        self.assertEqual(format_all_credentials(cookies), "SESSION=secret-a; route=secret-b; flag=value=part")
+        self.assertEqual(format_credentials(cookies), "SESSION=secret-a; route=secret-b; flag=value=part")
 
     def test_parses_copy_as_curl_without_executing_it(self) -> None:
         source = (
@@ -54,7 +54,7 @@ class CredentialTests(unittest.TestCase):
         )
 
         self.assertEqual(
-            parse_waiting_payload(source),
+            parse_waiting_template(source),
             {
                 "moduleMainCategoryId": -5,
                 "pageMode": "page",
@@ -69,7 +69,7 @@ class CredentialTests(unittest.TestCase):
             "-H 'Cookie: SESSION=one' --data-raw '{\"docId\":\"hidden\"}'"
         )
 
-        self.assertIsNone(parse_waiting_payload(source))
+        self.assertIsNone(parse_waiting_template(source))
 
     def test_rejects_missing_cookie_header(self) -> None:
         with self.assertRaisesRegex(ValueError, "Cookie"):

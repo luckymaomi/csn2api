@@ -15,7 +15,7 @@ from http_qualification_query.portal_client import (
     parse_employee_identity,
     parse_training_record_pages,
 )
-from http_qualification_query.credentials import format_credentials
+from ieb_protocol import format_credentials
 
 
 SESSION_HTML = '<form id="showEmpProfileCompositeListPageForm"></form>'
@@ -111,13 +111,20 @@ class FakeSession:
         self.calls: list[tuple[str, str, dict[str, object]]] = []
         self.closed = False
 
+    def request(self, method: str, url: str, **kwargs: object) -> FakeResponse:
+        normalized = method.upper()
+        self.calls.append((normalized, url, kwargs))
+        if normalized == "GET":
+            return self.get_responses.pop(0)
+        if normalized == "POST":
+            return self.post_responses.pop(0)
+        raise AssertionError(f"unexpected method: {method}")
+
     def get(self, url: str, **kwargs: object) -> FakeResponse:
-        self.calls.append(("GET", url, kwargs))
-        return self.get_responses.pop(0)
+        return self.request("GET", url, **kwargs)
 
     def post(self, url: str, **kwargs: object) -> FakeResponse:
-        self.calls.append(("POST", url, kwargs))
-        return self.post_responses.pop(0)
+        return self.request("POST", url, **kwargs)
 
     def close(self) -> None:
         self.closed = True

@@ -1,9 +1,14 @@
 from __future__ import annotations
 
+import io
 import json
+import re
 import threading
 import unittest
+import zipfile
 from collections import deque
+
+from openpyxl import Workbook
 
 from .common import CATALOG_ROOT
 from api_docs.catalog import ApiCatalog
@@ -22,6 +27,10 @@ IEB_HOME_HTML = """
 
 SOC_NAVIGATION_HTML = """
 <div id="checkout_soc">欢迎您，测试用户 <span>员工号：900001</span><a>退出</a></div>
+"""
+
+SOC_ENTRY_HTML = """
+<form id="applyFm"><input name="KkTvlApply"></form>
 """
 
 ENTRY_HTML = """
@@ -64,8 +73,8 @@ BASIC_INFO_JSON = json.dumps({
 
 TECHNICAL_RESULT_HTML = """
 <div id="qualList">
-  <table><tr><th>#</th><th>技术等级代码</th><th>技术等级</th></tr></table>
-  <table><tbody><tr><td>1</td><td>CAP</td><td>机长</td></tr></tbody></table>
+  <table><tr><th>#</th><th>技术等级代码</th><th>技术等级</th><th>水平等级</th><th>机型</th><th>生效时间</th><th>失效时间</th><th>对应检查记录</th><th>数据来源</th></tr></table>
+  <table><tbody><tr><td>1</td><td>CAP</td><td>机长</td><td>一级</td><td>A320</td><td>2025-01-01</td><td>2026-01-01</td><td>检查记录</td><td>门户</td></tr></tbody></table>
 </div>
 """
 
@@ -80,7 +89,63 @@ QUALIFICATION_PAGE_INFO = json.dumps({
     "pageSize": 20,
     "hasNextPage": True,
 }, ensure_ascii=False)
+
+ROSTER_FILTER_HTML = """
+<form id="showEmpProfileCompositeListPageForm">
+  <select name="primaryBaseArray"><option value="">全部注册基地</option></select>
+  <select name="baseArray"><option value="">全部运行基地</option></select>
+  <select name="techBase"><option value="">全部技术基地</option></select>
+  <select name="fleetCdToArray" multiple><option value="777">B777</option><option value="787">B787</option></select>
+  <select name="bolMultiQualCd"><option value="">全部混飞状态</option></select>
+  <select name="qualTypeArray" multiple><option value="">全部技术等级</option></select>
+  <select name="bolPriBase"><option value="">全部帮飞状态</option></select>
+  <select name="bolJCY"><option value="">全部教员状态</option></select>
+  <select name="activeStatusArray" multiple><option value="ZAIZHI">在职</option></select>
+  <select name="fleetCdbranch"><option value="">全部分部</option></select>
+</form>
+"""
+
+ROSTER_QUALIFICATION_HTML = """
+<table><tbody><tr>
+  <td><input type="checkbox" value="internal-id"></td>
+  <td class="qualCdTd" data-qualCd="RAMA">RAMA</td>
+  <td>北美区域单飞资格</td><td>RAMA</td><td>QYHXZG</td><td>区域航线资格</td>
+</tr></tbody></table>
+"""
+
+
+def make_roster_export() -> bytes:
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.append(["员工号", "姓名", "运行资格"])
+    sheet.append([900001, "测试人员", "RAMA"])
+    sheet.append(["090002", "样例人员", "RAMA"])
+    source = io.BytesIO()
+    workbook.save(source)
+    workbook.close()
+
+    output = io.BytesIO()
+    with zipfile.ZipFile(io.BytesIO(source.getvalue())) as archive, zipfile.ZipFile(output, "w") as rewritten:
+        for item in archive.infolist():
+            data = archive.read(item.filename)
+            if item.filename.startswith("xl/worksheets/") and item.filename.endswith(".xml"):
+                data = re.sub(br'<dimension ref="[^"]+"', b'<dimension ref="A1"', data, count=1)
+            rewritten.writestr(item, data)
+    return output.getvalue()
+
+
 CAAC_LIST = json.dumps({"total": 2, "rows": [{"pilotId": "sample-1", "pilotname": "样例人员"}]}, ensure_ascii=False)
+CAAC_NAME_LIST = json.dumps({
+    "total": 1,
+    "rows": [{"pilotId": "sample-1", "pilotname": "样例人员", "archiveNo": "00000001"}],
+}, ensure_ascii=False)
+CAAC_DETAIL = json.dumps({
+    "pilotId": "sample-1",
+    "pilotname": "样例人员",
+    "archiveNo": "00000001",
+    "layerInfosList": [{"layerinfo": "航线运输驾驶员", "sublayers": []}],
+    "educationList": [{"school": "样例院校", "degree": "本科"}],
+}, ensure_ascii=False)
 
 OA_USER_INFO = json.dumps({"code": 200, "data": {"loginUserInfo": {"empId": "900001", "empName": "示例用户"}}}, ensure_ascii=False)
 OA_WAITING = json.dumps({
@@ -119,6 +184,7 @@ OA_WAITING = json.dumps({
     },
 }, ensure_ascii=False)
 OA_SUCCESS = json.dumps({"code": 200, "message": "ok"}, ensure_ascii=False)
+OA_FAILURE = json.dumps({"code": 500, "message": "failed"}, ensure_ascii=False)
 
 
 class FakeCookies:
@@ -138,8 +204,10 @@ class FakeResponse:
         text: str,
         url: str = "https://ieb.example.test/result",
         content_type: str = "text/html; charset=utf-8",
+        content: bytes | None = None,
     ) -> None:
         self.text = text
+        self.content = content if content is not None else text.encode("utf-8")
         self.url = url
         self.status_code = 200
         self.reason = "OK"
@@ -229,7 +297,30 @@ class ExecutorTests(unittest.TestCase):
         self.assertTrue(loaded["keepAlive"]["running"])
         self.assertEqual(session.cookies.values["JSESSIONID"], "session!route")
         result = executor.execute("caac-pilot-export.pilot-list", {"page": "1", "rows": "10"})
-        self.assertEqual(result["data"]["json"]["total"], 2)
+        self.assertEqual(result["data"]["summary"]["total"], 2)
+        self.assertEqual(result["data"]["summary"]["recordCount"], 1)
+        self.assertEqual(result["data"]["tables"][0]["rows"][0]["pilotId"], "sample-1")
+
+    def test_caac_detail_resolves_name_through_list_then_renders_all_sections(self) -> None:
+        executor, session = self.create_executor([
+            FakeResponse(CAAC_LIST, url="https://fsop.example.test/list", content_type="application/json"),
+            FakeResponse(CAAC_NAME_LIST, url="https://fsop.example.test/list", content_type="application/json"),
+            FakeResponse(CAAC_DETAIL, url="https://fsop.example.test/detail", content_type="application/json"),
+        ])
+        executor.load_credentials("yzzzm=a; JSESSIONID=session-value; home=home-value", "caac-fsop")
+        result = executor.execute("caac-pilot-export.pilot-detail", {
+            "pilotname": "样例人员",
+            "archiveNo": "00000001",
+        })
+
+        self.assertEqual(session.requests[-2]["data"]["pilotname"], "样例人员")
+        self.assertEqual(session.requests[-1]["data"], {"pilotId": "sample-1"})
+        self.assertEqual(result["data"]["summary"]["matchedListRows"], 1)
+        self.assertEqual(result["data"]["summary"]["nestedFieldCount"], 2)
+        self.assertEqual([table["title"] for table in result["data"]["tables"]], [
+            "飞行员详情", "layerInfosList", "educationList",
+        ])
+        self.assertNotIn("[object Object]", json.dumps(result["data"], ensure_ascii=False))
 
     def test_flight_query_returns_table_json_and_raw_body(self) -> None:
         executor, session = self.create_executor([FakeResponse(QUERY_PAGE_HTML), FakeResponse(IEB_HOME_HTML), FakeResponse(FLIGHT_RESULT_HTML)])
@@ -304,7 +395,7 @@ class ExecutorTests(unittest.TestCase):
         technical = executor.execute("personnel-info.technical", {"staffNum": "900001"})
         self.assertEqual(technical["data"]["summary"]["recordCount"], 1)
         self.assertEqual(technical["data"]["tables"][0]["rows"][0]["技术等级"], "机长")
-        self.assertIn(("staffNum", "900001"), session.requests[-1]["data"])
+        self.assertEqual(session.requests[-1]["data"]["staffNum"], "900001")
 
     def test_qualification_query_uses_fixed_code_and_parses_page_info(self) -> None:
         executor, session = self.create_executor([
@@ -336,6 +427,49 @@ class ExecutorTests(unittest.TestCase):
         self.assertIn(("pageNum", "2"), params)
         self.assertEqual(session.requests[-1]["method"], "GET")
 
+    def test_qualification_roster_executes_request_shapes_and_parses_export_rows(self) -> None:
+        executor, session = self.create_executor([
+            FakeResponse(QUERY_PAGE_HTML),
+            FakeResponse(IEB_HOME_HTML),
+            FakeResponse(ROSTER_FILTER_HTML),
+            FakeResponse("<div>运行资格选择器</div>"),
+            FakeResponse(ROSTER_QUALIFICATION_HTML),
+            FakeResponse("<div>共 2 条记录</div>"),
+            FakeResponse("", content_type="multipart/form-data;charset=utf-8", content=make_roster_export()),
+        ])
+        executor.load_credentials("JSESSIONID=session-value; iebJSid=browser-value")
+
+        filters = executor.execute("qualification-roster.filter-page", {})
+        self.assertEqual(filters["data"]["tables"][0]["columns"], ["字段", "字段名称", "是否多选", "选项值", "选项名称"])
+        self.assertEqual(filters["data"]["summary"], {"fieldCount": 10, "optionCount": 11})
+
+        qualifications = executor.execute("qualification-roster.operating-qualifications", {})
+        self.assertEqual(qualifications["data"]["tables"][0]["rows"][0]["资格代码"], "RAMA")
+        self.assertEqual(session.requests[-2]["method"], "POST")
+
+        supplied = {
+            "fleetCdToArray": ["777", "787"],
+            "activeStatusArray": ["ZAIZHI", "WAIBU", "TUIXIU", "LIZHI"],
+            "operQualArray": "RAMA",
+        }
+        query = executor.execute("qualification-roster.query", supplied)
+        self.assertEqual(query["data"]["summary"]["total"], 2)
+        self.assertEqual(
+            [value for name, value in session.requests[-1]["params"] if name == "fleetCdToArray"],
+            ["777", "787"],
+        )
+
+        exported = executor.execute("qualification-roster.native-export", supplied)
+        self.assertEqual(exported["data"]["summary"], {
+            "ooxml": True,
+            "recordCount": 2,
+            "columnCount": 3,
+        })
+        self.assertEqual(exported["data"]["tables"][0]["columns"], ["员工号", "姓名", "运行资格"])
+        self.assertEqual(exported["data"]["tables"][0]["rows"][0]["员工号"], "900001")
+        self.assertEqual(exported["data"]["tables"][0]["rows"][1]["员工号"], "090002")
+        self.assertEqual(exported["body"], "")
+
     def test_verified_cookie_is_kept_alive_with_read_only_query_page(self) -> None:
         request_event = threading.Event()
         executor, session = self.create_executor(
@@ -353,7 +487,7 @@ class ExecutorTests(unittest.TestCase):
 
     def test_soc_session_reports_server_rendered_name_without_inventing_staff_number(self) -> None:
         executor, session = self.create_executor([
-            FakeResponse(QUERY_PAGE_HTML),
+            FakeResponse(SOC_ENTRY_HTML),
             FakeResponse(SOC_NAVIGATION_HTML, url="https://soc.example.test/opws-web/pages/public/soc.jsp?f=2&s=11&t=1"),
         ])
         loaded = executor.load_credentials("JSESSIONID=soc-session", "soc")
@@ -366,6 +500,58 @@ class ExecutorTests(unittest.TestCase):
                 self.catalog.get_session_request("soc", "identity").url,
             ],
         )
+
+    def test_soc_endpoints_use_shared_core_and_return_structured_tables(self) -> None:
+        station_payload = json.dumps({"result": ["郑州"]}, ensure_ascii=False)
+        reason_payload = json.dumps({"rows": [{"value": "6", "label": "学习培训"}]}, ensure_ascii=False)
+        flight_payload = json.dumps({
+            "total": 1,
+            "rows": [{
+                "fltNr": "1234", "seqNr": "01", "fltDt": "2026-01-15",
+                "fltRoute": "CAN-CGO", "fltTime": "08:00-10:00",
+                "crewDepDt": "2026-01-15 07:00", "subfleetType": "32A", "alnCd": "CZ",
+            }],
+        }, ensure_ascii=False)
+        validation_payload = json.dumps({
+            "total": 1, "failFeedback": "",
+            "rows": [{"staffNum": "900001", "chnName": "测试员工"}],
+        }, ensure_ascii=False)
+        submit_payload = json.dumps({"message": "录入成功！"}, ensure_ascii=False)
+        executor, session = self.create_executor([
+            FakeResponse(SOC_ENTRY_HTML),
+            FakeResponse(SOC_NAVIGATION_HTML),
+            FakeResponse(station_payload, content_type="application/json"),
+            FakeResponse(reason_payload, content_type="application/json"),
+            FakeResponse(flight_payload, content_type="application/json"),
+            FakeResponse(validation_payload, content_type="application/json"),
+            FakeResponse(submit_payload, content_type="application/json"),
+        ])
+        executor.load_credentials("JSESSIONID=soc-session", "soc")
+
+        suggestions = executor.execute("soc-positioning.station-suggest", {"dataJson": "zhengzhou"})
+        self.assertEqual(suggestions["data"]["tables"][0]["rows"], [{"站点": "郑州"}])
+        reasons = executor.execute("soc-positioning.apply-reasons", {})
+        self.assertEqual(reasons["data"]["tables"][0]["rows"][0]["label"], "学习培训")
+        flights = executor.execute("soc-positioning.flights", {
+            "kkTvlApplyVO.fltDt": "2026-01-15",
+            "kkTvlApplyVO.depArpCd": "广州",
+            "kkTvlApplyVO.arvArpCd": "郑州",
+        })
+        self.assertEqual(flights["data"]["tables"][0]["rows"][0]["航线"], "CAN-CGO")
+        validation = executor.execute("soc-positioning.staff-validation", {
+            "staffNums": "900001", "depArpCd": "广州", "arvArpCd": "郑州",
+            "fltDt": "2026-01-15", "fltDt2": "2026-01-15", "applyReasonCd": "6",
+            "fltRoute": "CAN-CGO",
+        })
+        self.assertEqual(validation["data"]["tables"][0]["rows"][0]["chnName"], "测试员工")
+        submitted = executor.execute("soc-positioning.submit", {
+            "kkTvlStaffNum1": "900001", "kkTvlApplyVO.staffNum": "900001",
+            "kkTvlApplyVO.fltDt": "2026-01-15", "kkTvlApplyVO.depArpCd": "广州",
+            "kkTvlApplyVO.arvArpCd": "郑州", "kkTvlApplyVO.fltNr": "composite",
+            "kkTvlApplyVO.fltDt2": "2026-01-15", "kkTvlApplyVO.applyReasonCd": "6",
+        })
+        self.assertTrue(submitted["data"]["summary"]["success"])
+        self.assertEqual(session.requests[-1]["url"], self.catalog.get_endpoint("soc-positioning.submit").url)
 
     def test_oa_count_workflow_scans_all_pages_and_returns_summary(self) -> None:
         executor, _session = self.create_executor([
@@ -451,6 +637,24 @@ class ExecutorTests(unittest.TestCase):
         statuses = executor.all_session_statuses()
         self.assertFalse(statuses["flight-portal"]["ready"])
         self.assertTrue(statuses["oa"]["ready"])
+
+    def test_oa_read_workflow_continues_after_non_session_business_failure(self) -> None:
+        executor, session = self.create_executor([
+            FakeResponse(OA_USER_INFO, url="https://work.example.test/user", content_type="application/json"),
+            FakeResponse(OA_WAITING, url="https://work.example.test/waiting", content_type="application/json"),
+            FakeResponse(OA_FAILURE, url="https://work.example.test/read-1", content_type="application/json"),
+            FakeResponse(OA_SUCCESS, url="https://work.example.test/read-2", content_type="application/json"),
+        ])
+        executor.load_credentials("SESSION=oa-session; ROUTE-SESSION=oa-route", "oa")
+
+        result = executor.execute("oa-read.read", {"count": 2})
+
+        self.assertEqual(result["data"]["summary"]["success"], 1)
+        self.assertEqual(result["data"]["summary"]["failed"], 1)
+        self.assertEqual([request["url"] for request in session.requests[-2:]], [
+            self.catalog.get_execution_request("oa-read.read", "mark-read").url,
+            self.catalog.get_execution_request("oa-read.read", "mark-read").url,
+        ])
 
     def test_keepalive_interval_stays_within_requested_range(self) -> None:
         values = [random_keepalive_interval() for _ in range(200)]

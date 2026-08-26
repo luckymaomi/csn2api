@@ -64,6 +64,7 @@
     { "id": "navigation-page", "name": "当前登录人信息", "purpose": "读取 SOC 外层页服务端渲染的当前登录姓名。", "risk": "read", "method": "GET", "path": "/opws-web/pages/public/soc.jsp?f=2&s=11&t=1", "parameters": [], "response": "HTML；当前登录姓名来自 #checkout_soc 或 #checkout 中的欢迎您文本。" }
   ],
   "technicalNotes": [
+    "API 文档和本地工作台共用 SOC protocol core；Cookie、会话失效、站点、航班、员工校验、提交表单和成功判据只有一套实现。",
     "SOC 与 IEB、OA 不共享 Cookie、Session 或接口事实。",
     "站点建议按拼音查询；本地热门城市字典只用于初始候选，最终以动态航班结果为准。",
     "申请原因使用页面当前 20 条静态字典，接口仅用于只读核对变化。",

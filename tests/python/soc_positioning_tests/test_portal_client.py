@@ -3,9 +3,11 @@ import sys
 from pathlib import Path
 
 APP_ROOT = Path(__file__).resolve().parents[3] / "public" / "tool" / "app" / "http-soc-positioning-helper"
+SHARED_ROOT = Path(__file__).resolve().parents[3] / "public" / "tool" / "app" / "_shared"
 sys.path.insert(0, str(APP_ROOT))
+sys.path.insert(0, str(SHARED_ROOT))
 
-from soc_positioning.models import FlightOption, StaffIdentity  # noqa: E402
+from soc_protocol import FlightOption, StaffIdentity  # noqa: E402
 from soc_positioning.portal_client import SocPortalClient  # noqa: E402
 
 
@@ -36,6 +38,12 @@ class FakeSession:
 
     def get(self, _url, **_kwargs):
         return FakeResponse("<form id='applyFm'><input name='KkTvlApply'></form>")
+
+    def request(self, method, url, **kwargs):
+        if method == "GET":
+            return self.get(url, **kwargs)
+        data = kwargs.pop("data", None)
+        return self.post(url, data=data, **kwargs)
 
     def post(self, url, data=None, **_kwargs):
         self.posts.append((url, data))

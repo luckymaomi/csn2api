@@ -3,7 +3,7 @@ from __future__ import annotations
 import unittest
 
 from .common import APP_ROOT  # noqa: F401
-from http_flight_stats.credentials import credential_summary, format_credentials, parse_credentials
+from ieb_protocol import credential_summary, format_credentials, parse_credentials
 
 
 class CredentialTests(unittest.TestCase):

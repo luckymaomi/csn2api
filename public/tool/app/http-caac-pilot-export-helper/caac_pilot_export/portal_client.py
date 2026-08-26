@@ -1,46 +1,29 @@
 from __future__ import annotations
 
-import json
 import time
-from threading import RLock
-from typing import Any, Callable
-from urllib.parse import urljoin
+from typing import Callable
 
 import requests
 
-from .credentials import credential_summary, format_credentials, parse_credentials
-from .input_data import archive_key
+from caac_protocol import (
+    BASE_URL,
+    CaacContractError,
+    CaacProtocolClient,
+    CaacProtocolError,
+    CaacSessionExpired,
+    build_list_form,
+    credential_summary,
+    format_credentials,
+    parse_pilot_page,
+)
+
 from .models import PilotRecord, PilotOutcome
 from .session_keepalive import SessionKeepAlive, random_keepalive_interval
 
-BASE_URL = "https://fsop.caac.gov.cn"
-LIST_PATH = "/yzzzm/rygl/queryPilotByParamForPage"
-DETAIL_PATH = "/yzzzm/rygl/queryPilotDetails"
 
-
-class PortalError(RuntimeError):
-    pass
-
-
-class PortalSessionExpired(PortalError):
-    pass
-
-
-class PortalContractError(PortalError):
-    pass
-
-
-def _is_login_response(response: requests.Response) -> bool:
-    location = str(response.headers.get("Location") or "").lower()
-    text = str(response.text or "")[:5000].lower()
-    return "login.jsp" in location or "/login" in location or "login.jsp" in text or "登录" in text and "password" in text
-
-
-def _json(response: requests.Response) -> Any:
-    try:
-        return response.json()
-    except (ValueError, json.JSONDecodeError) as error:
-        raise PortalContractError("CAAC 接口未返回有效 JSON") from error
+PortalError = CaacProtocolError
+PortalSessionExpired = CaacSessionExpired
+PortalContractError = CaacContractError
 
 
 class PortalClient:
@@ -51,144 +34,71 @@ class PortalClient:
         timeout: int = 30,
         keepalive_interval_factory: Callable[[], int] = random_keepalive_interval,
     ) -> None:
-        self.session = session or requests.Session()
-        self.base_url = base_url.rstrip("/")
+        self.protocol = CaacProtocolClient(session, base_url, timeout)
+        self.session = self.protocol.session
+        self.base_url = self.protocol.base_url
         self.timeout = timeout
-        self.request_lock = RLock()
+        self.request_lock = self.protocol.request_lock
         self.keepalive = SessionKeepAlive(keepalive_interval_factory, timeout, "caac-pilot-cookie-keepalive")
-        self.cookies: dict[str, str] = {}
         self.copyable_credentials = ""
         self.verified_at = ""
-        self.session.headers.update({
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/151 Safari/537.36",
-            "Accept": "application/json, text/javascript, */*; q=0.01",
-            "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
-            "Origin": self.base_url,
-            "X-Requested-With": "XMLHttpRequest",
-        })
 
-    def _url(self, path: str) -> str:
-        return urljoin(self.base_url + "/", path.lstrip("/"))
+    @property
+    def cookies(self) -> dict[str, str]:
+        return self.protocol.cookies
 
-    def _post(self, path: str, data: dict[str, str]) -> requests.Response:
-        with self.request_lock:
-            try:
-                response = self.session.post(
-                    self._url(path),
-                    params={"ajaxPrefilter": str(int(time.time() * 1000))},
-                    data=data,
-                    headers={"Referer": self._url("/yzzzm/rygl/pilotredirect"), "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8"},
-                    timeout=self.timeout,
-                    allow_redirects=False,
-                )
-            except requests.RequestException as error:
-                raise PortalError(f"CAAC 请求失败：{error.__class__.__name__}") from error
-        if response.status_code in {301, 302, 303, 307, 308} or _is_login_response(response):
-            raise PortalSessionExpired("CAAC 登录凭据已失效，请重新复制已登录请求")
-        if response.status_code != 200:
-            raise PortalError(f"CAAC HTTP 请求失败（状态 {response.status_code}）")
-        return response
+    @staticmethod
+    def _list_form(page: int, rows: int = 10, pilotname: str = "", archive_no: str = "") -> dict[str, str]:
+        return build_list_form(page, rows, {"pilotname": pilotname, "archiveNo": archive_no})
+
+    _parse_page = staticmethod(parse_pilot_page)
 
     def load_credentials(self, source: str) -> dict[str, object]:
-        cookies = parse_credentials(source)
-        self.clear_credentials()
-        for name, value in cookies.items():
-            self.session.cookies.set(name, value, domain="fsop.caac.gov.cn", path="/")
-        try:
-            payload = _json(self._post(LIST_PATH, self._list_form(1, 1)))
-            rows, total = self._parse_page(payload)
-            if total < 0 or not isinstance(rows, list):
-                raise PortalContractError("CAAC 列表响应结构异常")
-        except Exception:
-            self.clear_credentials()
-            raise
-        self.cookies = cookies
+        cookies, total = self.protocol.load_credentials(source)
         self.copyable_credentials = format_credentials(cookies)
         self.verified_at = time.strftime("%Y-%m-%d %H:%M:%S")
         return {**credential_summary(cookies), "verifiedAt": self.verified_at, "total": total}
 
-    @staticmethod
-    def _list_form(page: int, rows: int = 10, pilotname: str = "", archive_no: str = "") -> dict[str, str]:
-        return {"archiveNo": archive_no, "idCode": "", "regionId": "", "nationality": "", "pilotname": pilotname, "orgId": "", "licenseType": "", "medicalStatus": "", "copType": "", "page": str(page), "rows": str(rows), "sort": "archiveNo", "order": "asc"}
-
-    @staticmethod
-    def _parse_page(payload: Any) -> tuple[list[dict[str, Any]], int]:
-        if not isinstance(payload, dict) or not isinstance(payload.get("rows"), list):
-            raise PortalContractError("CAAC 列表响应缺少 rows 数组")
-        try:
-            total = int(payload.get("total"))
-        except (TypeError, ValueError) as error:
-            raise PortalContractError("CAAC 列表响应缺少有效 total") from error
-        rows = [row for row in payload["rows"] if isinstance(row, dict)]
-        if len(rows) != len(payload["rows"]):
-            raise PortalContractError("CAAC 列表 rows 包含非对象记录")
-        return rows, total
-
     def check_session(self) -> None:
-        self.require_credentials()
-        payload = _json(self._post(LIST_PATH, self._list_form(1, 1)))
-        self._parse_page(payload)
+        self.protocol.check_session()
 
     def require_credentials(self) -> None:
         if not self.cookies:
             raise PortalSessionExpired("请先验证 CAAC 登录凭据")
 
-    def fetch_page(self, page: int, page_size: int = 10, *, pilotname: str = "", archive_no: str = "") -> tuple[list[dict[str, Any]], int]:
-        self.require_credentials()
-        payload = _json(self._post(LIST_PATH, self._list_form(page, page_size, pilotname, archive_no)))
-        return self._parse_page(payload)
-
-    def _fetch_pilots(self, page_size: int = 10, *, pilotname: str = "", archive_no: str = "") -> tuple[list[PilotRecord], int]:
-        records: list[PilotRecord] = []
-        seen: set[str] = set()
-        total: int | None = None
-        page = 1
-        while True:
-            rows, reported_total = self.fetch_page(page, page_size, pilotname=pilotname, archive_no=archive_no)
-            total = reported_total if total is None else total
-            if reported_total != total:
-                raise PortalContractError("CAAC 分页 total 在批次内发生变化")
-            if not rows and len(records) < total:
-                raise PortalContractError("CAAC 分页提前返回空页")
-            new_count = 0
-            for row in rows:
-                pilot_id = str(row.get("pilotId") or "").strip()
-                if not pilot_id:
-                    raise PortalContractError("CAAC 列表记录缺少 pilotId")
-                if pilot_id in seen:
-                    raise PortalContractError("CAAC 分页返回重复 pilotId")
-                seen.add(pilot_id)
-                records.append(PilotRecord(len(records), row))
-                new_count += 1
-            if len(records) >= total:
-                break
-            if new_count == 0:
-                raise PortalContractError("CAAC 分页没有前进")
-            page += 1
-        return records, int(total)
+    def fetch_page(
+        self,
+        page: int,
+        page_size: int = 10,
+        *,
+        pilotname: str = "",
+        archive_no: str = "",
+    ) -> tuple[list[dict[str, object]], int]:
+        return self.protocol.fetch_page(
+            page,
+            page_size,
+            filters={"pilotname": pilotname, "archiveNo": archive_no},
+        )
 
     def fetch_all_pilots(self, page_size: int = 10) -> tuple[list[PilotRecord], int]:
-        return self._fetch_pilots(page_size)
+        rows, total = self.protocol.fetch_all_rows(page_size)
+        return [PilotRecord(index, row) for index, row in enumerate(rows)], total
 
     def resolve_pilot(self, requested: PilotRecord, page_size: int = 10) -> PilotRecord:
-        records, _total = self._fetch_pilots(
+        listing, _scanned = self.protocol.resolve_by_name(
+            requested.input_name,
+            requested.input_archive_no,
             page_size,
-            pilotname=requested.input_name,
-            archive_no=requested.input_archive_no,
+            lambda page, size: self.fetch_page(
+                page,
+                size,
+                pilotname=requested.input_name,
+                archive_no=requested.input_archive_no,
+            ),
         )
-        matches = [record for record in records if record.name == requested.input_name]
-        if requested.input_archive_no:
-            requested_archive = archive_key(requested.input_archive_no)
-            matches = [record for record in matches if archive_key(record.archive_no) == requested_archive]
-        label = f"{requested.input_name}（档案号 {requested.input_archive_no}）" if requested.input_archive_no else requested.input_name
-        if not matches:
-            raise PortalContractError(f"{requested.source or label}：未找到 {label} 的精确匹配")
-        if len(matches) != 1:
-            raise PortalContractError(f"{requested.source or label}：{label} 匹配到 {len(matches)} 人，无法唯一归属")
-        match = matches[0]
         return PilotRecord(
             requested.index,
-            match.listing,
+            listing,
             requested.input_name,
             requested.input_archive_no,
             requested.source,
@@ -196,28 +106,29 @@ class PortalClient:
             requested.input_row,
         )
 
-    def fetch_detail(self, pilot_id: str) -> dict[str, Any]:
-        self.require_credentials()
-        response = self._post(DETAIL_PATH, {"pilotId": str(pilot_id)})
-        payload = _json(response)
-        if not isinstance(payload, dict) or str(payload.get("pilotId") or "") != str(pilot_id):
-            raise PortalContractError("CAAC 详情无法按 pilotId 归属")
-        return payload
+    def fetch_detail(self, pilot_id: str) -> dict[str, object]:
+        return self.protocol.fetch_detail(pilot_id)
 
     def query_one(self, record: PilotRecord) -> PilotOutcome:
         resolved = record if record.pilot_id else self.resolve_pilot(record)
-        detail = self.fetch_detail(resolved.pilot_id)
-        return PilotOutcome(resolved, "成功", detail=detail)
+        return PilotOutcome(resolved, "成功", detail=self.fetch_detail(resolved.pilot_id))
 
     def invalidate_credentials(self) -> None:
         self.clear_credentials()
 
     def clear_credentials(self) -> None:
-        self.cookies = {}
+        self.protocol.clear_credentials()
         self.copyable_credentials = ""
         self.verified_at = ""
-        self.session.cookies.clear()
 
     def close(self) -> None:
         self.keepalive.stop()
-        self.session.close()
+        self.protocol.close()
+
+
+__all__ = [
+    "PortalClient",
+    "PortalContractError",
+    "PortalError",
+    "PortalSessionExpired",
+]

@@ -8,8 +8,10 @@ from datetime import datetime
 from pathlib import Path
 from typing import Callable
 
+from ieb_protocol.qualification_monitor_models import QualificationGroup
+
 from .exporter import NativeExportStore
-from .models import ExportSummary, QualificationGroup
+from .models import ExportSummary
 from .portal_client import PortalClient, PortalSessionExpired
 from .runner import ExportRunner
 from .session_keepalive import random_keepalive_interval

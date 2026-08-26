@@ -5,6 +5,17 @@ import unittest
 
 from .common import CATALOG_ROOT
 from api_docs.catalog import ApiCatalog
+from caac_protocol import DETAIL_PATH, LIST_PATH, build_list_form
+from soc_protocol import (
+    APPLY_REASONS,
+    FLIGHTS_PATH,
+    STAFF_VALIDATE_PATH,
+    SUBMIT_PATH,
+    SUGGEST_PATH,
+    StaffIdentity,
+    build_staff_validation_form,
+    build_submit_form,
+)
 
 
 class CatalogTests(unittest.TestCase):
@@ -61,7 +72,7 @@ class CatalogTests(unittest.TestCase):
 
     def test_request_roles_separate_sessions_execution_and_related_requests(self) -> None:
         serialized = json.dumps(self.catalog.as_dict(), ensure_ascii=False)
-        self.assertEqual(len(self.catalog.request_definitions), 22)
+        self.assertEqual(len(self.catalog.request_definitions), 26)
 
         ieb_validation = self.catalog.get_session_request("flight-portal", "validation")
         ieb_keepalive = self.catalog.get_session_request("flight-portal", "keepAlive")
@@ -77,7 +88,7 @@ class CatalogTests(unittest.TestCase):
             for record in self.catalog.endpoints.values()
             if record.endpoint["execution"]["kind"] == "direct-http"
         ]
-        self.assertEqual(len(direct), 43)
+        self.assertEqual(len(direct), 46)
         for record in direct:
             primary = [
                 step
@@ -127,6 +138,15 @@ class CatalogTests(unittest.TestCase):
         self.assertEqual(self.catalog.get_session_request("caac-fsop", "validation").full_id, "caac-pilot-export.pilot-list-session")
         self.assertEqual(self.catalog.get_session_request("caac-fsop", "keepAlive").full_id, "caac-pilot-export.pilot-list-session")
         self.assertEqual(self.catalog.get_endpoint("soc-positioning.submit").endpoint["risk"], "write")
+
+        self.assertEqual(
+            [step["id"] for step in self.catalog.get_execution_steps("caac-pilot-export.pilot-detail")],
+            ["lookup-pilot", "fetch-detail"],
+        )
+        self.assertEqual(
+            self.catalog.get_execution_request("caac-pilot-export.pilot-detail", "fetch-detail").endpoint["path"],
+            DETAIL_PATH,
+        )
 
     def test_personnel_info_keeps_verified_request_contracts(self) -> None:
         basic = self.catalog.get_endpoint("personnel-info.basic").endpoint
@@ -181,6 +201,54 @@ class CatalogTests(unittest.TestCase):
         for derived in ("dateSplitFlag", "lockDays", "lockTypeDesc", "chnName", "orgUnitName", "random"):
             self.assertIn(derived, controls)
             self.assertTrue(controls[derived]["fixed"])
+
+    def test_qualification_roster_keeps_repeatable_filter_contracts(self) -> None:
+        for endpoint_id in ("qualification-roster.query", "qualification-roster.native-export"):
+            parameters = {
+                item["name"]: item
+                for item in self.catalog.get_endpoint(endpoint_id).endpoint["parameters"]
+            }
+            self.assertTrue(parameters["fleetCdToArray"]["repeatable"])
+            self.assertTrue(parameters["activeStatusArray"]["repeatable"])
+            self.assertFalse(parameters["qualTypeArray"].get("includeWhenEmpty", False))
+
+    def test_caac_catalog_matches_shared_protocol_core(self) -> None:
+        listing = self.catalog.get_endpoint("caac-pilot-export.pilot-list").endpoint
+        detail = self.catalog.get_execution_request("caac-pilot-export.pilot-detail", "fetch-detail").endpoint
+        self.assertEqual(str(listing["path"]).split("?", 1)[0], LIST_PATH)
+        self.assertEqual(detail["path"], DETAIL_PATH)
+        catalog_fields = {item["name"] for item in listing["parameters"]}
+        self.assertEqual(catalog_fields, set(build_list_form(1)))
+
+    def test_soc_catalog_matches_shared_protocol_core(self) -> None:
+        expected_paths = {
+            "station-suggest": SUGGEST_PATH,
+            "flights": FLIGHTS_PATH,
+            "staff-validation": STAFF_VALIDATE_PATH,
+            "submit": SUBMIT_PATH,
+        }
+        for endpoint_id, path in expected_paths.items():
+            endpoint = self.catalog.get_endpoint(f"soc-positioning.{endpoint_id}").endpoint
+            self.assertEqual(endpoint["path"], path)
+
+        validation = self.catalog.get_endpoint("soc-positioning.staff-validation").endpoint
+        validation_fields = {item["name"] for item in validation["parameters"]}
+        self.assertEqual(validation_fields, set(build_staff_validation_form(
+            "900001", "广州", "郑州", "2026-01-15", "6", "CAN-CGO",
+        )))
+
+        submit = self.catalog.get_endpoint("soc-positioning.submit").endpoint
+        submit_fields = {item["name"] for item in submit["parameters"]}
+        self.assertEqual(submit_fields, set(build_submit_form(
+            identity=StaffIdentity("900001", "测试员工"),
+            flight_date="2026-01-15", departure="广州", arrival="郑州",
+            option_value="composite", reason_code="6", comment="测试",
+        )))
+        reason = next(item for item in submit["parameters"] if item["name"] == "kkTvlApplyVO.applyReasonCd")
+        self.assertEqual(
+            [(item["value"], item["label"]) for item in reason["options"]],
+            list(APPLY_REASONS),
+        )
 
 if __name__ == "__main__":
     unittest.main()
