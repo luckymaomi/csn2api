@@ -199,6 +199,8 @@ lockEndHourAndMinute=HH:mm
 - `#showNonproductionTaskImportResultPage2`：冲突列表。
 - `#showNonproductionTaskImportResultPage2 tbody.list tr`：冲突数据行。
 
+普通结果响应可能以 `#showNonproductionTaskImportResultPage1` 为外层区域，也可能直接以 `#showNonproductionTaskImportResultPage1table` 表片段为根；两种形状读取同一动态表头和数据行。不得回退到页面内任意 table。
+
 普通结果按表头读取锁班状态、员工号、姓名、部门、开始日期、结束日期、锁班天数、锁班类型和锁班原因。冲突结果当前表头依次为序号、锁班结果、员工号、姓名、部门、开始日期、结束日期、锁班天数、锁班类型、锁班原因和冲突。存在冲突数据行但缺少“冲突”表头属于响应契约变化。空表以“没有相关信息”为准。
 
 业务成功不能只看 HTTP 200。必须按当前员工号、校验姓名、实际类型、实际起止日期精确归属普通结果，并确认冲突表为空。已验证的冲突提交表现为：普通结果 0 行、冲突表 1 行，并且该冲突行不会出现在待审批查询中。

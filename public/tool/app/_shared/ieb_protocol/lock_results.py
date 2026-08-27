@@ -53,8 +53,17 @@ def _table_rows(root: Tag, headers: list[str]) -> list[dict[str, str]]:
     return rows
 
 
-def _section(soup: BeautifulSoup, selector: str) -> tuple[list[str], list[dict[str, str]]]:
+def _section(
+    soup: BeautifulSoup,
+    selector: str,
+    *fallback_selectors: str,
+) -> tuple[list[str], list[dict[str, str]]]:
     root = soup.select_one(selector)
+    if root is None:
+        for candidate in fallback_selectors:
+            root = soup.select_one(candidate)
+            if root is not None:
+                break
     if root is None:
         raise IebContractError(f"门户响应缺少结果区域 {selector}")
     headers = _table_headers(root)
@@ -65,7 +74,11 @@ def _section(soup: BeautifulSoup, selector: str) -> tuple[list[str], list[dict[s
 
 def parse_submit_result(html: str) -> SubmitResult:
     soup = BeautifulSoup(str(html or ""), "html.parser")
-    _headers, result_rows = _section(soup, "#showNonproductionTaskImportResultPage1")
+    _headers, result_rows = _section(
+        soup,
+        "#showNonproductionTaskImportResultPage1",
+        "#showNonproductionTaskImportResultPage1table",
+    )
     conflict_headers, conflict_rows = _section(soup, "#showNonproductionTaskImportResultPage2")
     if conflict_rows and "冲突" not in conflict_headers:
         raise IebContractError("门户冲突结果缺少“冲突”列")

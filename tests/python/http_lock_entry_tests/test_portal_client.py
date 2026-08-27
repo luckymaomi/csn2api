@@ -2,7 +2,13 @@ from __future__ import annotations
 
 import unittest
 
-from .common import APP_DIR, CONFLICT_HTML, ENTRY_HTML, SUCCESS_HTML  # noqa: F401
+from .common import (  # noqa: F401
+    APP_DIR,
+    CONFLICT_HTML,
+    ENTRY_HTML,
+    RESULT_TABLE_ONLY_HTML,
+    SUCCESS_HTML,
+)
 from http_lock_entry.portal_client import PortalClient, PortalSessionExpired
 from ieb_protocol import IebContractError, format_credentials
 from ieb_protocol.base import parse_current_identity
@@ -140,6 +146,17 @@ class HttpPortalClientTest(unittest.TestCase):
         self.assertEqual(result.conflict_rows[0]["部门"], "测试部门")
         self.assertEqual(result.conflict_rows[0]["锁班天数"], "1")
         self.assertEqual(result.conflict_rows[0]["冲突"], "年度年假锁班天数不足")
+
+    def test_submit_result_accepts_portal_result_table_fragment(self):
+        result = parse_submit_result(RESULT_TABLE_ONLY_HTML)
+        self.assertEqual(len(result.result_rows), 1)
+        self.assertEqual(result.result_rows[0]["锁班状态"], "待审批")
+        self.assertEqual(result.result_rows[0]["锁班原因"], "片段结果")
+        self.assertEqual(result.conflict_rows, [])
+
+    def test_submit_result_rejects_unknown_result_markup(self):
+        with self.assertRaisesRegex(IebContractError, "缺少结果区域 #showNonproductionTaskImportResultPage1"):
+            parse_submit_result('<div id="unrelated">没有相关信息</div>')
 
     def test_query_pagination_keeps_checkbox_record_id(self):
         def query_html(record_id, page_link=""):

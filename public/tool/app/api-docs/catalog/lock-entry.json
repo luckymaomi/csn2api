@@ -69,7 +69,7 @@
       "response": {
         "format": "HTML sections",
         "statuses": [
-          { "code": 200, "description": "普通结果与冲突结果 HTML；HTTP 200 不等于锁班成功" }
+          { "code": 200, "description": "普通结果区或普通结果表片段，以及冲突结果区 HTML；HTTP 200 不等于锁班成功" }
         ],
         "fields": [
           { "name": "普通结果", "type": "table", "description": "锁班状态、员工号、姓名、部门、日期、天数、类型和原因" },

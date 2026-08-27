@@ -46,6 +46,25 @@ SUCCESS_HTML = """
 </div>
 """
 
+
+RESULT_TABLE_ONLY_HTML = """
+<div id="showNonproductionTaskImportResultPage1table">
+  <table><thead><tr>
+    <th>锁班状态</th><th>员工号</th><th>姓名</th><th>部门</th><th>开始日期</th>
+    <th>结束日期</th><th>锁班天数</th><th>锁班类型</th><th>锁班原因</th>
+  </tr></thead>
+  <tbody class="list"><tr>
+    <td>待审批</td><td>900001</td><td>测试甲</td><td>测试部门</td>
+    <td>2026-10-08 08:17:00</td><td>2026-10-08 18:43:00</td><td>1</td>
+    <td>业务学习(占值勤期类别)</td><td>片段结果</td>
+  </tr></tbody></table>
+</div>
+<div id="showNonproductionTaskImportResultPage2">
+  <table><thead><tr><th>锁班结果</th></tr></thead>
+  <tbody class="list"><tr><td>没有相关信息</td></tr></tbody></table>
+</div>
+"""
+
 CONFLICT_HTML = """
 <div id="showNonproductionTaskImportResultPage1">
   <table><thead><tr><th>锁班状态</th></tr></thead>

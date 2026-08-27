@@ -63,6 +63,11 @@ LOCK_RESULT_HTML = """
 </div>
 """
 
+LOCK_RESULT_TABLE_ONLY_HTML = LOCK_RESULT_HTML.replace(
+    'id="showNonproductionTaskImportResultPage1"',
+    'id="showNonproductionTaskImportResultPage1table"',
+)
+
 BASIC_INFO_JSON = json.dumps({
     "empDto": {"birthDate": "2000-01-01", "position": "飞行员"},
     "eduList": [{"school": "样例院校", "education": "本科"}],
@@ -375,6 +380,31 @@ class ExecutorTests(unittest.TestCase):
             session.requests[-2]["url"],
             self.catalog.get_execution_request("lock-entry.submit", "validate-employee").url,
         )
+
+    def test_lock_submit_renders_result_table_fragment_without_wrapper(self) -> None:
+        identity = json.dumps({
+            "permissionFlag": "true",
+            "nameInfo": "测试人员",
+            "deptInfo": "测试部门",
+        }, ensure_ascii=False)
+        executor, _session = self.create_executor([
+            FakeResponse(QUERY_PAGE_HTML),
+            FakeResponse(IEB_HOME_HTML),
+            FakeResponse(ENTRY_HTML),
+            FakeResponse(identity, content_type="application/json"),
+            FakeResponse(LOCK_RESULT_TABLE_ONLY_HTML),
+        ])
+        executor.load_credentials("JSESSIONID=session-value; iebJSid=browser-value")
+        result = executor.execute("lock-entry.submit", {
+            "staffnum": "900001",
+            "lockType": "BS_STUDY",
+            "lockTimeType": "1",
+            "startDt": "2026-10-08T08:59",
+            "endDt": "2026-10-08T19:59",
+            "lockRemark": "测试备注",
+        })
+        self.assertEqual(result["data"]["summary"]["resultCount"], 1)
+        self.assertEqual(result["data"]["tables"][0]["rows"][0]["锁班状态"], "待审批")
 
     def test_personnel_info_executes_multipart_json_and_html_table_requests(self) -> None:
         executor, session = self.create_executor([

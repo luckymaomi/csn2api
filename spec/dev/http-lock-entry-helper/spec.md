@@ -94,7 +94,7 @@ lockEndHourAndMinute=HH:mm
 2. `POST /newieb/nonproductionTask/vaildStaffNum` 校验员工并读取门户姓名、部门。
 3. 构造一个结构化表单 Body。
 4. `POST /newieb/nonproductionTask/showNonproductionTaskImportResultPage` 一次。
-5. 同时解析普通结果区与冲突结果区；冲突区按当前序号、锁班结果、员工号、姓名、部门、开始日期、结束日期、锁班天数、锁班类型、锁班原因和冲突表头读取，并按员工、姓名、类型和完整日期时间精确归属。
+5. 同时解析普通结果区与冲突结果区；普通结果接受外层结果区或门户返回的普通结果表片段，冲突区按当前序号、锁班结果、员工号、姓名、部门、开始日期、结束日期、锁班天数、锁班类型、锁班原因和冲突表头读取，并按员工、姓名、类型和完整日期时间精确归属。
 6. 立即写入结果 Excel，再处理下一条。
 
 门户的 `showNonproductionHolidayRulesTips` 是选定人员和类型后展示年度额度的独立只读请求，额度值不进入锁班提交 Body。工作台按输入类型原样提交，不根据额度切换类型或拆分记录。
