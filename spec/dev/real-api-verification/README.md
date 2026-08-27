@@ -1,6 +1,6 @@
 # 真实接口验收
 
-`scripts/real-api-verification.py` 是仓库内可重复的真实 HTTP 验收入口。它读取本地 Cookie 与验收参数，调用 API 文档使用的执行器，并通过各独立 APP 的 `127.0.0.1` HTTP 路由执行页面对应操作。每个 APP Case 会检查首页共享主题、前端脚本绑定的路由、真实后端路由和生产 protocol core，完成后关闭临时服务并清理临时结果。
+`scripts/real-api-verification.py` 是仓库内可重复的真实 HTTP 验收入口。它读取本地 Cookie 与验收参数，调用 API 文档使用的执行器，并通过各独立 APP 的 `127.0.0.1` HTTP 路由执行页面对应操作。每个 APP Case 会实际请求首页声明的 Bootstrap、共享主题、页面样式、前端脚本和标准保活模块，再检查前端绑定路由、真实后端路由和生产 protocol core；任一运行资源未挂载时在生产业务请求前失败。完成后关闭临时服务并清理临时结果。
 
 复制 `cookies.template.md` 为被 Git 忽略的 `cookies.local.md`，填写验收参数以及需要执行的系统 Cookie。Cookie、真实身份、原始响应和业务结果不会写入仓库。
 

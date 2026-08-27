@@ -6,4 +6,4 @@
 
 点击工具卡片的下载图标会下载该工具自己的 ZIP。解压后打开根目录 index.html 即可使用；Python 文件和 requirements.txt 会一并保留。
 
-维护者只需编辑 src/tool/tools-data.ts 管理首页目录；站点门禁配置位于 src/site-visibility.ts 的 homepage.patternGate。SOC 随机置位 skill 不属于首页工具。
+维护者只需编辑 src/tool/tools-data.ts 管理首页目录；站点门禁配置位于 src/site-visibility.ts 的 homepage.patternGate。Skill 不直接生成首页卡片；SOC 随机置位批量助手与其他工具一样通过 tools-data.ts 登记，并使用独立的 SOC 会话和接口实现。

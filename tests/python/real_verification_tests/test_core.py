@@ -4,6 +4,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import Mock, patch
 
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -18,7 +19,7 @@ from real_verification.common import (  # noqa: E402
     result_summary,
 )
 from real_verification.runner import RealVerifier  # noqa: E402
-from real_verification.app_http import require_completed  # noqa: E402
+from real_verification.app_http import require_completed, verify_frontend_route  # noqa: E402
 
 
 class RealVerificationCoreTests(unittest.TestCase):
@@ -75,6 +76,47 @@ Cookie: yzzzm=one; JSESSIONID=two; home=three
                 "progress": {"success": 0},
                 "items": [{"status": "failed", "error": "飞行门户返回 HTTP 500"}],
             })
+
+    def test_frontend_route_requires_every_declared_runtime_asset(self) -> None:
+        page = Mock(status_code=200, text="""
+            <script src="./theme.js"></script>
+            <link rel="stylesheet" href="./libs/bootstrap.min.css">
+            <link rel="stylesheet" href="./theme.css">
+            <link rel="stylesheet" href="./styles.css">
+        """)
+        script = Mock(status_code=200, text='/api/run import("./session_keepalive.mjs")')
+        responses = {
+            "http://127.0.0.1:1234/": page,
+            "http://127.0.0.1:1234/theme.js": Mock(status_code=200, content=b"theme"),
+            "http://127.0.0.1:1234/libs/bootstrap.min.css": Mock(status_code=200, content=b"bootstrap"),
+            "http://127.0.0.1:1234/theme.css": Mock(status_code=200, content=b"theme-style"),
+            "http://127.0.0.1:1234/styles.css": Mock(status_code=404, content=b""),
+            "http://127.0.0.1:1234/app.mjs": script,
+            "http://127.0.0.1:1234/session_keepalive.mjs": Mock(status_code=200, content=b"keepalive"),
+        }
+        with patch("real_verification.app_http.requests.get", side_effect=lambda url, **_kwargs: responses[url]):
+            with self.assertRaisesRegex(RuntimeError, "styles.css"):
+                verify_frontend_route("http://127.0.0.1:1234", "/api/run")
+
+    def test_frontend_route_accepts_complete_runtime_and_bound_route(self) -> None:
+        page = Mock(status_code=200, content=b"page", text="""
+            <script src='./theme.js'></script>
+            <link href='./libs/bootstrap.min.css' rel='stylesheet'>
+            <link href='./theme.css' rel='stylesheet'>
+            <link href='./styles.css' rel='stylesheet'>
+        """)
+        responses = {
+            "http://127.0.0.1:1234/": page,
+            "http://127.0.0.1:1234/theme.js": Mock(status_code=200, content=b"theme"),
+            "http://127.0.0.1:1234/libs/bootstrap.min.css": Mock(status_code=200, content=b"bootstrap"),
+            "http://127.0.0.1:1234/theme.css": Mock(status_code=200, content=b"theme-style"),
+            "http://127.0.0.1:1234/styles.css": Mock(status_code=200, content=b"page-style"),
+            "http://127.0.0.1:1234/app.mjs": Mock(status_code=200, content=b"script", text='/api/run'),
+            "http://127.0.0.1:1234/session_keepalive.mjs": Mock(status_code=200, content=b"keepalive"),
+        }
+        with patch("real_verification.app_http.requests.get", side_effect=lambda url, **_kwargs: responses[url]) as get:
+            verify_frontend_route("http://127.0.0.1:1234", "/api/run")
+        self.assertEqual(get.call_count, len(responses))
 
 
 if __name__ == "__main__":

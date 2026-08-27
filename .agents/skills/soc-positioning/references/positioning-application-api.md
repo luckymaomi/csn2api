@@ -39,6 +39,8 @@ Content-Type: application/x-www-form-urlencoded; charset=UTF-8
 
 一次实测中，16:47 左右捕获的 Cookie 到 16:57 已不能重放。这只能证明会话可能很短，不能据此断言固定十分钟过期。捕获后应立即验证和使用。
 
+同一 Cookie 在另一台电脑或操作系统重放失败，不能直接归因于 Windows/Linux 或本机时钟。应在相近时间用同一业务验证请求对照：原始 Cookie 字节是否被 Markdown/终端转义改变、最终 URL 是否进入 SSO、网络出口是否不同，以及负载均衡或 SSO 是否绑定当前会话。`refreshedTimestamp` 与 `SERVERID` 按服务端返回值原样携带，不由客户端用本机时间重算；没有受控对照时不声称某个字段或操作系统导致失效。
+
 ## 捕获方法
 
 1. 在已登录的 SOC 随机置位页面打开 F12 Network。

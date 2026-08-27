@@ -6,7 +6,9 @@ import json
 import threading
 import time
 from contextlib import contextmanager
+from html.parser import HTMLParser
 from typing import Generator
+from urllib.parse import urlsplit
 
 import requests
 
@@ -19,6 +21,26 @@ FINAL_PHASES = {
     "stopped",
     "terminated",
 }
+REQUIRED_RUNTIME_ASSETS = {
+    "/theme.js",
+    "/libs/bootstrap.min.css",
+    "/theme.css",
+    "/styles.css",
+}
+
+
+class _RuntimeAssetParser(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__()
+        self.paths: set[str] = set()
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        values = dict(attrs)
+        reference = values.get("src") if tag == "script" else values.get("href") if tag == "link" else None
+        if not reference or urlsplit(reference).netloc:
+            return
+        path = "/" + urlsplit(reference).path.lstrip("./")
+        self.paths.add(path)
 
 
 @contextmanager
@@ -52,18 +74,27 @@ def post_json(base_url: str, path: str, payload: dict[str, object]) -> dict[str,
     return _json_response(response, path)
 
 
+def _require_runtime_asset(base_url: str, path: str) -> requests.Response:
+    response = requests.get(f"{base_url}{path}", timeout=30)
+    if response.status_code != 200 or not response.content:
+        raise RuntimeError(f"APP 本地服务没有返回运行资源 {path}")
+    return response
+
+
 def verify_frontend_route(base_url: str, route: str) -> None:
     page = requests.get(f"{base_url}/", timeout=30)
-    if page.status_code != 200 or "theme.css" not in page.text:
-        raise RuntimeError("APP 首页没有通过本地服务挂载共享主题")
-    theme = requests.get(f"{base_url}/theme.css", timeout=30)
-    if theme.status_code != 200 or not theme.text.strip():
-        raise RuntimeError("APP 本地服务没有返回共享 theme.css")
-    response = requests.get(f"{base_url}/app.mjs", timeout=30)
-    if response.status_code != 200:
-        raise RuntimeError(f"APP 前端脚本返回 HTTP {response.status_code}")
+    if page.status_code != 200 or not page.content:
+        raise RuntimeError("APP 本地服务没有返回首页")
+    parser = _RuntimeAssetParser()
+    parser.feed(page.text)
+    for path in sorted(REQUIRED_RUNTIME_ASSETS):
+        if path not in parser.paths:
+            raise RuntimeError(f"APP 首页没有声明运行资源 {path}")
+        _require_runtime_asset(base_url, path)
+    response = _require_runtime_asset(base_url, "/app.mjs")
     if route not in response.text:
         raise RuntimeError(f"APP 前端没有绑定后端路由 {route}")
+    _require_runtime_asset(base_url, "/session_keepalive.mjs")
 
 
 def wait_for_final(base_url: str, *, timeout_seconds: int = 180) -> dict[str, object]:

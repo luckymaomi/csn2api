@@ -2,7 +2,7 @@
 
 ## 定位
 
-`http-soc-positioning-helper` 是独立的 SOC 本地 Python APP，不属于 IEB 首页工具，也不复用 IEB 或 OA Cookie。它以 Excel 活动 Sheet 表头为输入，严格串行执行飞行人员随机置位申请。
+`http-soc-positioning-helper` 是 csn2api 首页登记的独立 SOC 本地 Python APP，不属于 IEB 业务模块，也不复用 IEB 或 OA Cookie、Session 和 protocol core。它以 Excel 活动 Sheet 表头为输入，严格串行执行飞行人员随机置位申请。
 
 APP 与 API 文档共用 `soc_protocol`。该 core 统一维护 Cookie、页面验证、当前登录姓名、站点建议、原因字典、动态航班、航班唯一匹配、员工校验、提交表单、会话失效和业务成功判据；APP 只增加 Excel、严格串行、逐条结果、进度和保活，API 文档只增加单次参数调试与结构化展示。构建把同一 core 封装进两个独立交付目录。
 

@@ -25,7 +25,7 @@
 - 首页业务工具由 `src/tool/tools-data.ts` 登记，不在 Agent 规约中固定工具数量或穷举当前清单。
 - API 文档位于 `public/tool/app/api-docs/`，通过 catalog 按系统持续接入已确认的 HTTP 接口事实和明确标记的本地组合工作流。
 - 每个工作台与 API 文档必须保持独立可运行，不依赖其他本地仓库；不同系统不得共享 Cookie、Session 或接口事实。
-- SOC 随机置位只作为独立维护 skill 保留，不属于 csn2api 首页工具；SOC 与 IEB 不共享页面、Cookie 或接口事实。
+- SOC 随机置位是 csn2api 接入的独立业务系统，当前工作台、API catalog 和 `soc_protocol` 共同维护同一契约；SOC 与 IEB 不共享页面、Cookie、Session、protocol core 或接口事实，领域探测继续由 `soc-positioning` skill 维护。
 
 ## Skills
 
@@ -38,6 +38,13 @@
 - 涉及 API 目录、页面、本地执行器、Cookie 生命周期、真实调试或 Markdown 导出时，读 `.agents/skills/api-docs-dev/SKILL.md`。
 - 涉及 SOC 随机置位、`KkTvlApply` 或随机审批申请时，读 `.agents/skills/soc-positioning/SKILL.md`；不得把 SOC 与 IEB skill 或接口事实混用。
 - 如果 skill 和 owner 当前明确需求冲突，以 owner 当前需求为准，并说明冲突点。
+
+## 规则归属
+
+- `AGENTS.md` 只维护跨工具长期成立的仓库约束；skill 维护可复用开发方法；`spec/dev/` 与 `spec/user/` 维护当前业务行为；catalog 维护 HTTP 声明事实；protocol core 维护真实请求与响应契约。不得在多个层级复制同一事实。
+- 接口路径、参数、动态选项、字段映射和系统特判不得写入通用 skill；一次真实返回的数量、页数和字段快照只能作为当次证据或业务 reference，不能升级为永久常量。
+- 经验沉淀优先变成已有动态合同测试、统一构建或真实验收门禁；只有无法由代码表达且会改变后续决策的内容才写入规约。
+- 当前契约重构直接迁移到新架构，不为已废弃字段、目录、入口或历史结果保留兼容分支；只有当前 spec 明确支持的真实输入才允许兼容，并必须有测试保护。
 
 ## 安全与生产边界
 
@@ -58,6 +65,10 @@
 - 仓库发生代码改动后，收尾前必须运行全量测试；无法运行时说明原因和风险。
 - 真实接口验证需要 owner 当次授权的 Session；没有真实验证时只能报告自动测试结果。
 - 新增或修改 API 文档、请求参数、响应解析或执行链路时，必须先使用 owner 当次授权的 Session 按真实页面正向链路探测请求与响应，再编写 catalog 和执行器；实现后必须使用同一真实链路复验结构化结果。Mock、fixture、HTTP 200 和单元测试只用于保护已确认契约，不能替代修改前探测或修改后真实复验。
+- 开始实现前必须阅读目标 spec、同类型成熟工具、已有 protocol core/catalog 和相关动态合同测试，确认沿用边界与特判位置；中大型任务在 `plan.md` 记录，不得从空白页面或复制旧单文件开始堆功能。
+- 修复回归或改变可观察契约时，先用最小失败测试证明缺口；完成后局部测试、全量 `npm.cmd run verify` 和适用的真实验收必须分别通过。
+- 新增工具不得维护固定工具总数或测试名单。工具登记、页面发现、独立 ZIP、共享运行资源和 protocol core 封装必须进入现有动态发现链路；通用门禁缺口优先修复统一门禁，而不是只给当前工具补特例。
+- 同一能力同时提供 APP 和 API 文档时，验收必须从各自用户入口进入同一 protocol core。API 调通不代表 APP 已接通，APP 可用也不代表 API 文档的参数与结构化展示正确；两个入口必须分别验证。
 
 ## 工程取舍
 
@@ -68,6 +79,7 @@
 - 页面使用 `public/theme.css` 和 `public/theme.js`；页面专属 CSS 只维护布局和领域特判。
 - 同一生产系统的 API 文档与独立 APP 必须共用 protocol core；Cookie 解析、URL/方法、参数构造、分页收敛、会话失效、响应契约和实体归属不得维护两套实现。catalog 是声明式接口事实源，protocol core 是命令式请求实现；APP 只扩展批量编排、进度、Excel 和业务 UI，API 文档只扩展单次调试和结构化展示。
 - 独立分发不等于复制核心源码。构建过程把同一 protocol core 封装进需要它的独立包；任何入口不得在运行时依赖另一个正在运行的 APP。测试必须同时保护 catalog 与 protocol core 契约一致、各入口使用同一 core，以及独立包包含完整运行依赖。
+- 稳定事实集中在 core、catalog、字段映射或共享模块；系统、端点和页面差异放各自 adapter。不得用条件分支把特判反向塞进通用层，也不得把 core、HTTP 适配、批量编排、Excel 和 UI 混成上帝文件。
 
 ## 可维护性与扩展性审查
 

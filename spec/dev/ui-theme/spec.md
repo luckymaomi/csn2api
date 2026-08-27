@@ -4,7 +4,7 @@
 
 `public/theme.css` 是背景、表面、文字、边框、焦点、状态色、点缀色、硬阴影、圆角和 Bootstrap 变量的唯一公共来源。首页、支持页、备忘录、赞助页和各工具页面的 CSS 只维护布局、尺寸、滚动、canvas、文档预览及领域组件特判，不重复定义同义公共主题值。
 
-Python 工作台入口页和独立服务页面加载 Bootstrap、`public/theme.css`、`public/theme.js` 及页面专属样式。构建过程从 `src/tool/app/http-*-helper/shell.ts` 动态发现工作台入口并复制公共资源；合同测试从工具清单和 `public/tool/app/http-*-helper/web/index.html` 动态发现独立页面，检查详情下载入口、ZIP 资源闭包、主题引用、标准保活模块、凭据区、结果区和可打断滚动跟随。各工作台服务测试按 Python 包目录动态导入 `create_server`，通过实际 HTTP 请求确认标准保活模块可达。
+Python 工作台入口页和独立服务页面加载 Bootstrap、`public/theme.css`、`public/theme.js` 及页面专属样式。构建过程从 `src/tool/app/http-*-helper/shell.ts` 动态发现工作台入口并复制公共资源；合同测试从工具清单和 `public/tool/app/http-*-helper/web/index.html` 动态发现独立页面，检查详情下载入口、ZIP 资源闭包、主题引用、标准保活模块、凭据区、结果区和可打断滚动跟随。各工作台服务测试按 Python 包目录动态导入 `create_server`，通过实际 HTTP 请求确认标准保活模块可达；统一真实验收在业务请求前逐项请求 Bootstrap、公共主题、页面样式、前端脚本和保活模块，资源缺失或空响应即停止该 APP 验收。
 
 工作台保活倒计时使用 `public/tool/app/_shared/session_keepalive.mjs` 作为标准来源。源码 APP 保留相同的本地副本，构建时由标准来源覆盖到每个独立分发包；具体系统只维护自己的保活请求和会话失效判断。
 

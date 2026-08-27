@@ -12,6 +12,7 @@ description: 探测、复用或维护 SOC 运行信息网的飞行人员随机�
 - HTTP 探测或提交前完整读取 [随机置位 HTTP 接口事实](references/positioning-application-api.md)。
 - 只把浏览器 `Copy as cURL (bash)` 当作文本解析，不执行粘贴的命令；从中结构化提取 URL、方法、Headers、Cookie 和 form body。
 - 登录由用户在 SOC 页面维护。优先使用刚捕获的 cURL；先调用只读或校验请求确认会话，遇到 `302 .../doSsoProxy` 或 IAM 登录页立即停止。
+- Cookie Header 必须按浏览器捕获值逐字解析；先移除聊天 Markdown 的链接包装与展示转义，不能把 `\_`、方括号 URL 或多余引号当作 Cookie 值发送。
 - Cookie、真实员工信息、原始请求响应和提交结果只放系统临时目录或用户明确提供的仓库外文件，不写入 skill、spec、测试、日志或 Git。
 
 ## 操作边界
@@ -28,4 +29,4 @@ description: 探测、复用或维护 SOC 运行信息网的飞行人员随机�
 - 站点中文字段按 UTF-8 form 编码。若终端或 cURL 文本出现乱码，回到原始 percent-encoded body 或重新捕获，不把乱码字面量写进客户端。
 - 申请原因下拉框使用参考文档中的静态字典，不把 `getApplyReasons.action` 作为页面运行时依赖；需要排查页面变化时才调用该只读接口核对。
 - 站点输入框使用 `flightinfo-FlightPlan-findSuggest.action` 自动完成；热门城市可以作为本地初始候选，热门之外按拼音动态补充，最终仍以动态航班接口确认可用性。
-- 若后续开发 SOC 专用 APP、API 文档模块或测试，再使用对应仓库开发 skill；本 skill 记录 SOC 领域事实，不直接承载具体产品规格。
+- 当前 SOC APP 与 API 文档必须共用 `soc_protocol`；本 skill 只维护领域探测方法和接口 reference，批量编排、Excel、UI、catalog 展示与交付合同分别由仓库 spec 和对应开发 skill 维护。
