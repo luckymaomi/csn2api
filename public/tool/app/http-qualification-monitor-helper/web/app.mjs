@@ -4,6 +4,7 @@ const elements = {
   themeToggle: document.querySelector("#themeToggle"),
   credentials: document.querySelector("#credentials"),
   verifyButton: document.querySelector("#verifyButton"),
+  loadCategoriesButton: document.querySelector("#loadCategoriesButton"),
   savedCredentialsPanel: document.querySelector("#savedCredentialsPanel"),
   savedCredentials: document.querySelector("#savedCredentials"),
   copyCredentialsButton: document.querySelector("#copyCredentialsButton"),
@@ -17,6 +18,7 @@ const elements = {
   keepAliveDetail: document.querySelector("#keepAliveDetail"),
   groupCount: document.querySelector("#groupCount"),
   qualificationCount: document.querySelector("#qualificationCount"),
+  metadataStatus: document.querySelector("#metadataStatus"),
   exportAllButton: document.querySelector("#exportAllButton"),
   stopButton: document.querySelector("#stopButton"),
   currentItem: document.querySelector("#currentItem"),
@@ -51,6 +53,7 @@ void import("./session_keepalive.mjs")
 const phaseLabels = {
   waiting_credentials: "待验证",
   verifying: "验证中",
+  loading_metadata: "加载中",
   ready: "可执行",
   exporting: "导出中",
   stopping: "停止中",
@@ -126,6 +129,15 @@ async function verify() {
   }
 }
 
+async function loadCategories() {
+  elements.loadCategoriesButton.disabled = true;
+  try {
+    renderState(await postJson("/api/metadata/load"));
+  } finally {
+    elements.loadCategoriesButton.disabled = false;
+  }
+}
+
 async function exportAll() {
   renderState(await postJson("/api/export/all"));
 }
@@ -153,7 +165,7 @@ function renderGroups(groups = [], items = [], busy = false) {
   if (!groups.length) {
     const empty = document.createElement("div");
     empty.className = "empty-state";
-    empty.textContent = "验证 Cookie 后加载当前资质分类";
+    empty.textContent = "验证 Cookie 后点击“加载分类”";
     elements.qualificationGroups.replaceChildren(empty);
     return;
   }
@@ -235,6 +247,7 @@ function renderLogs(logs = []) {
 function renderState(state) {
   const phase = state.phase || "waiting_credentials";
   const session = state.session || {};
+  const metadata = state.metadata || {};
   const groups = state.groups || [];
   const items = state.items || [];
   const progress = state.progress || {};
@@ -242,10 +255,13 @@ function renderState(state) {
   const completed = Number(progress.completed || 0);
   const percent = total ? Math.min(100, Math.round((completed / total) * 100)) : 0;
   if (!session.verified || phase === "session_expired") updateSavedCredentials("");
-  const busy = ["verifying", "exporting", "stopping"].includes(phase);
-  const ready = Boolean(session.verified) && !busy;
+  const busy = ["verifying", "loading_metadata", "exporting", "stopping"].includes(phase);
+  const ready = Boolean(session.verified) && Boolean(metadata.loaded) && !busy;
 
-  elements.statusMessage.textContent = state.error || (session.verified ? "会话已验证，可导出当前资质" : "等待验证飞行门户 Cookie");
+  elements.statusMessage.textContent = state.error || (
+    !session.verified ? "等待验证飞行门户 Cookie"
+      : metadata.loaded ? "分类已加载，可导出当前资质" : "Cookie 已验证，请加载分类"
+  );
   elements.statusBadge.textContent = phaseLabels[phase] || phase;
   elements.statusBadge.className = `status-badge is-${phase}`;
   elements.sessionStatus.textContent = session.verified ? "已验证" : "尚未验证";
@@ -257,10 +273,12 @@ function renderState(state) {
     : "-";
   renderKeepAlive({ ring: elements.keepAliveRing, countdown: elements.keepAliveCountdown, status: elements.keepAliveStatus, detail: elements.keepAliveDetail }, session, keepAliveTimer);
   elements.groupCount.textContent = `${groups.length} 类`;
-  elements.qualificationCount.textContent = `${session.qualificationCount || 0} 项`;
-  elements.loadedCount.textContent = groups.length ? `${groups.length} 类 / ${session.qualificationCount || 0} 项` : "尚未加载";
+  elements.qualificationCount.textContent = `${metadata.qualificationCount || 0} 项`;
+  elements.metadataStatus.textContent = metadata.loaded ? `已加载 ${metadata.loadedAt || ""}`.trim() : "尚未加载";
+  elements.loadedCount.textContent = groups.length ? `${groups.length} 类 / ${metadata.qualificationCount || 0} 项` : "尚未加载";
   elements.verifyButton.disabled = busy;
   elements.credentials.disabled = busy;
+  elements.loadCategoriesButton.disabled = !session.verified || busy;
   elements.exportAllButton.disabled = !ready;
   elements.stopButton.disabled = !["exporting", "stopping"].includes(phase);
   elements.currentItem.textContent = state.current?.name || "-";
@@ -272,7 +290,7 @@ function renderState(state) {
   elements.successCount.textContent = String(progress.success || 0);
   elements.failedCount.textContent = String(progress.failed || 0);
   setDownload(elements.archiveDownload, state.downloads?.archiveId);
-  renderGroups(groups, items, busy);
+  renderGroups(groups, items, !ready);
   renderLogs(state.logs || []);
   elements.savedCredentials.value = savedCredentials;
   elements.savedCredentialsPanel.hidden = !savedCredentials;
@@ -291,6 +309,7 @@ async function pollStatus() {
 }
 
 elements.verifyButton.addEventListener("click", () => verify().catch(showActionError));
+elements.loadCategoriesButton.addEventListener("click", () => loadCategories().catch(showActionError));
 elements.copyCredentialsButton.addEventListener("click", () => copySavedCredentials());
 elements.exportAllButton.addEventListener("click", () => exportAll().catch(showActionError));
 elements.stopButton.addEventListener("click", () => stopExport().catch(showActionError));

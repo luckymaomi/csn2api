@@ -53,6 +53,7 @@ class RunManager:
                 "identity": None,
                 "keepAlive": self.client.keepalive.status(False) if hasattr(self.client, "keepalive") else {},
             },
+            "metadata": {"loaded": False, "loadedAt": ""},
             "groups": [],
             "items": [],
             "progress": {"total": 0, "completed": 0, "success": 0, "failed": 0},
@@ -119,7 +120,7 @@ class RunManager:
             self._state["error"] = ""
         self._stop_keepalive()
         try:
-            summary, groups = self.client.load_credentials(source)
+            summary = self.client.load_credentials(source)
         except Exception as error:
             with self._lock:
                 self._groups = []
@@ -128,10 +129,51 @@ class RunManager:
                 self._log("error", "登录凭据验证失败")
             raise
         with self._lock:
-            self._groups = groups
+            self._groups = []
             self._state = self._initial_state()
             self._state["phase"] = "ready"
             self._state["session"] = {"verified": True, **summary}
+            self._start_keepalive()
+            self._log("success", "飞行门户 Cookie 验证成功")
+            state = self.snapshot()
+            credentials = str(getattr(self.client, "copyable_credentials", "") or "")
+            if credentials:
+                state["credentials"] = credentials
+            return state
+
+    def load_metadata(self) -> dict[str, object]:
+        with self._lock:
+            self.client.require_credentials()
+            if self._running():
+                raise RuntimeError("导出任务进行中，不能重新加载分类")
+            self._state["phase"] = "loading_metadata"
+            self._state["error"] = ""
+        try:
+            groups = self.client.load_metadata()
+        except PortalSessionExpired as error:
+            self.client.clear_credentials()
+            with self._lock:
+                session = self._state["session"]
+                assert isinstance(session, dict)
+                session.update({"verified": False, "identity": None})
+                self._state["phase"] = "session_expired"
+                self._state["error"] = _safe_error(error)
+                self._log("error", "加载资质分类时发现登录会话已失效")
+            raise
+        except Exception as error:
+            with self._lock:
+                self._state["phase"] = "ready"
+                self._state["error"] = _safe_error(error)
+                self._log("error", "资质分类加载失败")
+            raise
+        with self._lock:
+            self._groups = list(groups)
+            qualification_count = sum(len(group.items) for group in groups)
+            self._state["metadata"] = {
+                "loaded": True,
+                "loadedAt": datetime.now().isoformat(timespec="seconds"),
+                "qualificationCount": qualification_count,
+            }
             self._state["groups"] = [
                 {
                     "name": group.name,
@@ -141,13 +183,9 @@ class RunManager:
                 for group in groups
             ]
             self._state["items"] = self._new_item_states(groups)
-            self._start_keepalive()
-            self._log("success", f"已加载 {summary['qualificationCount']} 个资质子类")
-            state = self.snapshot()
-            credentials = str(getattr(self.client, "copyable_credentials", "") or "")
-            if credentials:
-                state["credentials"] = credentials
-            return state
+            self._state["phase"] = "ready"
+            self._log("success", f"已加载 {qualification_count} 个资质子类")
+            return self.snapshot()
 
     @staticmethod
     def _new_item_states(groups: list[QualificationGroup]) -> list[dict[str, object]]:
@@ -171,6 +209,11 @@ class RunManager:
             self.client.require_credentials()
             if self._running():
                 raise RuntimeError("已有导出任务正在执行")
+            if self._state.get("phase") == "loading_metadata":
+                raise RuntimeError("资质分类正在加载")
+            metadata = self._state.get("metadata")
+            if not isinstance(metadata, dict) or not metadata.get("loaded"):
+                raise RuntimeError("请先加载资质分类")
             if code is not None and sum(item.code == code for group in self._groups for item in group.items) != 1:
                 raise ValueError("未知资质子类")
             selected = [item for item in self._new_item_states(self._groups) if code is None or item["code"] == code]
@@ -194,6 +237,7 @@ class RunManager:
 
     def start(self, credentials: str) -> dict[str, object]:
         self.verify_credentials(credentials)
+        self.load_metadata()
         return self.export_all()
 
     def _worker(self, run_id: str, code: str | None) -> None:
@@ -256,6 +300,7 @@ class RunManager:
                 session = self._state["session"]
                 assert isinstance(session, dict)
                 session["verified"] = False
+                session["identity"] = None
                 self._state["phase"] = "session_expired"
                 self._log("error", "登录会话已失效，任务已停止")
             elif summary.interrupted:

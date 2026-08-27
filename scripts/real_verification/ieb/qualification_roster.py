@@ -44,7 +44,8 @@ def verify_app(verifier: Any) -> None:
             server = create_server(APP_ROOT, 0, manager)
             with serve_app(server, manager) as base_url:
                 verify_frontend_route(base_url, "/api/run")
-                session = post_json(base_url, "/api/session/verify", {"credentials": verifier.credentials["ieb"]})
+                post_json(base_url, "/api/session/verify", {"credentials": verifier.credentials["ieb"]})
+                metadata = post_json(base_url, "/api/metadata/load", {})
                 post_json(
                     base_url,
                     "/api/run",
@@ -58,7 +59,7 @@ def verify_app(verifier: Any) -> None:
                 )
                 state = require_completed(wait_for_final(base_url))
         progress = state.get("progress", {})
-        verifier.record("ieb", "app.qualification-roster.metadata", "PASS", f"动态筛选字段 {len(session.get('filterFields', []))}，动态资格 {len(session.get('qualifications', []))}")
+        verifier.record("ieb", "app.qualification-roster.metadata", "PASS", f"动态筛选字段 {len(metadata.get('filterFields', []))}，动态资格 {len(metadata.get('qualifications', []))}")
         verifier.record("ieb", "app.qualification-roster.query", "PASS", f"前端 /api/run 已接通，关系 {progress.get('relationships', 0)} 条")
         verifier.record("ieb", "app.qualification-roster.native-export", "PASS", "真实名册结果已写入临时 Excel 并在验收后清理")
     except Exception as error:  # noqa: BLE001

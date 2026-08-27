@@ -98,6 +98,8 @@ def create_server(app_root: Path, port: int, manager: RunManager) -> WorkbenchSe
                 payload = self._read_json()
                 if path == "/api/session/verify":
                     result = manager.verify_credentials(str(payload.get("credentials", "") or ""))
+                elif path == "/api/metadata/load":
+                    result = manager.load_metadata()
                 elif path == "/api/run":
                     result = manager.start_query(payload)
                 elif path == "/api/stop":
@@ -112,4 +114,3 @@ def create_server(app_root: Path, port: int, manager: RunManager) -> WorkbenchSe
     server = WorkbenchServer(("127.0.0.1", port), Handler)
     server.run_manager = manager  # type: ignore[attr-defined]
     return server
-

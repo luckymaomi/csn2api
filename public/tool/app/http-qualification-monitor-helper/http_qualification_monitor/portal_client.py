@@ -55,11 +55,11 @@ class PortalClient:
     def verified(self) -> bool:
         return bool(self.ieb.cookies)
 
-    def load_credentials(self, source: str) -> tuple[dict[str, object], list[QualificationGroup]]:
+    def load_credentials(self, source: str) -> dict[str, object]:
         self.clear_credentials()
         cookies = self.ieb.load_credentials(source)
         try:
-            groups, identity = self.protocol.load_metadata()
+            _response, identity = self.protocol.validate_session()
         except Exception:
             self.ieb.clear_credentials()
             raise
@@ -68,9 +68,12 @@ class PortalClient:
         return {
             **credential_summary(cookies),
             "verifiedAt": self.verified_at,
-            "qualificationCount": sum(len(group.items) for group in groups),
             "identity": identity,
-        }, groups
+        }
+
+    def load_metadata(self) -> list[QualificationGroup]:
+        self.require_credentials()
+        return self.protocol.load_metadata()
 
     def check_session(self) -> None:
         self.protocol.check_session()

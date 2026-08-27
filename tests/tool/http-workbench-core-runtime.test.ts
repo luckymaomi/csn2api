@@ -80,6 +80,15 @@ describe("HTTP workbench core runtime", () => {
     expect(html).toContain('id="logList"');
     if (html.includes('id="resultsTable"')) expect(html).toContain('id="resultsViewport"');
 
+    const headings = [...html.matchAll(/<h2[^>]*>([\s\S]*?)<\/h2>/g)]
+      .map((match) => match[1].replace(/<[^>]+>/g, "").trim());
+    const stepNumbers = headings
+      .map((heading) => heading.match(/^(\d+)\./)?.[1])
+      .filter(Boolean);
+    expect(stepNumbers, `${entry} 的主流程缺少编号步骤`).toEqual(expect.arrayContaining(["1", "2", "3"]));
+    const verifyButton = html.match(/<button[^>]*id="verifyButton"[^>]*>([\s\S]*?)<\/button>/)?.[1] || "";
+    expect(verifyButton, `${entry} 的验证按钮混入了后续业务动作`).not.toContain("并");
+
     expect(browserRuntime).toContain('addEventListener("scroll"');
     expect(browserRuntime).toContain("scrollHeight");
     expect(browserRuntime).toContain("scrollTop");

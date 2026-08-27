@@ -11,6 +11,7 @@ except ImportError:
 
 from http_qualification_roster.exporter import RosterWorkbook
 from ieb_protocol.roster_models import PersonQualification, QueryFilters
+from ieb_protocol.qualification_roster import QualificationRosterProtocol
 from http_qualification_roster.portal_client import (
     build_filter_params,
     parse_operating_qualifications,
@@ -30,6 +31,22 @@ QUALIFICATION_HTML = """
 
 
 class QualificationRosterCoreTests(unittest.TestCase):
+    def test_keepalive_checks_identity_without_loading_filter_metadata(self) -> None:
+        class IdentitySession:
+            def __init__(self) -> None:
+                self.identity_calls = 0
+
+            def fetch_identity(self) -> tuple[object, dict[str, str]]:
+                self.identity_calls += 1
+                return object(), {"staffNumber": "900001", "name": "测试用户"}
+
+            def request(self, *_args: object, **_kwargs: object) -> object:
+                raise AssertionError("保活不应请求筛选或运行资格接口")
+
+        session = IdentitySession()
+        QualificationRosterProtocol(session).check_session()  # type: ignore[arg-type]
+        self.assertEqual(session.identity_calls, 1)
+
     def test_dynamic_qualification_parser_uses_query_code_not_checkbox_id(self) -> None:
         options = parse_operating_qualifications(QUALIFICATION_HTML)
         self.assertEqual([option.code for option in options], ["RAMA", "EAMA"])

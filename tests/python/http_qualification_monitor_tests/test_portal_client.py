@@ -127,22 +127,26 @@ class PortalClientTests(unittest.TestCase):
         with self.assertRaises(IebContractError):
             validate_ooxml(b"<html>login</html>")
 
-    def test_verify_and_export_use_get_and_preserve_native_bytes(self) -> None:
+    def test_verify_metadata_and_export_are_separate_get_stages(self) -> None:
         native = ooxml_bytes("native")
         session = FakeSession([
-            FakeResponse(payload=CLASSIFICATION_PAYLOAD),
             FakeResponse(content=HOME_HTML.encode("utf-8")),
+            FakeResponse(content=HOME_HTML.encode("utf-8")),
+            FakeResponse(payload=CLASSIFICATION_PAYLOAD),
             FakeResponse(content=native),
         ])
         client = PortalClient(session=session)
-        summary, groups = client.load_credentials("JSESSIONID=a; iebJSid=b")
+        summary = client.load_credentials("JSESSIONID=a; iebJSid=b")
+        self.assertEqual(len(session.calls), 1)
+        client.check_session()
+        self.assertTrue(session.calls[1][0].endswith("/index/index"))
+        groups = client.load_metadata()
         self.assertEqual(client.copyable_credentials, format_credentials({"JSESSIONID": "a", "iebJSid": "b"}))
         exported = client.export_qualification(groups[0].items[0].code)
 
-        self.assertEqual(summary["qualificationCount"], 4)
         self.assertEqual(summary["identity"], {"staffNumber": "900001", "name": "测试用户"})
-        self.assertTrue(session.calls[1][0].endswith("/index/index"))
-        self.assertEqual(session.calls[1][1]["headers"]["Accept"], "text/html,application/xhtml+xml")
+        self.assertTrue(session.calls[0][0].endswith("/index/index"))
+        self.assertEqual(session.calls[0][1]["headers"]["Accept"], "text/html,application/xhtml+xml")
         self.assertEqual(exported, native)
         self.assertTrue(session.calls[-1][0].endswith(ALARM_EXPORT_PATH))
         self.assertEqual(session.calls[-1][1]["params"], build_filter_params("90D3F"))

@@ -107,6 +107,8 @@ def create_server(app_root: Path, port: int, manager: RunManager) -> WorkbenchSe
                 payload = self._read_json()
                 if path == "/api/session/verify":
                     result = manager.verify_credentials(str(payload.get("credentials", "") or ""))
+                elif path == "/api/metadata/load":
+                    result = manager.load_metadata()
                 elif path == "/api/export/all":
                     result = manager.export_all()
                 elif path == "/api/export/one":

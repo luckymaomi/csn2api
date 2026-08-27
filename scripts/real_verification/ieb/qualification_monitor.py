@@ -91,8 +91,9 @@ def verify_app(verifier: Any) -> None:
             server = create_server(APP_ROOT, 0, manager)
             with serve_app(server, manager) as base_url:
                 verify_frontend_route(base_url, "/api/export/one")
-                session = post_json(base_url, "/api/session/verify", {"credentials": verifier.credentials["ieb"]})
-                groups = session.get("groups", [])
+                post_json(base_url, "/api/session/verify", {"credentials": verifier.credentials["ieb"]})
+                metadata = post_json(base_url, "/api/metadata/load", {})
+                groups = metadata.get("groups", [])
                 items = [item for group in groups if isinstance(group, dict) for item in group.get("items", []) if isinstance(item, dict)]
                 if not any(str(item.get("code") or "") == qualification for item in items):
                     raise RuntimeError("APP 动态资质中不存在本轮验收代码")

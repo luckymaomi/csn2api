@@ -42,13 +42,15 @@ class QualificationMonitorProtocol:
             raise IebContractError("资质分类接口未返回有效 JSON") from error
         return response, parse_classification_tree(payload)
 
-    def load_metadata(self) -> tuple[list[QualificationGroup], dict[str, str]]:
+    def validate_session(self) -> tuple[object, dict[str, str]]:
+        return self.session.fetch_identity()
+
+    def load_metadata(self) -> list[QualificationGroup]:
         _response, groups = self.request_classification()
-        _identity_response, identity = self.session.fetch_identity()
-        return groups, identity
+        return groups
 
     def check_session(self) -> None:
-        self.request_classification()
+        self.validate_session()
 
     def request_page(
         self,

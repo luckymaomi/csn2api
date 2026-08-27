@@ -25,7 +25,7 @@
         <main class="workspace-grid">
             <section class="work-panel credential-panel" aria-labelledby="credentialHeading">
                 <div class="panel-heading">
-                    <h2 id="credentialHeading">登录 Cookie</h2>
+                    <h2 id="credentialHeading">1. 验证 Cookie</h2>
                     <span id="sessionStatus">尚未验证</span>
                 </div>
                 <div class="credential-layout">
@@ -33,7 +33,7 @@
                         <label class="form-label" for="credentials">Cookie Header 或 Copy as cURL</label>
                         <textarea id="credentials" class="form-control" rows="4" autocomplete="off" spellcheck="false" placeholder="粘贴已登录 IEB 请求的 Cookie Header 或 Copy as cURL"></textarea>
                     </div>
-                    <button id="verifyButton" type="button" class="btn btn-primary">验证并加载分类</button>
+                    <button id="verifyButton" type="button" class="btn btn-primary">验证 Cookie</button>
                 </div>
                 <dl class="session-summary">
                     <div><dt>会话</dt><dd id="sessionVerified">未验证</dd></div>
@@ -62,7 +62,12 @@
             </section>
 
             <section class="work-panel control-panel" aria-labelledby="controlHeading">
-                <div class="panel-heading"><h2 id="controlHeading">批次控制</h2><span>门户原生 Excel</span></div>
+                <div class="panel-heading"><h2 id="controlHeading">2. 加载分类</h2><span id="metadataStatus">尚未加载</span></div>
+                <button id="loadCategoriesButton" type="button" class="btn btn-primary load-categories-button" disabled>加载分类</button>
+            </section>
+
+            <section class="work-panel export-panel" aria-labelledby="exportHeading">
+                <div class="panel-heading"><h2 id="exportHeading">3. 批次导出</h2><span>门户原生 Excel</span></div>
                 <div class="primary-actions">
                     <button id="exportAllButton" type="button" class="btn btn-success" disabled>一键导出全部</button>
                     <button id="stopButton" type="button" class="btn btn-danger" disabled>停止</button>
@@ -85,14 +90,14 @@
             </section>
 
             <section class="work-panel qualification-panel" aria-labelledby="qualificationHeading">
-                <div class="panel-heading"><h2 id="qualificationHeading">按资质查询</h2><span id="loadedCount">尚未加载</span></div>
+                <div class="panel-heading"><h2 id="qualificationHeading">4. 按资质导出</h2><span id="loadedCount">尚未加载</span></div>
                 <div id="qualificationGroups" class="qualification-groups">
-                    <div class="empty-state">验证 Cookie 后加载当前资质分类</div>
+                    <div class="empty-state">验证 Cookie 后点击“加载分类”</div>
                 </div>
             </section>
 
             <section class="work-panel log-panel" aria-labelledby="logHeading">
-                <div class="panel-heading"><h2 id="logHeading">活动日志</h2></div>
+                <div class="panel-heading"><h2 id="logHeading">5. 活动日志</h2></div>
                 <ol id="logList" class="log-list" aria-live="polite"><li class="is-muted">尚无运行记录</li></ol>
             </section>
         </main>

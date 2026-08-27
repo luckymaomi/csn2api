@@ -15,9 +15,9 @@ python start.py
 
 验证成功后，凭据区会显示该 Session 对应的“员工号 · 姓名”。身份只保存在当前页面和后端进程内存，会话失效时与 Cookie 同步清除。
 
-在 Chrome 或 Edge 正常登录飞行门户，在 `F12` 的 `Network` 中选择任意已登录 `ieb.csair.com` 请求，右键选择 `Copy as cURL`。把完整内容或 Cookie Header 粘贴到工作台，点击“验证并加载分类”。
+在 Chrome 或 Edge 正常登录飞行门户，在 `F12` 的 `Network` 中选择任意已登录 `ieb.csair.com` 请求，右键选择 `Copy as cURL`。把完整内容或 Cookie Header 粘贴到工作台，点击“验证 Cookie”。
 
-验证成功后页面显示资质运行类、资质资格类、资质特殊类及门户当前返回的全部子类。输入框会清空，当前页凭据面板显示规范化 Cookie 并提供“复制凭据”；内容只存在当前页面内存，刷新页面、服务关闭或门户 Session 失效后自动删除。
+验证成功后输入框会清空，当前页凭据面板显示规范化 Cookie 并提供“复制凭据”；内容只存在当前页面内存，刷新页面、服务关闭或门户 Session 失效后自动删除。点击“加载分类”后，页面显示资质运行类、资质资格类、资质特殊类及门户当前返回的全部子类。
 
 ## 导出
 
@@ -31,4 +31,4 @@ python start.py
 
 ## 本地接口
 
-Agent 可通过 `POST /api/start` 提交 `credentials`，一次完成验证和全部导出；也可分阶段调用 `/api/session/verify`、`/api/export/all`、`/api/export/one` 和 `/api/stop`。通过 `GET /api/status` 轮询状态，通过 `/api/download/<file-id>` 下载 manager 已登记的文件。
+Agent 可通过 `POST /api/start` 提交 `credentials`，一次完成验证、分类加载和全部导出；也可分阶段调用 `/api/session/verify`、`/api/metadata/load`、`/api/export/all`、`/api/export/one` 和 `/api/stop`。通过 `GET /api/status` 轮询状态，通过 `/api/download/<file-id>` 下载 manager 已登记的文件。

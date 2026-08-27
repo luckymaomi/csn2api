@@ -65,22 +65,25 @@ class PortalClient:
         self.clear_credentials()
         cookies = self.ieb.load_credentials(source)
         try:
-            fields, qualifications, identity = self.protocol.load_metadata()
+            _response, identity = self.protocol.validate_session()
         except Exception:
             self.ieb.clear_credentials()
             raise
         self.verified = True
         self.copyable_credentials = format_credentials(cookies)
         self.verified_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        self.filter_fields = fields
-        self.qualifications = qualifications
         return {
             **credential_summary(cookies),
             "identity": identity,
             "verifiedAt": self.verified_at,
-            "filterFields": [field.to_dict() for field in fields],
-            "qualifications": [item.to_dict() for item in qualifications],
         }
+
+    def load_metadata(self) -> tuple[list[FilterField], list[OperatingQualification]]:
+        self.require_credentials()
+        fields, qualifications = self.protocol.load_metadata()
+        self.filter_fields = fields
+        self.qualifications = qualifications
+        return fields, qualifications
 
     def keepalive_check(self) -> None:
         self.require_credentials()

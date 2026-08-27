@@ -31,16 +31,19 @@ class FakeClient:
     def __init__(self) -> None:
         self.verified = False
 
-    def load_credentials(self, source: str) -> tuple[dict[str, object], list[QualificationGroup]]:
+    def load_credentials(self, source: str) -> dict[str, object]:
         if not source:
             raise ValueError("缺少凭据")
         self.verified = True
         return {
             "cookieCount": 2,
             "verifiedAt": "2026-08-23T10:00:00",
-            "qualificationCount": 4,
             "identity": {"staffNumber": "900001", "name": "测试用户"},
-        }, GROUPS
+        }
+
+    def load_metadata(self) -> list[QualificationGroup]:
+        self.require_credentials()
+        return GROUPS
 
     def require_credentials(self) -> None:
         if not self.verified:
@@ -73,7 +76,12 @@ class ManagerServerTests(unittest.TestCase):
             manager = RunManager(Path(directory), client=FakeClient())  # type: ignore[arg-type]
             state = manager.verify_credentials("Cookie: secret-value")
             self.assertEqual(state["session"]["identity"]["name"], "测试用户")
+            self.assertFalse(state["metadata"]["loaded"])
             self.assertNotIn("secret-value", json.dumps(state, ensure_ascii=False))
+            with self.assertRaisesRegex(RuntimeError, "先加载资质分类"):
+                manager.export_all()
+            state = manager.load_metadata()
+            self.assertTrue(state["metadata"]["loaded"])
             manager.export_all()
             finished = wait_finished(manager)
             self.assertEqual(finished["phase"], "completed")
@@ -96,6 +104,9 @@ class ManagerServerTests(unittest.TestCase):
                 self.assertIn("资质监控（皇帝版）".encode("utf-8"), html)
                 verified = self._post(host, port, "/api/session/verify", {"credentials": "Cookie: fake"})
                 self.assertEqual(verified["phase"], "ready")
+                self.assertFalse(verified["metadata"]["loaded"])
+                loaded = self._post(host, port, "/api/metadata/load", {})
+                self.assertTrue(loaded["metadata"]["loaded"])
                 self._post(host, port, "/api/export/one", {"qualType": "90D3F"})
                 finished = wait_finished(manager)
                 file_id = finished["items"][0]["downloadId"]

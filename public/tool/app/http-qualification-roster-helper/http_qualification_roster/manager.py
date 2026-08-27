@@ -50,6 +50,7 @@ class RunManager:
                 "identity": None,
                 "keepAlive": self.client.keepalive.status(False),
             },
+            "metadata": {"loaded": False, "loadedAt": ""},
             "filterFields": [],
             "qualifications": [],
             "items": [],
@@ -117,8 +118,8 @@ class RunManager:
                 self._log("error", "登录凭据验证失败")
             raise
         with self._lock:
-            self._qualifications = list(self.client.qualifications)
-            self._filter_fields = [field.to_dict() for field in self.client.filter_fields]
+            self._qualifications = []
+            self._filter_fields = []
             self._state = self._initial_state()
             self._state["phase"] = "ready"
             self._state["session"] = {
@@ -126,13 +127,49 @@ class RunManager:
                 "verifiedAt": summary["verifiedAt"],
                 "identity": summary["identity"],
             }
-            self._state["filterFields"] = self._filter_fields
-            self._state["qualifications"] = [item.to_dict() for item in self._qualifications]
             self._start_keepalive()
-            self._log("success", f"已加载 {len(self._qualifications)} 个运行资格")
+            self._log("success", "飞行门户 Cookie 验证成功")
             state = self.snapshot()
             state["credentials"] = self.client.copyable_credentials
             return state
+
+    def load_metadata(self) -> dict[str, object]:
+        with self._lock:
+            self.client.require_credentials()
+            if self._running():
+                raise RuntimeError("查询任务进行中，不能重新加载筛选")
+            self._state["phase"] = "loading_metadata"
+            self._state["error"] = ""
+        try:
+            fields, qualifications = self.client.load_metadata()
+        except PortalSessionExpired as error:
+            self.client.clear_credentials()
+            with self._lock:
+                session = self._state["session"]
+                assert isinstance(session, dict)
+                session.update({"verified": False, "identity": None})
+                self._state["phase"] = "session_expired"
+                self._state["error"] = _safe_error(error)
+                self._log("error", "加载筛选时发现登录会话已失效")
+            raise
+        except Exception as error:
+            with self._lock:
+                self._state["phase"] = "ready"
+                self._state["error"] = _safe_error(error)
+                self._log("error", "门户筛选加载失败")
+            raise
+        with self._lock:
+            self._qualifications = list(qualifications)
+            self._filter_fields = [field.to_dict() for field in fields]
+            self._state["metadata"] = {
+                "loaded": True,
+                "loadedAt": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            }
+            self._state["filterFields"] = self._filter_fields
+            self._state["qualifications"] = [item.to_dict() for item in self._qualifications]
+            self._state["phase"] = "ready"
+            self._log("success", f"已加载 {len(fields)} 个筛选字段和 {len(qualifications)} 个运行资格")
+            return self.snapshot()
 
     def _allowed_values(self, field_name: str) -> set[str]:
         field = next((item for item in self._filter_fields if item.get("name") == field_name), None)
@@ -155,18 +192,19 @@ class RunManager:
         }
         for name, selected in values.items():
             allowed = self._allowed_values(name)
-            if any(value not in allowed for value in selected):
+            if any(value and value not in allowed for value in selected):
                 raise ValueError(f"筛选项 {name} 包含门户当前不存在的值")
-        if not filters.fleet_codes:
-            raise ValueError("请至少选择一个执飞机型")
-        if not filters.active_statuses:
-            raise ValueError("请至少选择一个在职状态")
 
     def start_query(self, payload: dict[str, object]) -> dict[str, object]:
         with self._lock:
             self.client.require_credentials()
             if self._running():
                 raise RuntimeError("已有查询任务正在执行")
+            if self._state.get("phase") == "loading_metadata":
+                raise RuntimeError("门户筛选正在加载")
+            metadata = self._state.get("metadata")
+            if not isinstance(metadata, dict) or not metadata.get("loaded"):
+                raise RuntimeError("请先加载门户筛选")
             filters = QueryFilters.from_payload(payload.get("filters"))
             self._validate_filters(filters)
             codes = qualifications_from_payload(payload.get("qualificationCodes"))

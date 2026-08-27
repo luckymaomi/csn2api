@@ -28,13 +28,15 @@ class QualificationRosterProtocol:
         self.filter_fields: list[FilterField] = []
         self.qualifications: list[OperatingQualification] = []
 
-    def load_metadata(self) -> tuple[list[FilterField], list[OperatingQualification], dict[str, str]]:
+    def validate_session(self) -> tuple[object, dict[str, str]]:
+        return self.session.fetch_identity()
+
+    def load_metadata(self) -> tuple[list[FilterField], list[OperatingQualification]]:
         _page, fields = self.request_filter_fields()
         _listing, qualifications = self.request_qualifications()
-        _response, identity = self.session.fetch_identity()
         self.filter_fields = fields
         self.qualifications = qualifications
-        return fields, qualifications, identity
+        return fields, qualifications
 
     def request_filter_fields(self) -> tuple[object, list[FilterField]]:
         page = self.session.request(
@@ -59,12 +61,7 @@ class QualificationRosterProtocol:
         return listing, qualifications
 
     def check_session(self) -> None:
-        response = self.session.request(
-            "GET", FILTER_PAGE_PATH,
-            params={"random": f"{time.time():.6f}"},
-            headers={"Accept": "text/html, */*; q=0.01"},
-        )
-        parse_filter_fields(str(response.text or ""))
+        self.validate_session()
 
     def request_query(self, filters: QueryFilters, qualification_code: str) -> tuple[object, int, list[str], list[dict[str, str]]]:
         response = self.session.request(
