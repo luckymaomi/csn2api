@@ -103,6 +103,13 @@ npm.cmd run verify
 npx.cmd vitest run tests/tool/<name>.test.ts
 ```
 
+## 真实验收入口
+
+- 跨系统 API 文档与独立 APP 的真实验收统一使用 `scripts/real-api-verification.py`；具体 Case 维护在 `scripts/real_verification/`，不得另建包含生产请求逻辑的临时探针。
+- 从 `spec/dev/real-api-verification/cookies.template.md` 复制本地 `cookies.local.md`，只在被 Git 忽略的本地文件填写 Cookie、真实身份和验收参数。
+- 脚本默认只读；使用 `--system`、`--scope` 和 `--case` 单独复跑系统、入口或业务模块。写操作必须同时提供 `--allow-write` 及对应精确确认参数，并遵守本文件的当次授权边界。
+- 真实验收脚本必须经过前端路由、APP loopback HTTP 服务和共享 protocol core；执行后关闭临时服务并清理临时结果。自动测试只保护已确认契约，不替代真实验收。
+
 ## 提交与推送
 
 - 提交信息使用简体中文，写成不分段、不换行的完整段落，具体说明实际修改和行为变化。

@@ -54,8 +54,8 @@ FLIGHT_RESULT_HTML = """
 
 LOCK_RESULT_HTML = """
 <div id="showNonproductionTaskImportResultPage1">
-  <div class="hDiv"><table><thead><tr><th>锁班状态</th><th>员工号</th><th>锁班类型</th></tr></thead></table></div>
-  <div class="bDiv"><table><tbody class="list"><tr><td>待审批</td><td>900001</td><td>BS_STUDY</td></tr></tbody></table></div>
+  <div class="hDiv"><table><thead><tr><th>锁班状态</th><th>员工号</th><th>姓名</th><th>开始日期</th><th>结束日期</th><th>锁班类型</th><th>锁班原因</th></tr></thead></table></div>
+  <div class="bDiv"><table><tbody class="list"><tr><td>待审批</td><td>900001</td><td>测试人员</td><td>2026-10-08 08:59:00</td><td>2026-10-08 19:59:00</td><td>BS_STUDY</td><td>测试备注</td></tr></tbody></table></div>
 </div>
 <div id="showNonproductionTaskImportResultPage2">
   <div class="hDiv"><table><thead><tr><th>锁班结果</th><th>冲突说明</th></tr></thead></table></div>
@@ -369,7 +369,7 @@ class ExecutorTests(unittest.TestCase):
         self.assertEqual(result["data"]["tables"][0]["rows"][0]["锁班状态"], "待审批")
         self.assertEqual(
             result["data"]["summary"],
-            {"resultCount": 1, "conflictCount": 0, "outcome": "已返回锁班结果"},
+            {"resultCount": 1, "conflictCount": 0, "lockStatuses": ["待审批"], "outcome": "提交成功"},
         )
         submit_data = session.requests[-1]["data"]
         self.assertIn(("lockTypeDesc", "业务学习"), submit_data)
@@ -405,6 +405,31 @@ class ExecutorTests(unittest.TestCase):
         })
         self.assertEqual(result["data"]["summary"]["resultCount"], 1)
         self.assertEqual(result["data"]["tables"][0]["rows"][0]["锁班状态"], "待审批")
+
+    def test_lock_submit_rejects_attributed_non_pending_result(self) -> None:
+        identity = json.dumps({
+            "permissionFlag": "true",
+            "nameInfo": "测试人员",
+            "deptInfo": "测试部门",
+        }, ensure_ascii=False)
+        withdrawn = LOCK_RESULT_HTML.replace("待审批", "已撤销")
+        executor, _session = self.create_executor([
+            FakeResponse(QUERY_PAGE_HTML),
+            FakeResponse(IEB_HOME_HTML),
+            FakeResponse(ENTRY_HTML),
+            FakeResponse(identity, content_type="application/json"),
+            FakeResponse(withdrawn),
+        ])
+        executor.load_credentials("JSESSIONID=session-value; iebJSid=browser-value")
+        with self.assertRaisesRegex(Exception, "锁班状态不是待审批"):
+            executor.execute("lock-entry.submit", {
+                "staffnum": "900001",
+                "lockType": "BS_STUDY",
+                "lockTimeType": "1",
+                "startDt": "2026-10-08T08:59",
+                "endDt": "2026-10-08T19:59",
+                "lockRemark": "测试备注",
+            })
 
     def test_personnel_info_executes_multipart_json_and_html_table_requests(self) -> None:
         executor, session = self.create_executor([

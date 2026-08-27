@@ -4,6 +4,8 @@ import re
 from calendar import monthrange
 from datetime import datetime
 
+from ieb_protocol import IebContractError
+from ieb_protocol.lock_metadata import normalize_text
 from ieb_protocol.lock_models import EmployeeIdentity, LockSubmission, LockTypeMetadata, PortalMetadata, SubmitResult
 from ieb_protocol.lock_protocol import LockProtocol
 
@@ -84,11 +86,13 @@ def _result_data(result: SubmitResult) -> dict[str, object]:
     conflict_columns = list(result.conflict_rows[0].keys()) if result.conflict_rows else []
     conflict_count = len(result.conflict_rows)
     result_count = len(result.result_rows)
+    statuses = sorted({normalize_text(row.get("锁班状态") or row.get("状态")) for row in result.result_rows} - {""})
     return {
         "summary": {
             "resultCount": result_count,
             "conflictCount": conflict_count,
-            "outcome": "存在锁班冲突" if conflict_count else "已返回锁班结果" if result_count else "未返回锁班结果",
+            "lockStatuses": statuses,
+            "outcome": "存在锁班冲突" if conflict_count else "提交成功" if statuses == ["待审批"] else "未返回有效待审批结果",
         },
         "tables": [
             {"id": "results", "title": "普通结果", "columns": result_columns, "rows": result.result_rows},
@@ -107,5 +111,17 @@ def execute(
     if item is None:
         raise ValueError("所选锁班类型已不存在，请重新载入 Cookie")
     identity = protocol.validate_employee(required(supplied, "staffnum", "员工号"))
-    response, result = protocol.submit(_submission(supplied, identity, item), identity, item)
-    return response, _result_data(result)
+    submission = _submission(supplied, identity, item)
+    response, result = protocol.submit(submission, identity, item)
+    if result.conflict_rows:
+        rows, problem = protocol.attribute_result(result, submission, identity, conflicts=True)
+        if problem:
+            raise IebContractError(problem)
+        return response, _result_data(SubmitResult([], rows))
+    rows, problem = protocol.attribute_result(result, submission, identity)
+    if problem:
+        raise IebContractError(problem)
+    statuses = {normalize_text(row.get("锁班状态") or row.get("状态")) for row in rows}
+    if statuses != {"待审批"}:
+        raise IebContractError("门户普通结果已归属，但锁班状态不是待审批")
+    return response, _result_data(SubmitResult(rows, []))

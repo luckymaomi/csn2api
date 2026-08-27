@@ -56,3 +56,6 @@ plan.md
 /oa_http_probe.py
 /oa_http_read_contracts.json
 /.oa-http-probe-profile/
+
+# 真实接口验收的本地凭据模板，不进入版本库
+/spec/dev/real-api-verification/cookies.local.md
