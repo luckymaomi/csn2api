@@ -5,17 +5,18 @@ import unittest
 from pathlib import Path
 
 try:
-    from .common import APP_ROOT, portal_export_bytes  # noqa: F401
+    from .common import APP_ROOT, PORTAL_PERSON_HEADERS, person_row, portal_export_bytes  # noqa: F401
 except ImportError:
-    from common import APP_ROOT, portal_export_bytes  # type: ignore[no-redef]  # noqa: F401
+    from common import APP_ROOT, PORTAL_PERSON_HEADERS, person_row, portal_export_bytes  # type: ignore[no-redef]  # noqa: F401
 
 from http_qualification_roster.exporter import RosterWorkbook
-from ieb_protocol.roster_models import PersonQualification, QueryFilters
+from ieb_protocol.roster_models import QueryFilters
 from ieb_protocol.qualification_roster import QualificationRosterProtocol
 from http_qualification_roster.portal_client import (
     build_filter_params,
+    parse_ooxml_rows,
     parse_operating_qualifications,
-    parse_personnel_export,
+    project_personnel_rows,
 )
 
 
@@ -63,28 +64,31 @@ class QualificationRosterCoreTests(unittest.TestCase):
         self.assertEqual([value for name, value in params if name == "operQualArray"], ["RAMA"])
         self.assertEqual([value for name, value in params if name == "fleetCdToArray"], ["777"])
 
-    def test_portal_export_resets_wrong_dimension_and_reads_text_staff_numbers(self) -> None:
-        people = parse_personnel_export(portal_export_bytes())
-        self.assertEqual([(person.staff_number, person.name) for person in people], [
-            ("000123", "测试甲"),
-            ("000456", "测试乙"),
+    def test_portal_export_projects_page_columns_and_drops_selection_column(self) -> None:
+        export_headers, export_rows = parse_ooxml_rows(portal_export_bytes())
+        columns, people = project_personnel_rows(["#", *PORTAL_PERSON_HEADERS], export_headers, export_rows)
+        self.assertEqual(columns, PORTAL_PERSON_HEADERS)
+        self.assertEqual([(person["员工号"], person["姓名"]) for person in people], [
+            ("000123", "测试甲"), ("000456", "测试乙"),
         ])
+        self.assertNotIn("#", people[0])
+        self.assertNotIn("运行资格", people[0])
+
+    def test_portal_export_rejects_page_column_missing_from_native_export(self) -> None:
+        with self.assertRaisesRegex(Exception, "门户普通导出缺少页面字段"):
+            project_personnel_rows(["#", "员工号", "姓名", "不存在字段"], ["员工号", "姓名"], [{"员工号": "000123", "姓名": "测试甲"}])
 
     def test_workbook_keeps_every_person_qualification_row(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             target = Path(directory) / "名册.xlsx"
             workbook = RosterWorkbook(target)
-            workbook.append_qualification("RAMA", [
-                PersonQualification("000123", "测试甲", "RAMA"),
-                PersonQualification("000123", "测试甲", "RAMA"),
-            ])
-            workbook.append_qualification("EAMA", [PersonQualification("000123", "测试甲", "EAMA")])
+            workbook.append_qualification("RAMA", PORTAL_PERSON_HEADERS, [person_row(), person_row()])
+            workbook.append_qualification("EAMA", PORTAL_PERSON_HEADERS, [person_row()])
+            self.assertEqual(workbook.read_headers(), ["序号", *PORTAL_PERSON_HEADERS, "资质类别"])
             rows = workbook.read_rows()
-            self.assertEqual(rows, [
-                [1, "000123", "测试甲", "RAMA"],
-                [2, "000123", "测试甲", "RAMA"],
-                [3, "000123", "测试甲", "EAMA"],
-            ])
+            self.assertEqual([row[0] for row in rows], [1, 2, 3])
+            self.assertEqual([row[1] for row in rows], ["000123", "000123", "000123"])
+            self.assertEqual([row[-1] for row in rows], ["RAMA", "RAMA", "EAMA"])
 
 
 if __name__ == "__main__":

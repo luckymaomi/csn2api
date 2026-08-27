@@ -3,15 +3,17 @@ from __future__ import annotations
 import json
 import tempfile
 import threading
+import time
 import unittest
 import urllib.request
 from pathlib import Path
 
 try:
-    from .common import APP_ROOT  # noqa: F401
+    from .common import APP_ROOT, PORTAL_PERSON_HEADERS, person_row  # noqa: F401
 except ImportError:
-    from common import APP_ROOT  # type: ignore[no-redef]  # noqa: F401
+    from common import APP_ROOT, PORTAL_PERSON_HEADERS, person_row  # type: ignore[no-redef]  # noqa: F401
 
+from http_qualification_roster.exporter import RosterWorkbook
 from http_qualification_roster.manager import RunManager
 from http_qualification_roster.server import create_server
 from ieb_protocol.roster_models import FilterField, OperatingQualification, SelectOption
@@ -69,6 +71,15 @@ class FakeClient:
     def check_session(self) -> None:
         self.require_credentials()
 
+    def query_roster(self, _filters: object, _code: str) -> tuple[int, list[str]]:
+        self.require_credentials()
+        return 1, list(PORTAL_PERSON_HEADERS)
+
+    def export_people(self, _filters: object, _code: str, columns: list[str]) -> list[dict[str, str]]:
+        self.require_credentials()
+        source = person_row()
+        return [{column: source.get(column, "") for column in columns}]
+
     def invalidate_credentials(self) -> None:
         self.verified = False
 
@@ -120,6 +131,38 @@ class ManagerServerTests(unittest.TestCase):
                 server.shutdown()
                 thread.join(timeout=5)
                 server.server_close()
+                manager.shutdown()
+
+    def test_completed_query_exposes_full_dynamic_rows_and_excel_columns(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            manager = RunManager(Path(directory), client=FakeClient())  # type: ignore[arg-type]
+            try:
+                manager.verify_credentials("Cookie: fake")
+                manager.load_metadata()
+                manager.start_query({
+                    "filters": {"fleetCdToArray": ["777"], "activeStatusArray": ["ZAIZHI"]},
+                    "qualificationCodes": ["RAMA"],
+                })
+                deadline = time.monotonic() + 5
+                state = manager.snapshot()
+                while state["phase"] == "querying" and time.monotonic() < deadline:
+                    time.sleep(0.01)
+                    state = manager.snapshot()
+
+                self.assertEqual(state["phase"], "completed")
+                self.assertEqual(state["resultColumns"], PORTAL_PERSON_HEADERS)
+                self.assertEqual(state["results"], [{
+                    "sequence": 1,
+                    "fields": person_row(),
+                    "qualificationCode": "RAMA",
+                }])
+                target = manager.download_path()
+                self.assertIsNotNone(target)
+                self.assertEqual(
+                    RosterWorkbook(target).read_headers(),  # type: ignore[arg-type]
+                    ["序号", *PORTAL_PERSON_HEADERS, "资质类别"],
+                )
+            finally:
                 manager.shutdown()
 
     @staticmethod

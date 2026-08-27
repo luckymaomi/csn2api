@@ -12,7 +12,6 @@ from .base import IebContractError
 from .roster_models import (
     FilterField,
     OperatingQualification,
-    PortalPerson,
     QueryFilters,
     SelectOption,
 )
@@ -32,6 +31,8 @@ FIELD_LABELS = {
     "fleetCdbranch": "分部",
 }
 OOXML_REQUIRED_PARTS = {"[Content_Types].xml", "xl/workbook.xml"}
+SELECTION_HEADERS = {"", "#"}
+RESULT_RESERVED_HEADERS = {"序号", "资质类别"}
 
 
 def _text(value: object) -> str:
@@ -150,6 +151,18 @@ def parse_query_count(html: str) -> int:
     return parse_query_result(html)[0]
 
 
+def personnel_columns(query_headers: list[str]) -> list[str]:
+    columns = [_text(header) for header in query_headers if _text(header) not in SELECTION_HEADERS]
+    if "员工号" not in columns or "姓名" not in columns:
+        raise IebContractError("门户人员查询表缺少员工号或姓名表头")
+    if len(set(columns)) != len(columns):
+        raise IebContractError("门户人员查询表存在重复字段")
+    reserved = [column for column in columns if column in RESULT_RESERVED_HEADERS]
+    if reserved:
+        raise IebContractError(f"门户人员查询表占用结果字段：{', '.join(reserved)}")
+    return columns
+
+
 def validate_ooxml(content: bytes) -> None:
     if not isinstance(content, bytes) or not content.startswith(b"PK"):
         raise IebContractError("门户普通导出未返回 OOXML 文件")
@@ -205,13 +218,16 @@ def parse_ooxml_rows(content: bytes) -> tuple[list[str], list[dict[str, str]]]:
         workbook.close()
 
 
-def parse_personnel_export(content: bytes) -> list[PortalPerson]:
-    _headers, rows = parse_ooxml_rows(content)
-    people: list[PortalPerson] = []
-    for row in rows:
-        staff_number = row.get("员工号", "")
-        name = row.get("姓名", "")
-        if not staff_number or not name:
-            raise IebContractError("门户普通导出存在员工号或姓名缺失的人员行")
-        people.append(PortalPerson(staff_number, name))
-    return people
+def project_personnel_rows(
+    query_headers: list[str],
+    export_headers: list[str],
+    export_rows: list[dict[str, str]],
+) -> tuple[list[str], list[dict[str, str]]]:
+    columns = personnel_columns(query_headers)
+    missing = [column for column in columns if column not in export_headers]
+    if missing:
+        raise IebContractError(f"门户普通导出缺少页面字段：{', '.join(missing)}")
+    people = [{column: _text(row.get(column)) for column in columns} for row in export_rows]
+    if any(not row["员工号"] or not row["姓名"] for row in people):
+        raise IebContractError("门户普通导出存在员工号或姓名缺失的人员行")
+    return columns, people

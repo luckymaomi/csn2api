@@ -19,12 +19,13 @@ from ieb_protocol.roster_contract import (
     parse_filter_fields,
     parse_ooxml_rows,
     parse_operating_qualifications,
-    parse_personnel_export,
+    personnel_columns,
+    project_personnel_rows,
     parse_query_count,
     parse_query_result,
     validate_ooxml,
 )
-from ieb_protocol.roster_models import FilterField, OperatingQualification, PortalPerson, QueryFilters
+from ieb_protocol.roster_models import FilterField, OperatingQualification, QueryFilters
 
 from .session_keepalive import SessionKeepAlive, random_keepalive_interval
 
@@ -97,15 +98,22 @@ class PortalClient:
             raise PortalSessionExpired("请先验证飞行门户 Cookie")
         self.ieb.require_credentials()
 
-    def query_count(self, filters: QueryFilters, qualification_code: str) -> int:
+    def query_roster(self, filters: QueryFilters, qualification_code: str) -> tuple[int, list[str]]:
         self.require_credentials()
-        _response, total, _headers, _rows = self.protocol.request_query(filters, qualification_code)
-        return total
+        _response, total, headers, _rows = self.protocol.request_query(filters, qualification_code)
+        return total, personnel_columns(headers)
 
-    def export_people(self, filters: QueryFilters, qualification_code: str) -> list[PortalPerson]:
+    def export_people(
+        self,
+        filters: QueryFilters,
+        qualification_code: str,
+        columns: list[str],
+    ) -> list[dict[str, str]]:
         self.require_credentials()
         _response, content = self.protocol.request_export(filters, qualification_code)
-        return parse_personnel_export(content)
+        export_headers, export_rows = parse_ooxml_rows(content)
+        _columns, people = project_personnel_rows(columns, export_headers, export_rows)
+        return people
 
     def invalidate_credentials(self) -> None:
         self.verified = False
@@ -132,7 +140,8 @@ __all__ = [
     "parse_filter_fields",
     "parse_ooxml_rows",
     "parse_operating_qualifications",
-    "parse_personnel_export",
+    "personnel_columns",
+    "project_personnel_rows",
     "parse_query_count",
     "parse_query_result",
     "validate_ooxml",

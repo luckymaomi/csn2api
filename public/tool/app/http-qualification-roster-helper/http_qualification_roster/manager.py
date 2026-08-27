@@ -54,6 +54,7 @@ class RunManager:
             "filterFields": [],
             "qualifications": [],
             "items": [],
+            "resultColumns": [],
             "results": [],
             "progress": {"total": 0, "completed": 0, "success": 0, "failed": 0, "relationships": 0},
             "current": None,
@@ -221,13 +222,14 @@ class RunManager:
                 {"code": item.code, "name": item.name, "status": "pending", "count": None, "error": ""}
                 for item in selected
             ]
+            self._state["resultColumns"] = []
             self._state["results"] = []
             self._state["progress"] = {
                 "total": len(selected), "completed": 0, "success": 0, "failed": 0,
                 "relationships": 0,
             }
             self._state["current"] = None
-            self._state["download"] = {"ready": True, "name": target.name}
+            self._state["download"] = {"ready": False, "name": target.name}
             self._state["phase"] = "querying"
             self._state["error"] = ""
             self._stop_event.clear()
@@ -275,6 +277,11 @@ class RunManager:
                 count = int(event.get("count", 0))
                 item.update({"status": "success", "count": count})
                 progress["success"] = int(progress["success"]) + 1
+                columns = [str(value) for value in event.get("columns", []) if str(value)]
+                result_columns = self._state["resultColumns"]
+                assert isinstance(result_columns, list)
+                if not result_columns:
+                    result_columns.extend(columns)
                 results = self._state["results"]
                 assert isinstance(results, list)
                 for raw in event.get("relations", []):
@@ -282,11 +289,11 @@ class RunManager:
                         continue
                     results.append({
                         "sequence": len(results) + 1,
-                        "staffNumber": raw.get("staffNumber", ""),
-                        "name": raw.get("name", ""),
+                        "fields": {column: raw.get(column, "") for column in result_columns},
                         "qualificationCode": code,
                     })
                 progress["relationships"] = len(results)
+                self._state["download"] = {"ready": True, "name": self._download.name if self._download else ""}
                 self._log("success", f"{code} 已返回 {count} 人")
             elif event_type == "item_failed":
                 item.update({"status": "failed", "error": str(event.get("error", "查询失败"))})

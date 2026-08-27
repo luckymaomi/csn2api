@@ -1,14 +1,22 @@
 from __future__ import annotations
 
+from io import BytesIO
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any
+
+import requests
+from openpyxl import load_workbook
 
 from ..app_http import post_json, require_completed, serve_app, verify_frontend_route, wait_for_final
 from ..common import ROOT, result_summary
 
 
 APP_ROOT = ROOT / "public/tool/app/http-qualification-roster-helper"
+EXPECTED_PERSONNEL_COLUMNS = [
+    "员工号", "姓名", "技术基地", "注册基地", "运行基地", "技术信息", "实际机型", "保护等级",
+    "性别", "在职状态", "出生日期", "国籍", "政治面貌", "所属部门", "行政职务", "行政级别",
+]
 
 
 def verify_api(verifier: Any, executor: Any) -> None:
@@ -58,9 +66,39 @@ def verify_app(verifier: Any) -> None:
                     },
                 )
                 state = require_completed(wait_for_final(base_url))
+                columns = state.get("resultColumns")
+                if not isinstance(columns, list) or any(not isinstance(column, str) for column in columns):
+                    raise RuntimeError("APP 未返回动态人员字段")
+                missing = [column for column in EXPECTED_PERSONNEL_COLUMNS if column not in columns]
+                if missing or "#" in columns or "" in columns:
+                    raise RuntimeError(f"APP 人员字段与门户表格不一致，缺少：{', '.join(missing) or '无'}")
+                results = state.get("results")
+                if not isinstance(results, list) or not results:
+                    raise RuntimeError("APP 未返回人员资质明细")
+                for index, row in enumerate(results, start=1):
+                    if not isinstance(row, dict) or row.get("sequence") != index:
+                        raise RuntimeError("APP 人员资质明细序号不连续")
+                    if list((row.get("fields") or {}).keys()) != columns or row.get("qualificationCode") != qualification:
+                        raise RuntimeError("APP 人员字段或资质类别与本轮查询不一致")
+                response = requests.get(f"{base_url}/api/download/excel", timeout=30)
+                if response.status_code != 200:
+                    raise RuntimeError(f"APP Excel 下载返回 HTTP {response.status_code}")
+                workbook = load_workbook(BytesIO(response.content), read_only=True, data_only=True)
+                try:
+                    rows = list(workbook.active.iter_rows(values_only=True))
+                finally:
+                    workbook.close()
+                expected_headers = ["序号", *columns, "资质类别"]
+                actual_headers = [str(value or "") for value in rows[0]] if rows else []
+                if actual_headers != expected_headers:
+                    raise RuntimeError("APP 页面与 Excel 列结构不一致")
+                if len(rows) - 1 != len(results):
+                    raise RuntimeError("APP 页面与 Excel 明细行数不一致")
+                if any(row[0] != index or row[-1] != qualification for index, row in enumerate(rows[1:], start=1)):
+                    raise RuntimeError("APP Excel 序号或资质类别不正确")
         progress = state.get("progress", {})
         verifier.record("ieb", "app.qualification-roster.metadata", "PASS", f"动态筛选字段 {len(metadata.get('filterFields', []))}，动态资格 {len(metadata.get('qualifications', []))}")
-        verifier.record("ieb", "app.qualification-roster.query", "PASS", f"前端 /api/run 已接通，关系 {progress.get('relationships', 0)} 条")
-        verifier.record("ieb", "app.qualification-roster.native-export", "PASS", "真实名册结果已写入临时 Excel 并在验收后清理")
+        verifier.record("ieb", "app.qualification-roster.query", "PASS", f"前端 /api/run 已接通，人员字段 {len(columns)} 项，关系 {progress.get('relationships', 0)} 条")
+        verifier.record("ieb", "app.qualification-roster.native-export", "PASS", "页面与临时 Excel 的完整人员字段、连续序号和资质类别一致，验收文件已清理")
     except Exception as error:  # noqa: BLE001
         verifier.fail("ieb", "app.qualification-roster", error)

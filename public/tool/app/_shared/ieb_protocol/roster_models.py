@@ -102,26 +102,5 @@ class QueryFilters:
         )
 
 
-@dataclass(frozen=True)
-class PortalPerson:
-    staff_number: str
-    name: str
-
-
-@dataclass(frozen=True)
-class PersonQualification:
-    staff_number: str
-    name: str
-    qualification_code: str
-
-    def to_dict(self, sequence: int) -> dict[str, object]:
-        return {
-            "sequence": sequence,
-            "staffNumber": self.staff_number,
-            "name": self.name,
-            "qualificationCode": self.qualification_code,
-        }
-
-
 def qualifications_from_payload(value: object) -> list[str]:
     return _values(value)

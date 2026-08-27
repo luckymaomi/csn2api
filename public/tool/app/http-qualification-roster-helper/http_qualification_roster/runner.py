@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from typing import Callable
 
 from .exporter import RosterWorkbook
-from ieb_protocol.roster_models import OperatingQualification, PersonQualification, QueryFilters
+from ieb_protocol.roster_models import OperatingQualification, QueryFilters
 from .portal_client import PortalError, PortalSessionExpired
 
 
@@ -51,12 +51,11 @@ class RosterRunner:
                 break
             self.event_callback({"type": "item_started", "code": item.code, "name": item.name})
             try:
-                count = self.client.query_count(filters, item.code)  # type: ignore[attr-defined]
-                people = self.client.export_people(filters, item.code)  # type: ignore[attr-defined]
+                count, columns = self.client.query_roster(filters, item.code)  # type: ignore[attr-defined]
+                people = self.client.export_people(filters, item.code, columns)  # type: ignore[attr-defined]
                 if count != len(people):
                     raise PortalError(f"查询人数 {count} 与普通导出人数 {len(people)} 不一致")
-                relations = [PersonQualification(person.staff_number, person.name, item.code) for person in people]
-                added = self.workbook.append_qualification(item.code, relations)
+                added = self.workbook.append_qualification(item.code, columns, people)
                 if len(added) != count:
                     raise PortalError("普通导出人数与查询人数不一致")
                 success += 1
@@ -64,7 +63,8 @@ class RosterRunner:
                     "type": "item_succeeded",
                     "code": item.code,
                     "count": count,
-                    "relations": [relation.to_dict(0) for relation in added],
+                    "columns": columns,
+                    "relations": added,
                 })
             except PortalSessionExpired as error:
                 message = str(error)

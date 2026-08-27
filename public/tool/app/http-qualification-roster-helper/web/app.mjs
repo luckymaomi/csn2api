@@ -249,8 +249,8 @@ function updateSelectionSummary() {
   elements.runButton.disabled = !codes.length || !sessionVerified || !metadataLoaded || interactionBusy;
 }
 
-function renderResults(rows = []) {
-  const signature = JSON.stringify(rows);
+function renderResults(rows = [], columns = []) {
+  const signature = JSON.stringify([columns, rows]);
   if (signature === lastResultSignature) return;
   lastResultSignature = signature;
   elements.resultsCount.textContent = `${rows.length} 条`;
@@ -261,11 +261,19 @@ function renderResults(rows = []) {
   }
   elements.resultsEmpty.hidden = true;
   elements.resultsTable.hidden = false;
-  elements.resultsTable.querySelector("thead").innerHTML = "<tr><th>序号</th><th>员工号</th><th>姓名</th><th>资质类别</th></tr>";
+  const headers = ["序号", ...columns, "资质类别"];
+  const headingRow = document.createElement("tr");
+  headers.forEach((header) => {
+    const th = document.createElement("th");
+    th.textContent = header;
+    headingRow.append(th);
+  });
+  elements.resultsTable.querySelector("thead").replaceChildren(headingRow);
+  elements.resultsTable.style.minWidth = `${Math.max(720, 90 + columns.length * 132 + 140)}px`;
   const body = elements.resultsTable.querySelector("tbody");
   body.replaceChildren(...rows.map((row) => {
     const tr = document.createElement("tr");
-    [row.sequence, row.staffNumber, row.name, row.qualificationCode].forEach((value) => {
+    [row.sequence, ...columns.map((column) => row.fields?.[column] || ""), row.qualificationCode].forEach((value) => {
       const td = document.createElement("td");
       td.textContent = String(value ?? "");
       tr.append(td);
@@ -349,7 +357,7 @@ function renderState(state) {
   elements.failedCount.textContent = String(progress.failed || 0);
   elements.relationshipCount.textContent = String(progress.relationships || 0);
   setDownload(Boolean(state.download?.ready));
-  renderResults(state.results || []);
+  renderResults(state.results || [], state.resultColumns || []);
   renderLogs(state.logs || []);
   updateSelectionSummary();
 }
