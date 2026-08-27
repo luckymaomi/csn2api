@@ -12,7 +12,7 @@ APP 与 API 文档共用 `ieb_protocol` 中的资质监控 core。分类树、�
 
 凭据验证通过分类树接口完成。客户端只接受资质运行类 `ZZYX`、资质资格类 `ZZZG`、资质特殊类 `ZZTS`，子类按门户响应动态读取；缺失父类、意外父类、重复代码或缺少名称时停止。
 
-单项与全部导出均调用门户原生 `GET /newieb/qualification/alarm/new/exportQualificationInfoExcel`。请求保留页面的全部空筛选参数且不携带分页字段。响应通过 ZIP 魔数、OOXML 必要部件和 worksheet 校验后原样保存，不用 Excel 库解析、修复或重写。
+常规资质导出调用门户原生 `GET /newieb/qualification/alarm/new/exportQualificationInfoExcel`，请求保留页面的全部空筛选参数且不携带分页字段。JCY 调用检查员库独立的 `GET /newieb/zhftcCheckerInfo/exportZhftcCheckerInfoExcel`，使用检查员库筛选参数且不发送 `qualType`。两类响应都通过 ZIP 魔数、OOXML 必要部件和 worksheet 校验后原样保存，不用 Excel 库解析、修复或重写；检查员库导出受页面管理权限控制，失败时按单项失败处理。
 
 一键全部按分类树顺序严格串行。普通失败记录后继续；登录失效立即停止并清除凭据；人工停止只在当前请求返回后的子类边界生效。只有全部子类成功才生成完整 ZIP，ZIP 按三类分目录且每个子类保留独立 `.xlsx`。成功单项始终可独立下载。
 

@@ -13,7 +13,7 @@ description: 探测、复用或维护 IEB 飞行门户纯 HTTP 接口与本地 H
 - 非生产任务锁班接口、动态类型、时间模式、查询、通过、撤销、解锁或冲突恢复：读取 [锁班接口事实](references/lock-entry-api.md)。维护锁班本地 APP 时再读取 [锁班工作台约束](references/lock-entry-workbench.md)。
 - 飞行时间、飞行经历、左座经历与起落数查询：读取 [飞行经历接口事实](references/flight-stats-api.md)。维护对应本地 APP 时再读取 [飞行经历工作台约束](references/flight-stats-workbench.md)。
 - 技术等级、运行资格和人员技术资料查询：读取 [技术等级与运行资格接口事实](references/qualification-query-api.md)。维护对应本地 APP 时再读取 `spec/dev/http-qualification-query-helper/spec.md`。
-- 资质监控、按资质查询、三类资质、29 个子类、分页明细或门户原生 Excel 导出：读取 [资质监控按资质查询接口事实](references/qualification-monitor-api.md)。维护对应本地 APP 时再读取 `spec/dev/http-qualification-monitor-helper/spec.md`。
+- 资质监控、按资质查询、三类动态子类、分页明细或门户原生 Excel 导出：读取 [资质监控按资质查询接口事实](references/qualification-monitor-api.md)。维护对应本地 APP 时再读取 `spec/dev/http-qualification-monitor-helper/spec.md`。
 - 涉及 Excel 时同时使用 `excel-dev`；正式修改工具时同时使用 `csn2api-dev`，涉及页面时再使用 `ui-clarity`。
 
 ## 共同行为

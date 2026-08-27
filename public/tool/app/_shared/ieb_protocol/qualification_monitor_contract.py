@@ -26,6 +26,18 @@ FILTER_NAMES = (
     "effective",
     "effectiveModel",
 )
+INSPECTOR_FILTER_NAMES = (
+    "staffNumArr",
+    "primaryBase",
+    "base",
+    "fleetCd",
+    "qualAll",
+    "branchCd",
+    "checkerType",
+    "grade",
+    "gradeNo",
+    "alarmType",
+)
 OOXML_REQUIRED_PARTS = {"[Content_Types].xml", "xl/workbook.xml"}
 
 
@@ -94,6 +106,29 @@ def build_query_params(
     size = _positive_integer(page_size, "每页条数")
     return [
         *build_filter_params(qualification_code, filters),
+        ("pageNum", str(page)),
+        ("pageSize", str(size)),
+    ]
+
+
+def build_inspector_filter_params(filters: Mapping[str, object] | None = None) -> list[tuple[str, str]]:
+    supplied = filters or {}
+    return [
+        (name, value)
+        for name in INSPECTOR_FILTER_NAMES
+        if (value := _text(supplied.get(name)))
+    ]
+
+
+def build_inspector_query_params(
+    filters: Mapping[str, object] | None = None,
+    page_number: object = 1,
+    page_size: object = 20,
+) -> list[tuple[str, str]]:
+    page = _positive_integer(page_number, "页码")
+    size = _positive_integer(page_size, "每页条数")
+    return [
+        *build_inspector_filter_params(filters),
         ("pageNum", str(page)),
         ("pageSize", str(size)),
     ]

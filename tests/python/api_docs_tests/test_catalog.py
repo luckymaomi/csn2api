@@ -48,7 +48,7 @@ class CatalogTests(unittest.TestCase):
         self.assertEqual(systems[1]["credentialRequestUrl"], "https://work.csair.com/oai/work/box/query/waiting")
         self.assertEqual(self.catalog.as_dict()["schemaVersion"], 2)
 
-    def test_qualification_monitor_exposes_29_fixed_query_contracts(self) -> None:
+    def test_qualification_monitor_exposes_standard_and_inspector_query_contracts(self) -> None:
         records = [
             record
             for full_id, record in self.catalog.endpoints.items()
@@ -59,8 +59,11 @@ class CatalogTests(unittest.TestCase):
             {record.endpoint["groupId"] for record in records},
             {"operating", "qualification", "special"},
         )
+        inspector = self.catalog.get_endpoint("qualification-monitor.special-jcy")
+        standard = [record for record in records if record.full_id != inspector.full_id]
+        self.assertEqual(len(standard), 28)
         codes = []
-        for record in records:
+        for record in standard:
             self.assertEqual(record.endpoint["method"], "GET")
             self.assertEqual(record.endpoint["path"], "/newieb/qualification/alarm/new/queryAlarmDetail")
             parameters = {item["name"]: item for item in record.endpoint["parameters"]}
@@ -68,11 +71,19 @@ class CatalogTests(unittest.TestCase):
             self.assertTrue(parameters["staffNum"]["includeWhenEmpty"])
             self.assertEqual(parameters["pageSize"]["default"], "20")
             codes.append(parameters["qualType"]["default"])
-        self.assertEqual(len(set(codes)), 29)
+        self.assertEqual(len(set(codes)), 28)
+
+        self.assertEqual(inspector.endpoint["path"], "/newieb/zhftcCheckerInfo/pageZhftcCheckerInfo")
+        self.assertEqual(inspector.endpoint["protocolCode"], "JCY")
+        inspector_parameters = {item["name"]: item for item in inspector.endpoint["parameters"]}
+        self.assertNotIn("qualType", inspector_parameters)
+        self.assertIn("checkerType", inspector_parameters)
+        self.assertIn("gradeNo", inspector_parameters)
+        self.assertEqual(inspector_parameters["pageSize"]["default"], "20")
 
     def test_request_roles_separate_sessions_execution_and_related_requests(self) -> None:
         serialized = json.dumps(self.catalog.as_dict(), ensure_ascii=False)
-        self.assertEqual(len(self.catalog.request_definitions), 26)
+        self.assertEqual(len(self.catalog.request_definitions), 28)
 
         ieb_validation = self.catalog.get_session_request("flight-portal", "validation")
         ieb_keepalive = self.catalog.get_session_request("flight-portal", "keepAlive")

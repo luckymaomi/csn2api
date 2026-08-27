@@ -4,7 +4,7 @@
   "systemId": "flight-portal",
   "name": "资质监控按资质查询接口",
   "navigationGroup": "资质报表",
-  "description": "按资质子类分页查询当前监控记录。29 个入口共享生产查询路径，但各自固定 qualType。",
+  "description": "按资质子类分页查询当前监控记录。28 个常规入口使用资质告警接口，检查员/委任代表使用页面独立的检查员库接口。",
   "baseUrl": "https://ieb.csair.com",
   "navigationUrl": "https://ieb.csair.com/static/qualificationMonitorNew/searchByQualificationPage.html",
   "cookies": [
@@ -96,7 +96,29 @@
     { "id": "special-zzjlql", "groupId": "special", "name": "左座经历起落监控", "parameters": [{ "name": "qualType", "in": "query", "label": "资质代码", "type": "text", "default": "ZZJLQL", "fixed": true, "description": "左座经历起落监控" }] },
     { "id": "special-ilsprm", "groupId": "special", "name": "ILS PRM 进近", "parameters": [{ "name": "qualType", "in": "query", "label": "资质代码", "type": "text", "default": "ILSPRM", "fixed": true, "description": "ILS PRM 进近" }] },
     { "id": "special-hy6", "groupId": "special", "name": "汉语6级", "parameters": [{ "name": "qualType", "in": "query", "label": "资质代码", "type": "text", "default": "HY6", "fixed": true, "description": "汉语6级" }] },
-    { "id": "special-jcy", "groupId": "special", "name": "检查员/委任代表", "parameters": [{ "name": "qualType", "in": "query", "label": "资质代码", "type": "text", "default": "JCY", "fixed": true, "description": "检查员/委任代表" }] },
+    {
+      "id": "special-jcy",
+      "groupId": "special",
+      "name": "检查员/委任代表",
+      "summary": "按检查员库页面的独立筛选和分页契约查询检查员/委任代表。",
+      "path": "/newieb/zhftcCheckerInfo/pageZhftcCheckerInfo",
+      "protocolCode": "JCY",
+      "inheritCommonParameters": false,
+      "parameters": [
+        { "name": "staffNumArr", "in": "query", "label": "员工号 / 姓名", "type": "text", "default": "", "description": "空值表示不按人员筛选" },
+        { "name": "primaryBase", "in": "query", "label": "注册基地", "type": "text", "default": "", "description": "值来自检查员库动态选项" },
+        { "name": "base", "in": "query", "label": "运行基地", "type": "text", "default": "", "description": "值来自检查员库动态选项" },
+        { "name": "fleetCd", "in": "query", "label": "机型", "type": "text", "default": "", "description": "值来自检查员库动态选项" },
+        { "name": "qualAll", "in": "query", "label": "技术信息", "type": "text", "default": "", "description": "多个代码按门户页面格式用逗号连接" },
+        { "name": "branchCd", "in": "query", "label": "分部", "type": "text", "default": "", "description": "值来自检查员库动态选项" },
+        { "name": "checkerType", "in": "query", "label": "考试员类型", "type": "select", "default": "", "options": [{ "value": "ATE", "label": "委任代表" }, { "value": "PCC", "label": "公司检查员" }], "description": "空值表示全部类型" },
+        { "name": "grade", "in": "query", "label": "权利类型", "type": "select", "default": "", "options": [{ "value": "PCC1", "label": "PCC1" }, { "value": "PCC2", "label": "PCC2" }, { "value": "PCC3", "label": "PCC3" }, { "value": "ATE1", "label": "ATE1" }, { "value": "ATE2", "label": "ATE2" }, { "value": "ATE3", "label": "ATE3" }], "description": "空值表示全部权利类型" },
+        { "name": "gradeNo", "in": "query", "label": "考试员编号", "type": "text", "default": "", "description": "空值表示不筛选" },
+        { "name": "alarmType", "in": "query", "label": "检查员状态", "type": "text", "default": "", "description": "可按页面格式填写正常、警告、失效，多个值用逗号连接" },
+        { "name": "pageNum", "in": "query", "label": "页码", "type": "number", "default": "1", "required": true, "minimum": 1, "description": "从 1 开始" },
+        { "name": "pageSize", "in": "query", "label": "每页条数", "type": "number", "default": "20", "required": true, "minimum": 1, "description": "门户页面默认 20" }
+      ]
+    },
     { "id": "special-jdyx", "groupId": "special", "name": "极地运行", "parameters": [{ "name": "qualType", "in": "query", "label": "资质代码", "type": "text", "default": "JDYX", "fixed": true, "description": "极地运行" }] }
   ],
   "requestDefinitions": [
@@ -139,17 +161,40 @@
       "path": "/newieb/qualification/alarm/new/exportQualificationInfoExcel",
       "parameters": ["qualType", "staffNum", "alarmType", "primaryBase", "manyStaffNum", "manyAlarmType", "base", "fleetCd", "allClear", "effective", "effectiveModel"],
       "response": "HTTP 200 的响应体是 OOXML ZIP。门户文件名和 MIME 可能不规范；GJQYDF、GJQYYYTX 的原生导出会排除部分 allClear=Y 记录。"
+    },
+    {
+      "id": "inspector-options",
+      "name": "检查员库筛选选项",
+      "purpose": "读取检查员库页面的注册基地、运行基地、机型、技术信息和分部选项。",
+      "risk": "read",
+      "method": "GET",
+      "path": "/newieb/zhftcCheckerInfo/getFleetCdAndBase",
+      "parameters": [],
+      "response": "JSON，提供 primaryBaseList、baseList、fleetCdList、qualList 和 fleetCdBranchList。"
+    },
+    {
+      "id": "inspector-native-export",
+      "name": "检查员库原生 Excel 导出",
+      "purpose": "按检查员库独立筛选字段下载门户原生 OOXML。",
+      "risk": "read",
+      "method": "GET",
+      "path": "/newieb/zhftcCheckerInfo/exportZhftcCheckerInfoExcel",
+      "parameters": ["staffNumArr", "primaryBase", "base", "fleetCd", "qualAll", "branchCd", "checkerType", "grade", "gradeNo", "alarmType"],
+      "response": "具备页面导出权限时返回 OOXML ZIP；无导出权限不能以分页查询成功代替导出成功。"
     }
   ],
   "relatedRequests": [
     { "requestRef": "qualification-monitor.classification-tree", "kind": "metadata", "description": "读取三类父项及当前全部资质子类" },
     { "requestRef": "qualification-monitor.data-power", "kind": "option-source", "sourceId": "qualification-data-power", "description": "提供注册基地、运行基地和机队权限筛选项" },
     { "requestRef": "qualification-monitor.effective-models", "kind": "option-source", "sourceId": "qualification-effective-models", "description": "提供有效机型筛选项" },
-    { "requestRef": "qualification-monitor.native-export", "kind": "export", "description": "按单个资质代码下载门户原生 OOXML" }
+    { "requestRef": "qualification-monitor.native-export", "kind": "export", "description": "按常规资质代码下载门户原生 OOXML" },
+    { "requestRef": "qualification-monitor.inspector-options", "kind": "option-source", "sourceId": "qualification-inspector-options", "description": "提供检查员库独立筛选项" },
+    { "requestRef": "qualification-monitor.inspector-native-export", "kind": "export", "description": "按检查员库筛选字段下载门户原生 OOXML" }
   ],
   "technicalNotes": [
-    "29 个 endpoint 共享 queryAlarmDetail 路径和 PageInfo 契约，各自固定 qualType，调用方不能覆盖。",
+    "28 个常规 endpoint 共享 queryAlarmDetail 路径并固定 qualType；JCY 使用独立检查员库分页路径且不发送 qualType。",
     "空筛选参数必须保留；pageNum、pageSize 可编辑，默认 1、20。",
+    "JCY 的空筛选项按检查员库页面省略，筛选字段和动态选项与常规资质告警接口不同。",
     "接口返回字段随资质子类变化，结构化表格保留当前页全部 JSON 字段，原始响应可单独查看。",
     "门户原生导出的已解除警告排除行为被原样保留，不用分页 JSON 补齐。"
   ]

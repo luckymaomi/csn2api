@@ -95,6 +95,18 @@ QUALIFICATION_PAGE_INFO = json.dumps({
     "hasNextPage": True,
 }, ensure_ascii=False)
 
+INSPECTOR_PAGE_INFO = json.dumps({
+    "list": [
+        {"staffNum": "900001", "personName": "测试人员", "checkerType": "PCC", "grade": "PCC3"},
+        {"staffNum": "900002", "personName": "样例人员", "checkerType": "ATE", "grade": "ATE1"},
+    ],
+    "total": 36,
+    "pages": 2,
+    "pageNum": 1,
+    "pageSize": 20,
+    "hasNextPage": True,
+}, ensure_ascii=False)
+
 ROSTER_FILTER_HTML = """
 <form id="showEmpProfileCompositeListPageForm">
   <select name="primaryBaseArray"><option value="">全部注册基地</option></select>
@@ -481,6 +493,32 @@ class ExecutorTests(unittest.TestCase):
         self.assertIn(("staffNum", ""), params)
         self.assertIn(("pageNum", "2"), params)
         self.assertEqual(session.requests[-1]["method"], "GET")
+
+    def test_inspector_query_uses_dedicated_page_contract(self) -> None:
+        executor, session = self.create_executor([
+            FakeResponse(QUERY_PAGE_HTML),
+            FakeResponse(IEB_HOME_HTML),
+            FakeResponse(INSPECTOR_PAGE_INFO, content_type="application/json"),
+        ])
+        executor.load_credentials("JSESSIONID=session-value; iebJSid=browser-value")
+
+        result = executor.execute("qualification-monitor.special-jcy", {
+            "staffNumArr": "900001",
+            "checkerType": "PCC",
+            "pageNum": 1,
+            "pageSize": 20,
+        })
+
+        self.assertEqual(result["data"]["summary"]["total"], 36)
+        self.assertEqual(result["data"]["summary"]["pages"], 2)
+        self.assertIn("checkerType", result["data"]["tables"][0]["columns"])
+        self.assertTrue(session.requests[-1]["url"].endswith("/newieb/zhftcCheckerInfo/pageZhftcCheckerInfo"))
+        self.assertEqual(session.requests[-1]["params"], [
+            ("staffNumArr", "900001"),
+            ("checkerType", "PCC"),
+            ("pageNum", "1"),
+            ("pageSize", "20"),
+        ])
 
     def test_qualification_roster_executes_request_shapes_and_parses_export_rows(self) -> None:
         executor, session = self.create_executor([

@@ -99,6 +99,21 @@ function fixture() {
 }
 
 describe("API docs catalog v2", () => {
+  it("allows a real endpoint variant to replace module common parameters", async () => {
+    const api = await loadModules();
+    const materialized = api.materializeCatalogModule({
+      endpointDefaults: { method: "GET" },
+      commonParameters: [{ name: "common", in: "query" }],
+      endpoints: [{
+        id: "special",
+        inheritCommonParameters: false,
+        parameters: [{ name: "special", in: "query" }],
+      }],
+    });
+
+    expect(materialized.endpoints[0].parameters.map((item: { name: string }) => item.name)).toEqual(["special"]);
+  });
+
   it("resolves session roles, endpoint steps and module relations independently", async () => {
     const api = await loadModules();
     const { module, system } = fixture();

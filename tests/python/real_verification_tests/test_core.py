@@ -18,6 +18,7 @@ from real_verification.common import (  # noqa: E402
     result_summary,
 )
 from real_verification.runner import RealVerifier  # noqa: E402
+from real_verification.app_http import require_completed  # noqa: E402
 
 
 class RealVerificationCoreTests(unittest.TestCase):
@@ -66,6 +67,14 @@ Cookie: yzzzm=one; JSESSIONID=two; home=three
         self.assertFalse(verifier.selected_case("flight-stats"))
         self.assertTrue(verifier.claim_write("oa"))
         self.assertFalse(verifier.claim_write("oa"))
+
+    def test_failed_app_verification_reports_the_item_error(self) -> None:
+        with self.assertRaisesRegex(RuntimeError, "门户返回 HTTP 500"):
+            require_completed({
+                "phase": "partial_failure",
+                "progress": {"success": 0},
+                "items": [{"status": "failed", "error": "飞行门户返回 HTTP 500"}],
+            })
 
 
 if __name__ == "__main__":

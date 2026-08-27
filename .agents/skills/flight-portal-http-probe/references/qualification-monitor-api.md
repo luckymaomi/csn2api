@@ -20,7 +20,7 @@ GET https://ieb.csair.com/static/qualificationMonitorNew/searchByQualificationPa
 GET https://ieb.csair.com/newieb/qualification/alarm/new/queryQualificationTypeParent
 ```
 
-响应为 JSON 数组。父项使用 `id`、`msgType`、`msgCode`，子项位于 `sonList`，按 `msgType` 展示名称、按 `msgCode` 作为 `qualType` 请求值。客户端应消费当前响应，不把 29 个子类数量当作永久常量；重复或缺失 `msgCode` 必须停止，不能覆盖同名文件。
+响应为 JSON 数组。父项使用 `id`、`msgType`、`msgCode`，子项位于 `sonList`，按 `msgType` 展示名称、按 `msgCode` 标识业务子类。常规子类把 `msgCode` 作为 `qualType`；`JCY` 只用于识别检查员库特判，不作为分页 Query。客户端应消费当前响应，不把当前子类数量当作永久常量；重复或缺失 `msgCode` 必须停止，不能覆盖同名文件。
 
 当前已确认分类如下。
 
@@ -77,7 +77,7 @@ GET https://ieb.csair.com/newieb/qualification/alarm/new/queryFleetCd
 
 第一个响应提供 `primBaseList`、`baseList`、`fleetCdList`；第二个响应提供有效机型列表。状态选项由页面固定为：`3=失效`、`2=警告`、`1=注意`、`0=正常`。
 
-## 分页查询
+## 常规资质分页查询
 
 ```text
 GET https://ieb.csair.com/newieb/qualification/alarm/new/queryAlarmDetail
@@ -105,7 +105,44 @@ pageSize=20
 
 查询全部分页时严格串行；按 `total`、`pages` 和 `hasNextPage` 交叉收敛，任何页登录失效、JSON 契约变化或页码不前进都停止，不能无限重试。
 
-## 门户原生导出
+## 检查员/委任代表分页查询
+
+选择分类树的 `JCY` 时，页面不会调用常规 `queryAlarmDetail`，而是渲染 `showInspectorLibrary.js` 独立组件并请求：
+
+```text
+GET https://ieb.csair.com/newieb/zhftcCheckerInfo/pageZhftcCheckerInfo
+```
+
+Query 使用检查员库自己的筛选字段：
+
+```text
+staffNumArr
+primaryBase
+base
+fleetCd
+qualAll
+branchCd
+checkerType
+grade
+gradeNo
+alarmType
+pageNum
+pageSize
+```
+
+页面首次进入 JCY 时只发送 `pageNum=1&pageSize=20`；空筛选字段不需要发送。响应仍是 PageInfo JSON，但记录字段为检查员库专用结构，包括 `staffNum`、`personName`、`checkerType`、`grade`、`gradeNo`、`alarmType`、有效期、起落、经历和备注等动态字段。
+
+筛选选项来自：
+
+```text
+GET https://ieb.csair.com/newieb/zhftcCheckerInfo/getFleetCdAndBase
+```
+
+当前响应提供 `primaryBaseList`、`baseList`、`fleetCdList`、`qualList` 和 `fleetCdBranchList`。考试员类型固定为 `ATE=委任代表`、`PCC=公司检查员`，权利类型由页面按考试员类型收敛到 `PCC1..3` 或 `ATE1..3`。
+
+2026-08-27 使用 owner 授权 Session 正向复验：JCY 返回 `total=36`、`pages=2`，第一页 20 条、第二页 16 条。把 `qualType=JCY` 发送到常规接口会返回 0，这不是 JCY 的真实空数据。
+
+## 常规资质门户原生导出
 
 ```text
 GET https://ieb.csair.com/newieb/qualification/alarm/new/exportQualificationInfoExcel
@@ -118,10 +155,18 @@ Query 与分页查询使用相同筛选字段，但不传 `pageNum`、`pageSize`
 - HTTP 200 响应体是 OOXML ZIP，也就是 `.xlsx` 内容；门户页面虽然使用“资质表.xls”文件名，不能按扩展名或响应 `Content-Type` 判断格式。
 - 响应应以 ZIP 魔数和必要 OOXML 部件验证；登录页、JSON 错误或缺少 workbook/worksheet 的响应不能保存为成功 Excel。
 - 门户生成的 worksheet `dimension` 可能错误写成 `A1`，真实 `<row>` 仍完整存在。若只为下载，应原样保留字节；若用 openpyxl 检查，read-only 模式需要 `reset_dimensions()` 后再遍历。
-- 当前 29 个子类均已返回可打开的 OOXML。27 个子类的原生导出数据行数与空筛选分页查询 `total` 一致。
+- 当前已确认的 28 个常规子类均可请求该导出。27 个常规子类的原生导出数据行数与空筛选分页查询 `total` 一致。
 - `GJQYDF` 与 `GJQYYYTX` 的原生导出排除 `allClear=Y` 的已解除警告记录；显式传 `allClear=Y` 仍只返回表头。这是门户原生导出行为，不是本地分页丢失。
 
 当 owner 明确选择“门户原生导出”时，本地 APP 的“全部”指当前分类树中的全部子类分别调用该导出接口，不重建 Excel、不补入 `allClear=Y` 记录，也不声称与分页查询总数一致。一键导出必须保持串行，并把每个子类的原始 OOXML 作为独立文件交付；ZIP 打包属于本地组合工作流，不得写成门户生产接口。
+
+JCY 使用独立导出路径：
+
+```text
+GET https://ieb.csair.com/newieb/zhftcCheckerInfo/exportZhftcCheckerInfoExcel
+```
+
+参数与检查员库筛选字段一致且不发送 `qualType`。页面仅向具备 `sim_train_checkerlib_manage` 权限的用户显示该导出按钮；没有导出权限时，分页查询成功不能代替导出成功，客户端必须把非 OOXML 或 HTTP 失败记录为该项失败。
 
 ## Headers 与安全边界
 

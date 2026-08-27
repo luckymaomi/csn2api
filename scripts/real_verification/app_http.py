@@ -84,7 +84,12 @@ def require_completed(state: dict[str, object], *, minimum_success: int = 1) -> 
     progress = state.get("progress")
     success = int(progress.get("success") or 0) if isinstance(progress, dict) else 0
     if phase != "completed" or success < minimum_success:
-        message = str(state.get("error") or state.get("message") or phase)
+        failed_items = [
+            str(item.get("error") or "").strip()
+            for item in state.get("items", [])
+            if isinstance(item, dict) and item.get("status") == "failed" and item.get("error")
+        ] if isinstance(state.get("items"), list) else []
+        message = str(state.get("error") or state.get("message") or (failed_items[0] if failed_items else phase))
         raise RuntimeError(f"APP 真实任务未成功完成：{message}")
     return state
 

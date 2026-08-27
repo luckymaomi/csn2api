@@ -10,7 +10,9 @@ export function materializeCatalogModule(source) {
         const names = new Set(ownParameters.map((parameter) => parameter.name));
         merged.parameters = [
             ...ownParameters,
-            ...commonParameters.filter((parameter) => !names.has(parameter.name)),
+            ...(endpoint.inheritCommonParameters === false
+                ? []
+                : commonParameters.filter((parameter) => !names.has(parameter.name))),
         ];
         return merged;
     });

@@ -11,7 +11,7 @@ def execute(
     supplied: dict[str, object],
     protocol: QualificationMonitorProtocol,
 ) -> tuple[object, dict[str, object]]:
-    code = next(
+    code = str(record.endpoint.get("protocolCode") or "").strip() or next(
         (
             str(item.get("default") or "").strip()
             for item in record.endpoint.get("parameters", [])

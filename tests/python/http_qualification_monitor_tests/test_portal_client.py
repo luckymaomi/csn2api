@@ -15,8 +15,18 @@ from http_qualification_monitor.portal_client import (
 from ieb_protocol import format_credentials
 from ieb_protocol import IebContractError
 from ieb_protocol.base import parse_current_identity
-from ieb_protocol.qualification_monitor import EXPORT_PATH
-from ieb_protocol.qualification_monitor_contract import build_filter_params, parse_classification_tree, validate_ooxml
+from ieb_protocol.qualification_monitor import (
+    ALARM_EXPORT_PATH,
+    INSPECTOR_EXPORT_PATH,
+    INSPECTOR_QUERY_PATH,
+)
+from ieb_protocol.qualification_monitor_contract import (
+    build_filter_params,
+    build_inspector_filter_params,
+    build_inspector_query_params,
+    parse_classification_tree,
+    validate_ooxml,
+)
 
 
 HOME_HTML = """
@@ -134,8 +144,40 @@ class PortalClientTests(unittest.TestCase):
         self.assertTrue(session.calls[1][0].endswith("/index/index"))
         self.assertEqual(session.calls[1][1]["headers"]["Accept"], "text/html,application/xhtml+xml")
         self.assertEqual(exported, native)
-        self.assertTrue(session.calls[-1][0].endswith(EXPORT_PATH))
+        self.assertTrue(session.calls[-1][0].endswith(ALARM_EXPORT_PATH))
         self.assertEqual(session.calls[-1][1]["params"], build_filter_params("90D3F"))
+
+    def test_inspector_library_uses_dedicated_query_and_export_contracts(self) -> None:
+        page = {
+            "list": [{"staffNum": "900001", "personName": "测试用户", "checkerType": "PCC"}],
+            "total": 36,
+            "pages": 2,
+            "pageNum": 2,
+            "pageSize": 20,
+            "hasNextPage": False,
+        }
+        native = ooxml_bytes("inspector")
+        session = FakeSession([
+            FakeResponse(payload=page),
+            FakeResponse(content=native),
+        ])
+        client = PortalClient(session=session)
+        client.ieb.load_credentials("JSESSIONID=a; iebJSid=b")
+
+        _response, result = client.protocol.request_page(
+            "JCY", {"staffNumArr": "900001", "checkerType": "PCC"}, 2, 20,
+        )
+        _export_response, exported = client.protocol.request_export("JCY", {"checkerType": "PCC"})
+
+        self.assertEqual((result.total, result.pages), (36, 2))
+        self.assertEqual(exported, native)
+        self.assertTrue(session.calls[0][0].endswith(INSPECTOR_QUERY_PATH))
+        self.assertEqual(
+            session.calls[0][1]["params"],
+            build_inspector_query_params({"staffNumArr": "900001", "checkerType": "PCC"}, 2, 20),
+        )
+        self.assertTrue(session.calls[1][0].endswith(INSPECTOR_EXPORT_PATH))
+        self.assertEqual(session.calls[1][1]["params"], build_inspector_filter_params({"checkerType": "PCC"}))
 
     def test_login_redirect_clears_verified_state(self) -> None:
         session = FakeSession([FakeResponse(payload=[], url="https://ieb.csair.com/login")])

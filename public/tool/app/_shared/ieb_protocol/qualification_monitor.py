@@ -5,6 +5,8 @@ from typing import Mapping
 from .base import IebContractError, IebSession
 from .qualification_monitor_contract import (
     build_filter_params,
+    build_inspector_filter_params,
+    build_inspector_query_params,
     build_query_params,
     parse_classification_tree,
     parse_page_info,
@@ -14,8 +16,12 @@ from .qualification_monitor_models import QualificationGroup, QualificationPage
 
 
 CLASSIFICATION_PATH = "/newieb/qualification/alarm/new/queryQualificationTypeParent"
-QUERY_PATH = "/newieb/qualification/alarm/new/queryAlarmDetail"
-EXPORT_PATH = "/newieb/qualification/alarm/new/exportQualificationInfoExcel"
+ALARM_QUERY_PATH = "/newieb/qualification/alarm/new/queryAlarmDetail"
+ALARM_EXPORT_PATH = "/newieb/qualification/alarm/new/exportQualificationInfoExcel"
+INSPECTOR_QUERY_PATH = "/newieb/zhftcCheckerInfo/pageZhftcCheckerInfo"
+INSPECTOR_OPTIONS_PATH = "/newieb/zhftcCheckerInfo/getFleetCdAndBase"
+INSPECTOR_EXPORT_PATH = "/newieb/zhftcCheckerInfo/exportZhftcCheckerInfoExcel"
+INSPECTOR_CODE = "JCY"
 
 
 class QualificationMonitorProtocol:
@@ -51,10 +57,15 @@ class QualificationMonitorProtocol:
         page_number: object = 1,
         page_size: object = 20,
     ) -> tuple[object, QualificationPage]:
+        inspector = str(qualification_code or "").strip() == INSPECTOR_CODE
         response = self.session.request(
             "GET",
-            QUERY_PATH,
-            params=build_query_params(qualification_code, filters, page_number, page_size),
+            INSPECTOR_QUERY_PATH if inspector else ALARM_QUERY_PATH,
+            params=(
+                build_inspector_query_params(filters, page_number, page_size)
+                if inspector
+                else build_query_params(qualification_code, filters, page_number, page_size)
+            ),
             headers={"Accept": "application/json, text/plain, */*"},
         )
         try:
@@ -68,10 +79,15 @@ class QualificationMonitorProtocol:
         qualification_code: str,
         filters: Mapping[str, object] | None = None,
     ) -> tuple[object, bytes]:
+        inspector = str(qualification_code or "").strip() == INSPECTOR_CODE
         response = self.session.request(
             "GET",
-            EXPORT_PATH,
-            params=build_filter_params(qualification_code, filters),
+            INSPECTOR_EXPORT_PATH if inspector else ALARM_EXPORT_PATH,
+            params=(
+                build_inspector_filter_params(filters)
+                if inspector
+                else build_filter_params(qualification_code, filters)
+            ),
             headers={"Accept": "*/*"},
         )
         content = bytes(response.content or b"")

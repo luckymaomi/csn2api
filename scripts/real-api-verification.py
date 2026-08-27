@@ -105,7 +105,11 @@ def main() -> int:
         required_inputs.update({"flightStartDate", "flightEndDate"})
     if "ieb" in required and (not selected_cases or "qualification-roster" in selected_cases):
         required_inputs.add("iebRosterQualification")
-    if "ieb" in required and (not selected_cases or "qualification-monitor" in selected_cases):
+    if (
+        "ieb" in required
+        and args.scope in {"app", "both"}
+        and (not selected_cases or "qualification-monitor" in selected_cases)
+    ):
         required_inputs.add("iebMonitorQualification")
     lock_selected = not selected_cases or "lock-entry" in selected_cases
     if "ieb" in required and lock_selected and (args.scope in {"app", "both"} or args.lock_confirmation):

@@ -18,7 +18,7 @@ API 文档是跨系统 HTTP 接口的事实导航和真实调试器，不是独�
 
 CAAC 有效飞行员列表把当前 `{total, rows}` 转为动态字段表格。单人详情是正向本地工作流：先把姓名和可选档案号发送给列表请求并动态分页，姓名精确匹配且唯一后，才把该行真实 `pilotId` 发送给详情请求；零匹配或多匹配停止，不猜内部 ID。详情顶层标量、对象和数组按当前响应分别结构化，嵌套值使用 JSON 文本保留，不产生 `[object Object]`。
 
-资质监控模块按资质运行类、资质资格类、资质特殊类展示当前已确认的 29 个独立 endpoint。各 endpoint 共享 `GET /newieb/qualification/alarm/new/queryAlarmDetail`、空筛选参数和 PageInfo 响应契约，只固定不同 `qualType`；共享默认值由 catalog 的 `endpointDefaults` 与 `commonParameters` 保存，浏览器、Markdown 和 Python 目录加载器展开为完整 endpoint。分类树、权限选项、有效机型和原生 Excel 导出登记为模块相关请求，不属于任一分页查询的执行步骤。
+资质监控模块按资质运行类、资质资格类、资质特殊类展示分类树当前返回的独立 endpoint。常规资质共享 `GET /newieb/qualification/alarm/new/queryAlarmDetail`、空筛选参数和 PageInfo 响应契约，只固定不同 `qualType`；`JCY` 使用 `GET /newieb/zhftcCheckerInfo/pageZhftcCheckerInfo` 及检查员库独立筛选参数，不继承常规参数。共享默认值由 catalog 的 `endpointDefaults` 与 `commonParameters` 保存，真实特判可明确关闭公共参数继承；浏览器、Markdown 和 Python 目录加载器必须得到相同展开结果。分类树、权限选项、有效机型、检查员库选项和两类原生 Excel 导出登记为模块相关请求。
 
 ## Cookie 生命周期
 
@@ -37,7 +37,7 @@ CAAC 有效飞行员列表把当前 `{total, rows}` 转为动态字段表格。�
 
 页面只提交完整 endpoint ID 和业务参数，基础地址、路径和方法来自目录。后端按 `systemId` 选择适配器，区分 HTTP 状态、登录失效、解析错误和业务返回；HTTP 200 不单独代表业务成功。结构化表格、原始 JSON/HTML、响应 Headers 和状态码同时返回。
 
-资质监控的 29 个入口使用同一个通用 GET 执行分支。固定参数不接受调用方覆盖，空筛选参数仍进入 Query；PageInfo 的 `list` 转为动态字段表格，摘要保留当前页记录数、总数、页数、页码、每页条数和下一页标记。API 文档不代理原生 Excel 二进制下载；资质监控（皇帝版）的一键 ZIP 是独立本地 APP 的组合工作流。
+资质监控常规入口使用通用 GET 执行分支，固定 `qualType` 不接受调用方覆盖且空筛选参数仍进入 Query。JCY 执行分支由 protocol core 根据稳定业务代码切换到检查员库路径，省略空筛选项且不发送 `qualType`。两类 PageInfo 的 `list` 都转为动态字段表格，摘要保留当前页记录数、总数、页数、页码、每页条数和下一页标记。API 文档不代理原生 Excel 二进制下载；资质监控（皇帝版）的一键 ZIP 是独立本地 APP 的组合工作流。
 
 OA 对外只提供两个本地组合工作流。“获取全部 OA 数量”遍历全部待办分页并返回总数、可处理公文数、跳过数和动态模块汇总；“按数量点击 OA 已阅”先执行相同全量扫描，再只选取 `DOC/official-document`，按用户输入的任意正整数逐条调用生产 `haveRead`。生产待办分页和单条已阅登记为端点真实执行步骤，不独立显示为业务入口。
 

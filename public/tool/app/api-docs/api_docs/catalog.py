@@ -139,7 +139,11 @@ class ApiCatalog:
                 *deepcopy(own_parameters),
                 *(
                     deepcopy(parameter)
-                    for parameter in common_parameters
+                    for parameter in (
+                        common_parameters
+                        if endpoint.get("inheritCommonParameters") is not False
+                        else []
+                    )
                     if not isinstance(parameter, dict) or str(parameter.get("name", "")) not in names
                 ),
             ]
