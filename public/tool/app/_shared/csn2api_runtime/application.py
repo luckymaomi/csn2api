@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib
 import sys
+import threading
 from pathlib import Path
 from typing import Any
 
@@ -28,13 +29,35 @@ def create_application_server(app_root: Path, port: int = 0) -> Any:
     return module.create_server(root, port)
 
 
+def _wait_for_worker(target: Any) -> None:
+    """等待工作台已请求停止的后台任务完成，避免解释器提前退出。"""
+    for attribute in ("_thread", "thread"):
+        worker = getattr(target, attribute, None)
+        if (
+            isinstance(worker, threading.Thread)
+            and worker is not threading.current_thread()
+            and worker.is_alive()
+        ):
+            worker.join()
+
+
+def _close(target: Any) -> None:
+    close = getattr(target, "shutdown", None) or getattr(target, "close", None)
+    if callable(close):
+        close()
+    _wait_for_worker(target)
+
+
 def close_application_server(server: Any, *, shutdown: bool) -> None:
     if shutdown:
         server.shutdown()
     manager = getattr(server, "run_manager", None)
     executor = getattr(server, "executor", None)
-    target = manager or executor
-    close = getattr(target, "shutdown", None) or getattr(target, "close", None)
-    if callable(close):
-        close()
+    execution_tasks = getattr(server, "execution_tasks", None)
+    if manager is not None:
+        _close(manager)
+    if execution_tasks is not None:
+        _close(execution_tasks)
+    if executor is not None:
+        _close(executor)
     server.server_close()

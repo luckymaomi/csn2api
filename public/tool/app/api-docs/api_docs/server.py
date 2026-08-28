@@ -6,7 +6,7 @@ import mimetypes
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from threading import Lock, Thread
+from threading import Lock, Thread, current_thread
 from urllib.parse import parse_qs, unquote, urlparse
 from uuid import uuid4
 
@@ -25,6 +25,8 @@ class ExecutionTaskStore:
         self.lock = Lock()
         self.tasks: dict[str, dict[str, object]] = {}
         self.active_systems: dict[str, str] = {}
+        self.workers: dict[str, Thread] = {}
+        self.closing = False
 
     def start(self, endpoint_id: str, parameters: dict[str, object]) -> dict[str, object]:
         record = self.catalog.get_endpoint(endpoint_id)
@@ -32,6 +34,8 @@ class ExecutionTaskStore:
             raise ValueError("当前接口不支持渐进执行")
         system_id = str(record.module.get("systemId", ""))
         with self.lock:
+            if self.closing:
+                raise RuntimeError("API 文档正在关闭，不能启动新任务")
             if system_id in self.active_systems:
                 raise ValueError("当前系统已有任务正在执行")
             task_id = uuid4().hex
@@ -42,12 +46,14 @@ class ExecutionTaskStore:
                 "result": None,
             }
             self.active_systems[system_id] = task_id
-        Thread(
-            target=self._run,
-            args=(task_id, system_id, endpoint_id, parameters),
-            name=f"api-docs-{system_id}-execution",
-            daemon=True,
-        ).start()
+            worker = Thread(
+                target=self._run,
+                args=(task_id, system_id, endpoint_id, parameters),
+                name=f"api-docs-{system_id}-execution",
+                daemon=True,
+            )
+            self.workers[task_id] = worker
+            worker.start()
         return self.status(task_id)
 
     def status(self, task_id: str) -> dict[str, object]:
@@ -82,6 +88,15 @@ class ExecutionTaskStore:
             with self.lock:
                 if self.active_systems.get(system_id) == task_id:
                     self.active_systems.pop(system_id, None)
+                self.workers.pop(task_id, None)
+
+    def close(self) -> None:
+        with self.lock:
+            self.closing = True
+            workers = list(self.workers.values())
+        for worker in workers:
+            if worker is not current_thread() and worker.is_alive():
+                worker.join()
 
 
 def create_server(

@@ -24,6 +24,7 @@ if str(SHARED_ROOT) not in sys.path:
     sys.path.insert(0, str(SHARED_ROOT))
 
 from csn2api_runtime.lease import AccessLease  # noqa: E402
+from csn2api_runtime.application import close_application_server  # noqa: E402
 from csn2api_runtime.gateway import create_gateway_server  # noqa: E402
 from csn2api_runtime.lan_assets import RUNTIME_CSS, RUNTIME_JS  # noqa: E402
 from csn2api_runtime.supervisor import RuntimeSupervisor, RuntimeTarget  # noqa: E402
@@ -130,6 +131,46 @@ class FakeApplicationServer:
 
 
 class RuntimeSupervisorTests(unittest.TestCase):
+    def test_close_waits_for_a_workbench_worker_to_finish(self) -> None:
+        stop_requested = threading.Event()
+        finished = threading.Event()
+        release = threading.Event()
+
+        class DelayedManager:
+            def __init__(self) -> None:
+                self._thread = threading.Thread(
+                    target=self._work,
+                    name="delayed-workbench-worker",
+                    daemon=True,
+                )
+                self._thread.start()
+
+            def _work(self) -> None:
+                stop_requested.wait()
+                release.wait()
+                finished.set()
+
+            def shutdown(self) -> None:
+                stop_requested.set()
+
+        class Server:
+            run_manager = DelayedManager()
+
+            def shutdown(self) -> None:
+                return
+
+            def server_close(self) -> None:
+                return
+
+        timer = threading.Timer(0.05, release.set)
+        timer.start()
+        try:
+            close_application_server(Server(), shutdown=True)
+        finally:
+            timer.cancel()
+            release.set()
+        self.assertTrue(finished.is_set())
+
     def test_start_failure_rolls_back_every_started_target(self) -> None:
         first_server = FakeApplicationServer()
         supervisor = RuntimeSupervisor([
