@@ -12,7 +12,7 @@ APP 与 API 文档共用 `ieb_protocol` 中的资质监控 core。分类树、�
 
 用户完成凭据验证后，通过独立“加载分类”动作读取分类树。客户端只接受资质运行类 `ZZYX`、资质资格类 `ZZZG`、资质特殊类 `ZZTS`，子类按门户响应动态读取；缺失父类、意外父类、重复代码或缺少名称时停止。未加载分类时不能执行批次或单项导出。
 
-常规资质导出调用门户原生 `GET /newieb/qualification/alarm/new/exportQualificationInfoExcel`，请求保留页面的全部空筛选参数且不携带分页字段。JCY 调用检查员库独立的 `GET /newieb/zhftcCheckerInfo/exportZhftcCheckerInfoExcel`，使用检查员库筛选参数且不发送 `qualType`。两类响应都通过 ZIP 魔数、OOXML 必要部件和 worksheet 校验后原样保存，不用 Excel 库解析、修复或重写；检查员库导出受页面管理权限控制，失败时按单项失败处理。
+常规资质导出调用门户原生 `GET /newieb/qualification/alarm/new/exportQualificationInfoExcel`，请求保留页面的全部空筛选参数且不携带分页字段，响应通过 ZIP 魔数、OOXML 必要部件和 worksheet 校验后原样保存。`JCY` 不调用门户检查员库原生导出（该端点在当前真实 Session 返回 HTTP 500）；改为调用独立分页接口，按 `pages`、`hasNextPage` 和动态字段收敛全部记录，再由 APP 生成单 Sheet OOXML。两条路径都不使用 Excel 库解析门户原生文件；JCY 的本地生成只属于 APP adapter 特判。
 
 一键全部按分类树顺序严格串行。普通失败记录后继续；登录失效立即停止并清除凭据；人工停止只在当前请求返回后的子类边界生效。只有全部子类成功才生成完整 ZIP，ZIP 按三类分目录且每个子类保留独立 `.xlsx`。成功单项始终可独立下载。
 

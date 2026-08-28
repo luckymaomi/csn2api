@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import copy
+import io
 import json
 import unittest
+import zipfile
 
 try:
     from .common import APP_ROOT, CLASSIFICATION_PAYLOAD, ooxml_bytes  # noqa: F401
@@ -182,6 +184,61 @@ class PortalClientTests(unittest.TestCase):
         )
         self.assertTrue(session.calls[1][0].endswith(INSPECTOR_EXPORT_PATH))
         self.assertEqual(session.calls[1][1]["params"], build_inspector_filter_params({"checkerType": "PCC"}))
+
+    def test_inspector_export_uses_all_query_pages_when_native_export_is_unavailable(self) -> None:
+        first = {
+            "list": [
+                {"staffNum": "900001", "personName": "测试用户", "checkerType": "PCC", "gradeNo": None},
+            ],
+            "total": 2,
+            "pages": 2,
+            "pageNum": 1,
+            "pageSize": 1,
+            "hasNextPage": True,
+        }
+        second = {
+            "list": [
+                {"staffNum": "900002", "personName": "测试用户二", "checkerType": "ATE", "remark": "备注"},
+            ],
+            "total": 2,
+            "pages": 2,
+            "pageNum": 2,
+            "pageSize": 1,
+            "hasNextPage": False,
+        }
+        session = FakeSession([FakeResponse(payload=first), FakeResponse(payload=second)])
+        client = PortalClient(session=session)
+        client.ieb.load_credentials("JSESSIONID=a; iebJSid=b")
+
+        exported = client.export_qualification("JCY")
+
+        self.assertTrue(exported.startswith(b"PK"))
+        with zipfile.ZipFile(io.BytesIO(exported)) as archive:
+            worksheet = archive.read("xl/worksheets/sheet1.xml").decode("utf-8")
+        self.assertIn("staffNum", worksheet)
+        self.assertIn("900001", worksheet)
+        self.assertIn("900002", worksheet)
+        self.assertIn("备注", worksheet)
+        self.assertEqual(len(session.calls), 2)
+        self.assertTrue(all(call[0].endswith(INSPECTOR_QUERY_PATH) for call in session.calls))
+
+    def test_request_all_pages_accepts_a_single_page_result(self) -> None:
+        page = {
+            "list": [{"staffNum": "900001"}],
+            "total": 1,
+            "pages": 1,
+            "pageNum": 1,
+            "pageSize": 20,
+            "hasNextPage": False,
+        }
+        session = FakeSession([FakeResponse(payload=page)])
+        client = PortalClient(session=session)
+        client.ieb.load_credentials("JSESSIONID=a; iebJSid=b")
+
+        pages = client.protocol.request_all_pages("JCY")
+
+        self.assertEqual(len(pages), 1)
+        self.assertEqual(pages[0].rows[0]["staffNum"], "900001")
 
     def test_login_redirect_clears_verified_state(self) -> None:
         session = FakeSession([FakeResponse(payload=[], url="https://ieb.csair.com/login")])

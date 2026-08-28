@@ -18,7 +18,7 @@ API 文档是跨系统 HTTP 接口的事实导航和真实调试器，不是独�
 
 CAAC 有效飞行员列表把当前 `{total, rows}` 转为动态字段表格。单人详情是正向本地工作流：先把姓名和可选档案号发送给列表请求并动态分页，姓名精确匹配且唯一后，才把该行真实 `pilotId` 发送给详情请求；零匹配或多匹配停止，不猜内部 ID。详情顶层标量、对象和数组按当前响应分别结构化，嵌套值使用 JSON 文本保留，不产生 `[object Object]`。
 
-资质监控模块按资质运行类、资质资格类、资质特殊类展示分类树当前返回的独立 endpoint。常规资质共享 `GET /newieb/qualification/alarm/new/queryAlarmDetail`、空筛选参数和 PageInfo 响应契约，只固定不同 `qualType`；`JCY` 使用 `GET /newieb/zhftcCheckerInfo/pageZhftcCheckerInfo` 及检查员库独立筛选参数，不继承常规参数。共享默认值由 catalog 的 `endpointDefaults` 与 `commonParameters` 保存，真实特判可明确关闭公共参数继承；浏览器、Markdown 和 Python 目录加载器必须得到相同展开结果。分类树、权限选项、有效机型、检查员库选项和两类原生 Excel 导出登记为模块相关请求。
+资质监控模块按资质运行类、资质资格类、资质特殊类展示分类树当前返回的独立 endpoint。常规资质共享 `GET /newieb/qualification/alarm/new/queryAlarmDetail`、空筛选参数和 PageInfo 响应契约，只固定不同 `qualType`；`JCY` 使用 `GET /newieb/zhftcCheckerInfo/pageZhftcCheckerInfo` 及检查员库独立筛选参数，不继承常规参数。共享默认值由 catalog 的 `endpointDefaults` 与 `commonParameters` 保存，真实特判可明确关闭公共参数继承；浏览器、Markdown 和 Python 目录加载器必须得到相同展开结果。分类树、权限选项、有效机型、检查员库选项和两类原生 Excel 导出登记为模块相关请求；当前真实 Session 下检查员库原生导出返回 HTTP 500，资质监控 APP 对 `JCY` 改走分页查询并本地生成 Excel，API 文档仍保留分页接口调试事实。
 
 ## Cookie 生命周期
 

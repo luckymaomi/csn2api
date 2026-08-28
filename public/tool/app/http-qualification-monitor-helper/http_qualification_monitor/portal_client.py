@@ -14,8 +14,10 @@ from ieb_protocol import (
     format_credentials,
 )
 from ieb_protocol.qualification_monitor import QualificationMonitorProtocol
+from ieb_protocol.qualification_monitor import INSPECTOR_CODE
 from ieb_protocol.qualification_monitor_models import QualificationGroup
 
+from .inspector_export import build_inspector_query_workbook
 from .session_keepalive import SessionKeepAlive, random_keepalive_interval
 
 
@@ -83,6 +85,9 @@ class PortalClient:
 
     def export_qualification(self, qualification_code: str) -> bytes:
         self.require_credentials()
+        if str(qualification_code or "").strip() == INSPECTOR_CODE:
+            pages = self.protocol.request_all_pages(INSPECTOR_CODE)
+            return build_inspector_query_workbook(pages)
         _response, content = self.protocol.request_export(qualification_code)
         return content
 

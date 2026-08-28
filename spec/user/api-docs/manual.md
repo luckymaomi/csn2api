@@ -20,7 +20,7 @@ SOC：打开 `https://soc.csair.com/opws-web/pages/public/soc.jsp?f=2&s=11&t=1` 
 
 ## Cookie 文件
 
-点击“导出 Cookie”会下载 `csn2api-cookies-*.json`，其中包含当前有效系统的规范化明文 Cookie。点击“导入 Cookie”可选择该 JSON，或内容相同的 TXT 文件；系统会逐项重新验证，失败项不会伪装成已导入。文件可同时用于独立 API 文档和 `start_all.py` 局域网模式；局域网模式下，无论直接粘贴验证还是文件导入，成功项都会分发到同一生产系统的全部工作台。普通工作台不重复显示 Cookie 文件按钮。
+点击“导出 Cookie”会下载 `csn2api-cookies-*.json`，其中包含当前有效系统的规范化明文 Cookie。点击“导入 Cookie”可选择该 JSON，或内容相同的 TXT 文件；系统会逐项重新验证，失败项不会伪装成已导入。文件可同时用于独立 API 文档和 `start_all.py` 局域网模式，但只影响 API 文档进程；每个工作台保留自己的 Cookie 输入和验证入口，需在对应工作台单独验证。
 
 Cookie 文件等同于登录凭据，只保存在受控本机，不发送给他人，不放入仓库、聊天、日志或结果目录。导入/导出不会把 Cookie 写入 LocalStorage。
 

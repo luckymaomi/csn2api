@@ -4,8 +4,11 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any
 
+import requests
+
 from ..app_http import post_json, require_completed, serve_app, verify_frontend_route, wait_for_final
 from ..common import ROOT, result_summary
+from ieb_protocol.qualification_monitor_contract import validate_ooxml
 
 
 APP_ROOT = ROOT / "public/tool/app/http-qualification-monitor-helper"
@@ -99,6 +102,17 @@ def verify_app(verifier: Any) -> None:
                     raise RuntimeError("APP 动态资质中不存在本轮验收代码")
                 post_json(base_url, "/api/export/one", {"qualType": qualification})
                 state = require_completed(wait_for_final(base_url), minimum_success=1)
+                item_state = next(
+                    (item for item in state.get("items", []) if isinstance(item, dict) and item.get("code") == qualification),
+                    None,
+                )
+                download_id = item_state.get("downloadId") if isinstance(item_state, dict) else None
+                if not download_id:
+                    raise RuntimeError("APP 资质导出没有登记下载文件")
+                download = requests.get(f"{base_url}/api/download/{download_id}", timeout=60)
+                if download.status_code != 200:
+                    raise RuntimeError(f"APP 资质下载返回 HTTP {download.status_code}")
+                validate_ooxml(download.content)
         verifier.record(
             "ieb",
             "app.qualification-monitor.metadata",
@@ -106,6 +120,6 @@ def verify_app(verifier: Any) -> None:
             f"动态资质 {len(items)}，本轮资质代码存在",
         )
         progress = state.get("progress", {})
-        verifier.record("ieb", f"app.qualification-monitor.{qualification}", "PASS", f"前端 /api/export/one 已接通，成功 {progress.get('success', 0)} 项")
+        verifier.record("ieb", f"app.qualification-monitor.{qualification}", "PASS", f"前端 /api/export/one 已接通并下载校验 OOXML，成功 {progress.get('success', 0)} 项")
     except Exception as error:  # noqa: BLE001
         verifier.fail("ieb", "app.qualification-monitor.metadata", error)

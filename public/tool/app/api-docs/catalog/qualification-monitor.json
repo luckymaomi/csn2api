@@ -175,12 +175,12 @@
     {
       "id": "inspector-native-export",
       "name": "检查员库原生 Excel 导出",
-      "purpose": "按检查员库独立筛选字段下载门户原生 OOXML。",
+      "purpose": "按检查员库独立筛选字段下载门户原生 OOXML；仅登记门户请求事实，APP 不依赖其当前可用性。",
       "risk": "read",
       "method": "GET",
       "path": "/newieb/zhftcCheckerInfo/exportZhftcCheckerInfoExcel",
       "parameters": ["staffNumArr", "primaryBase", "base", "fleetCd", "qualAll", "branchCd", "checkerType", "grade", "gradeNo", "alarmType"],
-      "response": "具备页面导出权限时返回 OOXML ZIP；无导出权限不能以分页查询成功代替导出成功。"
+      "response": "具备页面导出权限时返回 OOXML ZIP；本轮真实 Session 返回 HTTP 500/未知错误时，APP 必须改用 JCY 分页查询并本地生成，不得伪装成原生导出成功。"
     }
   ],
   "relatedRequests": [

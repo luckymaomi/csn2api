@@ -25,7 +25,7 @@ INSPECTOR_CODE = "JCY"
 
 
 class QualificationMonitorProtocol:
-    """资质分类、PageInfo 查询和门户原生导出的生产调用。"""
+    """资质分类、分页查询和门户导出的生产调用。"""
 
     def __init__(self, session: IebSession) -> None:
         self.session = session
@@ -75,6 +75,37 @@ class QualificationMonitorProtocol:
         except ValueError as error:
             raise IebContractError("资质查询接口未返回有效 JSON") from error
         return response, parse_page_info(payload)
+
+    def request_all_pages(
+        self,
+        qualification_code: str,
+        filters: Mapping[str, object] | None = None,
+        page_size: object = 20,
+    ) -> list[QualificationPage]:
+        """按 PageInfo 契约严格收敛当前资质的全部分页。"""
+        _response, first = self.request_page(qualification_code, filters, 1, page_size)
+        pages = [first]
+        if first.total == 0:
+            return pages
+        if first.pages < 1:
+            raise IebContractError("资质查询首分页与总页数契约不一致")
+        if first.pages == 1:
+            if first.has_next_page or len(first.rows) != first.total:
+                raise IebContractError("资质查询单页与总数契约不一致")
+            return pages
+        if not first.has_next_page:
+            raise IebContractError("资质查询首分页结束标记契约不一致")
+        for page_number in range(2, first.pages + 1):
+            _response, page = self.request_page(qualification_code, filters, page_number, first.page_size)
+            if page.page_number != page_number or page.page_size != first.page_size:
+                raise IebContractError("资质查询分页响应页码契约不一致")
+            expected_next = page_number < first.pages
+            if page.has_next_page != expected_next:
+                raise IebContractError("资质查询分页结束标记契约不一致")
+            pages.append(page)
+        if sum(len(page.rows) for page in pages) != first.total:
+            raise IebContractError("资质查询分页行数与总数不一致")
+        return pages
 
     def request_export(
         self,
