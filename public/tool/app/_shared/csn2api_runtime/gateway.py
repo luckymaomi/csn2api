@@ -8,7 +8,6 @@ from pathlib import Path
 from urllib.parse import unquote, urlsplit
 
 from .backend import request_backend
-from .credential_runtime import CredentialRuntime
 from .lan_assets import RUNTIME_CSS, RUNTIME_JS
 from .lease import AccessLease
 from .supervisor import RuntimeSupervisor
@@ -34,8 +33,6 @@ def create_gateway_server(
     port: int,
 ) -> ThreadingHTTPServer:
     static_root = dist_root.resolve()
-    credential_runtime = CredentialRuntime(supervisor)
-
     class Handler(BaseHTTPRequestHandler):
         server_version = "csn2api-lan/1"
 
@@ -132,9 +129,6 @@ def create_gateway_server(
             if path == "/__runtime__/client.css" and self.command == "GET":
                 self._bytes(RUNTIME_CSS.encode("utf-8"), "text/css; charset=utf-8")
                 return
-            if path == "/__runtime__/credentials" and self.command in {"GET", "POST"}:
-                self._runtime_credentials()
-                return
             if path == "/__runtime__/status" and self.command == "GET":
                 self._json(self._runtime_status())
                 return
@@ -165,23 +159,6 @@ def create_gateway_server(
             value["youOwn"] = value.get("ownerIp") == self.client_address[0]
             value["busy"] = supervisor.busy()
             return value
-
-        def _runtime_credentials(self) -> None:
-            with supervisor.lock:
-                lease.observe(self.client_address[0], "api-docs", busy=supervisor.busy())
-                body = None
-                if self.command == "POST":
-                    content_length = int(self.headers.get("Content-Length", "0") or 0)
-                    body = self.rfile.read(content_length) if content_length else b"{}"
-                try:
-                    status, result = credential_runtime.request(self.command, body)
-                except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
-                    self._json({"error": f"Cookie 服务暂不可用：{error}"}, HTTPStatus.BAD_GATEWAY)
-                    return
-                if status >= 400:
-                    self._json(result, HTTPStatus(status))
-                    return
-                self._json(result)
 
         def _static(self, request_path: str) -> None:
             relative = unquote(request_path.lstrip("/"))

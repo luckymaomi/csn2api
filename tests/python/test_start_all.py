@@ -25,7 +25,6 @@ if str(SHARED_ROOT) not in sys.path:
 
 from csn2api_runtime.lease import AccessLease  # noqa: E402
 from csn2api_runtime.gateway import create_gateway_server  # noqa: E402
-from csn2api_runtime.credential_runtime import CredentialRuntime  # noqa: E402
 from csn2api_runtime.lan_assets import RUNTIME_CSS, RUNTIME_JS  # noqa: E402
 from csn2api_runtime.supervisor import RuntimeSupervisor, RuntimeTarget  # noqa: E402
 from start_all import load_targets  # noqa: E402
@@ -88,13 +87,13 @@ class AccessLeaseTests(unittest.TestCase):
 
 
 class RuntimeAssetTests(unittest.TestCase):
-    def test_cookie_files_are_managed_only_from_api_docs_in_lan_mode(self) -> None:
+    def test_cookie_management_is_not_injected_by_lan_runtime(self) -> None:
         self.assertNotIn("导入 Cookie", RUNTIME_JS)
         self.assertNotIn("导出 Cookie", RUNTIME_JS)
         self.assertIn("/api-docs/", RUNTIME_JS)
         self.assertIn("接管使用", RUNTIME_JS)
-        self.assertIn('#credentials', RUNTIME_CSS)
-        self.assertIn('.credential-panel h2', RUNTIME_JS)
+        self.assertNotIn("#credentials", RUNTIME_CSS)
+        self.assertNotIn("credential-panel", RUNTIME_JS)
         self.assertIn('window.location.href = "/tool/"', RUNTIME_JS)
 
         api_docs_page = (
@@ -172,73 +171,6 @@ class RuntimeSupervisorTests(unittest.TestCase):
         )
         self.assertTrue(all(call.kwargs == {"shutdown": True} for call in close_server.call_args_list))
         self.assertIsNone(supervisor.targets["one"].server)
-
-
-class CredentialRuntimeTests(unittest.TestCase):
-    def test_import_distributes_one_system_to_every_matching_tool(self) -> None:
-        supervisor = RuntimeSupervisor([
-            RuntimeTarget("api-docs", "API Docs", ROOT),
-            RuntimeTarget("first", "First", ROOT, system_id="flight-portal"),
-            RuntimeTarget("second", "Second", ROOT, system_id="flight-portal"),
-            RuntimeTarget("other", "Other", ROOT, system_id="soc"),
-        ])
-        imported = {
-            "bundle": {
-                "systems": [
-                    {"systemId": "flight-portal", "credentials": "JSESSIONID=a; iebJSid=b"},
-                    {"systemId": "soc", "credentials": "JSESSIONID=existing"},
-                ]
-            },
-            "imported": ["flight-portal"],
-        }
-        responses = [
-            (200, [], json.dumps(imported).encode("utf-8")),
-            (200, [], b'{"ok": true}'),
-            (200, [], b'{"ok": true}'),
-        ]
-
-        with patch(
-            "csn2api_runtime.credential_runtime.request_backend",
-            side_effect=responses,
-        ) as request_backend:
-            status, result = CredentialRuntime(supervisor).request("POST", b"{}")
-
-        self.assertEqual(status, 200)
-        self.assertEqual(result["failed"], [])
-        self.assertEqual(
-            [call.args[1] for call in request_backend.call_args_list],
-            ["api-docs", "first", "second"],
-        )
-
-    def test_import_records_one_tool_failure_and_continues(self) -> None:
-        supervisor = RuntimeSupervisor([
-            RuntimeTarget("api-docs", "API Docs", ROOT),
-            RuntimeTarget("first", "First", ROOT, system_id="flight-portal"),
-            RuntimeTarget("second", "Second", ROOT, system_id="flight-portal"),
-        ])
-        imported = {
-            "bundle": {
-                "systems": [
-                    {"systemId": "flight-portal", "credentials": "JSESSIONID=a; iebJSid=b"}
-                ]
-            },
-            "imported": ["flight-portal"],
-        }
-        responses = [
-            (200, [], json.dumps(imported).encode("utf-8")),
-            (400, [], json.dumps({"error": "Cookie 已失效"}).encode("utf-8")),
-            (200, [], b'{"ok": true}'),
-        ]
-
-        with patch(
-            "csn2api_runtime.credential_runtime.request_backend",
-            side_effect=responses,
-        ) as request_backend:
-            status, result = CredentialRuntime(supervisor).request("POST", b"{}")
-
-        self.assertEqual(status, 200)
-        self.assertEqual(result["failed"], [{"entry": "first", "error": "Cookie 已失效"}])
-        self.assertEqual(len(request_backend.call_args_list), 3)
 
 
 class StandaloneArchiveTests(unittest.TestCase):
@@ -446,24 +378,37 @@ class LanGatewayTests(unittest.TestCase):
         with urllib.request.urlopen(f"{self.base_url}/api-docs/api/health", timeout=10) as response:
             self.assertTrue(json.loads(response.read().decode("utf-8"))["available"])
 
-    def test_cookie_bundle_endpoint_uses_api_docs_contract(self) -> None:
+    def test_gateway_does_not_expose_a_shared_cookie_endpoint(self) -> None:
         self.lease.takeover("10.0.0.99", "another-tool")
-        with urllib.request.urlopen(f"{self.base_url}/__runtime__/credentials", timeout=10) as response:
-            bundle = json.loads(response.read().decode("utf-8"))
-        self.assertEqual(bundle["format"], "csn2api-cookie-bundle")
-        self.assertEqual(bundle["schemaVersion"], 1)
-        self.assertEqual(self.lease.snapshot()["ownerIp"], "10.0.0.99")
+        with self.assertRaises(urllib.error.HTTPError) as error:
+            urllib.request.urlopen(f"{self.base_url}/__runtime__/credentials", timeout=10)
+        self.assertEqual(error.exception.code, 404)
 
+    def test_workbench_cookie_route_remains_separate_from_api_docs(self) -> None:
+        with urllib.request.urlopen(
+            f"{self.base_url}/apps/http-flight-stats-helper/api/status",
+            timeout=10,
+        ) as response:
+            self.assertEqual(response.status, 200)
+            self.assertIn("session", json.loads(response.read().decode("utf-8")))
         request = urllib.request.Request(
-            f"{self.base_url}/__runtime__/credentials",
-            data=b"{}",
+            f"{self.base_url}/apps/http-flight-stats-helper/api/session/verify",
+            data=json.dumps({"credentials": ""}).encode("utf-8"),
             headers={"Content-Type": "application/json"},
             method="POST",
         )
         with self.assertRaises(urllib.error.HTTPError) as error:
             urllib.request.urlopen(request, timeout=10)
         self.assertEqual(error.exception.code, 400)
-        self.assertIn("格式或版本", json.loads(error.exception.read().decode("utf-8"))["error"])
+        api_docs_request = urllib.request.Request(
+            f"{self.base_url}/api-docs/api/session",
+            data=json.dumps({"systemId": "", "credentials": ""}).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        with self.assertRaises(urllib.error.HTTPError) as api_docs_error:
+            urllib.request.urlopen(api_docs_request, timeout=10)
+        self.assertEqual(api_docs_error.exception.code, 400)
 
     def test_other_client_shares_pages_and_can_take_over_without_runtime_restart(self) -> None:
         self.lease.takeover("10.0.0.99", "another-tool")

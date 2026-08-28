@@ -192,12 +192,6 @@ function renderDocument() {
     }
 }
 
-function credentialEndpoint() {
-    return window.Csn2ApiRuntime?.mode === "lan"
-        ? "/__runtime__/credentials"
-        : "./api/credentials";
-}
-
 function hydrateSavedCredentials(bundle) {
     state.savedCredentials.clear();
     for (const item of bundle?.systems || []) {
@@ -206,39 +200,20 @@ function hydrateSavedCredentials(bundle) {
 }
 
 async function refreshSharedCredentials() {
-    hydrateSavedCredentials(await fetchJson(credentialEndpoint()));
+    hydrateSavedCredentials(await fetchJson("./api/credentials"));
 }
 
 async function validateCredentials(systemId, credentials) {
-    if (window.Csn2ApiRuntime?.mode !== "lan") {
-        return fetchJson("./api/session", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ systemId, credentials }),
-        });
-    }
-    const result = await fetchJson(credentialEndpoint(), {
+    return fetchJson("./api/session", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-            format: "csn2api-cookie-bundle",
-            schemaVersion: 1,
-            systems: [{ systemId, credentials }],
-        }),
+        body: JSON.stringify({ systemId, credentials }),
     });
-    const systemFailure = (result.failed || []).find((item) => item.systemId === systemId);
-    if (systemFailure) throw new Error(systemFailure.error || "Cookie 验证失败");
-    const saved = (result.bundle?.systems || []).find((item) => item.systemId === systemId);
-    return {
-        ...(result.sessions?.[systemId] || {}),
-        credentials: saved?.credentials || "",
-        distributionFailures: (result.failed || []).filter((item) => item.entry),
-    };
 }
 
 async function exportCookies() {
     try {
-        const bundle = await fetchJson(credentialEndpoint());
+        const bundle = await fetchJson("./api/credentials");
         if (!bundle.systems?.length) throw new Error("当前没有可导出的有效 Cookie");
         downloadCredentialBundle(bundle);
         showToast(`已导出 ${bundle.systems.length} 个系统 Cookie`);
@@ -251,7 +226,7 @@ async function importCookies(file) {
     try {
         elements.importCookiesButton.disabled = true;
         const bundle = await readCredentialBundleFile(file);
-        const result = await fetchJson(credentialEndpoint(), {
+        const result = await fetchJson("./api/credentials", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(bundle),
@@ -362,7 +337,7 @@ function renderSessionPanels() {
                     <button class="text-button" type="button" data-session-action="copy">复制</button>
                 </div>
                 <textarea id="saved-credential-${escapeHtml(system.id)}" class="saved-credential-text" rows="4" readonly spellcheck="false" data-session-field="saved-text"></textarea>
-                <span class="saved-credential-note">来自当前本地后端进程的共享 Cookie</span>
+                <span class="saved-credential-note">仅用于当前 API 文档进程</span>
             </div>
         </section>
     `).join("");
@@ -533,19 +508,14 @@ async function loadSession(systemId) {
     try {
         panelElements.loadSessionButton.disabled = true;
         const payload = await validateCredentials(systemId, panelElements.credentialInput.value);
-        const { credentials, distributionFailures = [], ...sessionStatus } = payload;
+        const { credentials, ...sessionStatus } = payload;
         applySessionStatus(systemId, sessionStatus);
         setSavedCredentials(systemId, credentials);
         state.options.clear();
         state.credentialDrafts.delete(systemId);
         panelElements.credentialInput.value = "";
         updateRuntimeControls();
-        showToast(
-            distributionFailures.length
-                ? `${system?.name || systemId} Cookie 已验证，${distributionFailures.length} 个工作台分发失败`
-                : `${system?.name || systemId} Cookie 已验证`,
-            distributionFailures.length > 0,
-        );
+        showToast(`${system?.name || systemId} Cookie 已验证`);
         await ensureDynamicOptions();
     } catch (error) {
         const message = error.message || String(error);

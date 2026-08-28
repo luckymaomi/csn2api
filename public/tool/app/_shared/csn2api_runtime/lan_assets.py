@@ -4,22 +4,17 @@ RUNTIME_CSS = """
 .csn2api-runtime-actions{display:flex;min-width:0;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap}
 .csn2api-runtime-strip button,.csn2api-runtime-strip a{display:inline-flex;max-width:100%;min-height:30px;align-items:center;justify-content:center;padding:4px 12px;border:2px solid var(--soft-border);background:var(--soft-surface);color:var(--soft-ink);cursor:pointer;text-align:center;text-decoration:none;white-space:normal}
 .csn2api-runtime-strip button:hover,.csn2api-runtime-strip a:hover{background:var(--soft-sky);color:var(--soft-on-pastel)}
-.csn2api-lan-workbench label[for="credentials"],.csn2api-lan-workbench #credentials,.csn2api-lan-workbench #verifyButton,.csn2api-lan-workbench #savedCredentialsPanel{display:none!important}
 @media(max-width:640px){.csn2api-runtime-strip{width:100%;min-width:0;align-items:stretch;flex-direction:column}.csn2api-runtime-actions{width:100%;justify-content:stretch}.csn2api-runtime-actions>*{min-width:0;flex:1 1 120px}}
 """.strip()
 
 RUNTIME_JS = """
 (() => {
   window.Csn2ApiRuntime = { mode: "lan" };
-  const isApiDocs = window.location.pathname.startsWith("/api-docs/");
-  if (!isApiDocs) document.body.classList.add("csn2api-lan-workbench");
   const bar = document.createElement("div");
   bar.className = "csn2api-runtime-strip";
-  bar.innerHTML = '<span>正在读取当前使用状态</span><div class="csn2api-runtime-actions"><a href="/api-docs/" data-cookie-management>Cookie 管理</a><button type="button" data-lease-action>读取中</button></div>';
+  bar.innerHTML = '<span>正在读取当前使用状态</span><div class="csn2api-runtime-actions"><a href="/api-docs/" data-api-docs-link>API 文档</a><button type="button" data-lease-action>读取中</button></div>';
   document.body.prepend(bar);
-  if (isApiDocs) bar.querySelector("[data-cookie-management]")?.remove();
-  const credentialHeading = document.querySelector("#credentialHeading, .credential-panel h2");
-  if (!isApiDocs && credentialHeading) credentialHeading.textContent = "1. Cookie 状态";
+  if (window.location.pathname.startsWith("/api-docs/")) bar.querySelector("[data-api-docs-link]")?.remove();
   const status = bar.querySelector("span");
   const action = bar.querySelector("[data-lease-action]");
   let current = null;
