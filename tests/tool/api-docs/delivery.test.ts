@@ -96,6 +96,16 @@ describe("API docs delivery", () => {
     expect(app).toContain('elements.responseTable?.addEventListener("scroll"');
   });
 
+  it("keeps the mobile header inside a narrow viewport", () => {
+    const css = readFileSync(`${root}/styles.css`, "utf8");
+    const mobile = css.slice(css.indexOf("@media (max-width: 720px)"));
+    expect(mobile).toMatch(/\.header-tools\s*\{[^}]*display:\s*grid/);
+    expect(mobile).toMatch(/grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/);
+    expect(mobile).toMatch(/\.api-search\s*\{[^}]*grid-column:\s*1\s*\/\s*-1/);
+    expect(mobile).toMatch(/\.header-action\s*\{[^}]*min-width:\s*0/);
+    expect(mobile).toMatch(/\.icon-button\s*\{[^}]*justify-self:\s*end/);
+  });
+
   it("renders v2 execution and related request facts", () => {
     const catalogView = readFileSync(`${root}/catalog-view.mjs`, "utf8");
     expect(catalogView).toContain("真实执行链路");

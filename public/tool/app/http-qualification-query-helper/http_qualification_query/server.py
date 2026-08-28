@@ -40,7 +40,7 @@ def create_server(
     app_directory = app_directory.resolve()
     run_manager = manager or RunManager(app_directory)
     web_root = app_directory / "web"
-    shared_static_root = app_directory.parents[2]
+    shared_static_root = app_directory.parents[2] if len(app_directory.parents) >= 3 else app_directory
 
     def workbench_asset(relative_path: str, shared_path: str) -> Path:
         packaged_path = web_root / relative_path

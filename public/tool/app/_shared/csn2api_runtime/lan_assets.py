@@ -1,10 +1,11 @@
 RUNTIME_CSS = """
 .csn2api-runtime-strip{display:flex;min-height:42px;align-items:center;justify-content:space-between;gap:16px;padding:8px 14px;border:0;border-bottom:2px solid var(--soft-border);background:var(--soft-surface);color:var(--soft-muted);font:600 12px/1.4 \"Microsoft YaHei UI\",sans-serif;position:relative;z-index:10000}
-.csn2api-runtime-actions{display:flex;align-items:center;gap:8px}
-.csn2api-runtime-strip button,.csn2api-runtime-strip a{display:inline-flex;min-height:30px;align-items:center;padding:4px 12px;border:2px solid var(--soft-border);background:var(--soft-surface);color:var(--soft-ink);cursor:pointer;text-decoration:none}
+.csn2api-runtime-strip>span{min-width:0;overflow-wrap:anywhere}
+.csn2api-runtime-actions{display:flex;min-width:0;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap}
+.csn2api-runtime-strip button,.csn2api-runtime-strip a{display:inline-flex;max-width:100%;min-height:30px;align-items:center;justify-content:center;padding:4px 12px;border:2px solid var(--soft-border);background:var(--soft-surface);color:var(--soft-ink);cursor:pointer;text-align:center;text-decoration:none;white-space:normal}
 .csn2api-runtime-strip button:hover,.csn2api-runtime-strip a:hover{background:var(--soft-sky);color:var(--soft-on-pastel)}
 .csn2api-lan-workbench label[for="credentials"],.csn2api-lan-workbench #credentials,.csn2api-lan-workbench #verifyButton,.csn2api-lan-workbench #savedCredentialsPanel{display:none!important}
-@media(max-width:640px){.csn2api-runtime-strip{align-items:flex-start;flex-direction:column}.csn2api-runtime-actions{width:100%;flex-wrap:wrap}}
+@media(max-width:640px){.csn2api-runtime-strip{width:100%;min-width:0;align-items:stretch;flex-direction:column}.csn2api-runtime-actions{width:100%;justify-content:stretch}.csn2api-runtime-actions>*{min-width:0;flex:1 1 120px}}
 """.strip()
 
 RUNTIME_JS = """

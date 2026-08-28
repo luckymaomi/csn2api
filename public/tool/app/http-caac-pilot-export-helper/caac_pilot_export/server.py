@@ -31,7 +31,7 @@ class WorkbenchServer(ThreadingHTTPServer):
 def create_server(app_directory: Path, port: int = 0, manager: RunManager | None = None) -> WorkbenchServer:
     root = app_directory.resolve()
     web_root = root / "web"
-    shared_static_root = root.parents[2]
+    shared_static_root = root.parents[2] if len(root.parents) >= 3 else root
     run_manager = manager or RunManager(root)
 
     def workbench_asset(relative_path: str, shared_path: str) -> Path:

@@ -34,7 +34,7 @@ def create_server(
 ) -> WorkbenchServer:
     app_directory = app_directory.resolve()
     web_root = app_directory / "web"
-    public_root = app_directory.parents[2]
+    public_root = app_directory.parents[2] if len(app_directory.parents) >= 3 else app_directory
     run_manager = manager or RunManager(app_directory)
 
     def asset_path(relative_path: str, fallback_path: str) -> Path:

@@ -266,7 +266,16 @@ class StandaloneArchiveTests(unittest.TestCase):
                 try:
                     line = process.stdout.readline() if process.stdout is not None else ""
                     match = re.search(r"http://127\.0\.0\.1:(\d+)/", line)
-                    self.assertIsNotNone(match, f"{entry} 未输出独立服务地址：{line.strip()}")
+                    if match is None:
+                        try:
+                            remainder = process.communicate(timeout=5)[0] or ""
+                        except subprocess.TimeoutExpired:
+                            process.kill()
+                            remainder = process.communicate(timeout=5)[0] or ""
+                        self.fail(
+                            f"{entry} 未输出独立服务地址，退出码 {process.returncode}：\n"
+                            f"{line}{remainder}".rstrip()
+                        )
                     port = int(match.group(1))
                     with urllib.request.urlopen(f"http://127.0.0.1:{port}/", timeout=10) as response:
                         self.assertEqual(response.status, 200)

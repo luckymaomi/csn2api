@@ -542,10 +542,26 @@ pre { font-family: "Cascadia Code", Consolas, monospace; }
 }
 
 @media (max-width: 720px) {
-    .api-header { height: auto; min-height: 56px; flex-wrap: wrap; padding: 9px 11px; }
-    .header-tools { width: 100%; }
-    .api-search { min-width: 0; flex: 1; }
-    .api-search input { width: 100%; }
+    html,
+    body { width: 100%; min-width: 0; max-width: 100%; }
+    body { overflow-x: hidden; overflow-y: auto; }
+    .api-header { width: 100%; min-width: 0; height: auto; min-height: 56px; flex-wrap: wrap; padding: 9px 11px; }
+    .brand { min-width: 0; }
+    .header-tools {
+        width: 100%;
+        min-width: 0;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+    }
+    .api-search { min-width: 0; grid-column: 1 / -1; }
+    .api-search input { width: 100%; min-width: 0; max-width: 100%; }
+    .header-action { width: 100%; min-width: 0; max-width: 100%; }
+    .icon-button { justify-self: end; }
+    .api-layout,
+    .endpoint-sidebar,
+    .endpoint-document,
+    .request-console { width: 100%; min-width: 0; max-width: 100%; }
     .api-layout { display: block; }
     .endpoint-sidebar { position: static; height: auto; max-height: 300px; border-right: 0; border-bottom: 1px solid var(--watchdog-border); }
     .endpoint-document { padding: 22px 14px 42px; }
