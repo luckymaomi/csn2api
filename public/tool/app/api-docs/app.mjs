@@ -205,6 +205,37 @@ function hydrateSavedCredentials(bundle) {
     }
 }
 
+async function refreshSharedCredentials() {
+    hydrateSavedCredentials(await fetchJson(credentialEndpoint()));
+}
+
+async function validateCredentials(systemId, credentials) {
+    if (window.Csn2ApiRuntime?.mode !== "lan") {
+        return fetchJson("./api/session", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ systemId, credentials }),
+        });
+    }
+    const result = await fetchJson(credentialEndpoint(), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            format: "csn2api-cookie-bundle",
+            schemaVersion: 1,
+            systems: [{ systemId, credentials }],
+        }),
+    });
+    const systemFailure = (result.failed || []).find((item) => item.systemId === systemId);
+    if (systemFailure) throw new Error(systemFailure.error || "Cookie 验证失败");
+    const saved = (result.bundle?.systems || []).find((item) => item.systemId === systemId);
+    return {
+        ...(result.sessions?.[systemId] || {}),
+        credentials: saved?.credentials || "",
+        distributionFailures: (result.failed || []).filter((item) => item.entry),
+    };
+}
+
 async function exportCookies() {
     try {
         const bundle = await fetchJson(credentialEndpoint());
@@ -331,7 +362,7 @@ function renderSessionPanels() {
                     <button class="text-button" type="button" data-session-action="copy">复制</button>
                 </div>
                 <textarea id="saved-credential-${escapeHtml(system.id)}" class="saved-credential-text" rows="4" readonly spellcheck="false" data-session-field="saved-text"></textarea>
-                <span class="saved-credential-note">刷新页面或清除 Cookie 后立即删除</span>
+                <span class="saved-credential-note">来自当前本地后端进程的共享 Cookie</span>
             </div>
         </section>
     `).join("");
@@ -472,6 +503,7 @@ async function detectBackend() {
         if (!state.backendAvailable) throw new Error("本地执行器不可用");
         state.credentialDrafts.clear();
         applySessionStatuses(health.sessions);
+        await refreshSharedCredentials();
         showToast("已连接本地执行器");
     } catch (_error) {
         state.backendAvailable = false;
@@ -487,6 +519,7 @@ async function refreshSessionStatus() {
         const health = await fetchJson("./api/health");
         state.backendAvailable = health.available === true;
         applySessionStatuses(health.sessions, true);
+        await refreshSharedCredentials();
     } catch (_error) {
         state.backendAvailable = false;
         applySessionStatuses(null);
@@ -499,19 +532,20 @@ async function loadSession(systemId) {
     const system = systemById(systemId);
     try {
         panelElements.loadSessionButton.disabled = true;
-        const payload = await fetchJson("./api/session", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ systemId, credentials: panelElements.credentialInput.value })
-        });
-        const { credentials, ...sessionStatus } = payload;
+        const payload = await validateCredentials(systemId, panelElements.credentialInput.value);
+        const { credentials, distributionFailures = [], ...sessionStatus } = payload;
         applySessionStatus(systemId, sessionStatus);
         setSavedCredentials(systemId, credentials);
         state.options.clear();
         state.credentialDrafts.delete(systemId);
         panelElements.credentialInput.value = "";
         updateRuntimeControls();
-        showToast(`${system?.name || systemId} Cookie 已验证`);
+        showToast(
+            distributionFailures.length
+                ? `${system?.name || systemId} Cookie 已验证，${distributionFailures.length} 个工作台分发失败`
+                : `${system?.name || systemId} Cookie 已验证`,
+            distributionFailures.length > 0,
+        );
         await ensureDynamicOptions();
     } catch (error) {
         const message = error.message || String(error);

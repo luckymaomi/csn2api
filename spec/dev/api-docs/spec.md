@@ -25,8 +25,8 @@ CAAC 有效飞行员列表把当前 `{total, rows}` 转为动态字段表格。�
 - IEB 与 OA 分别维护 Cookie、`requests.Session`、验证请求和保活状态，不共享运行时凭据。
 - `POST /api/session` 携带 `systemId` 和当前页面提交的 Cookie Header/cURL；各系统 parser 先复用 `credential_text.normalize_credential_source` 撤销富文本引入的 Markdown URL、反斜杠下划线/星号和转义长选项，再执行各自 Cookie 规则。
 - Cookie 管理在右侧同一滚动区域按 catalog 系统顺序纵向叠加完整面板；每个面板独立提供输入、验证、状态、清除和当前页 Cookie。新增系统继续向下追加，不使用横向系统标签切换。
-- 验证成功后对应系统面板显示可复制的规范化 Cookie Header；页面刷新沿用当前 Python 进程内仍有效的 Session，主动清除只清对应面板的系统。页面不得从 localStorage 恢复凭据。
-- `GET/POST /api/credentials` 导出或导入 `format=csn2api-cookie-bundle`、`schemaVersion=1` 的 JSON。导出只包含当前仍有效系统的规范化明文 Cookie；导入按系统调用现有验证链路，逐系统返回成功和失败，不绕过真实验证。`start_all.py` 复用该端点并按 `scripts/protocol-cores.json` 把成功导入的系统 Cookie 分发给对应独立 APP。
+- 验证成功后对应系统面板显示可复制的规范化 Cookie Header；页面刷新从当前 Python 后端恢复仍有效的 Session 与规范化 Cookie，主动清除只清对应面板的系统。页面不得从 localStorage 恢复凭据。
+- `GET/POST /api/credentials` 导出或导入 `format=csn2api-cookie-bundle`、`schemaVersion=1` 的 JSON。导出只包含当前仍有效系统的规范化明文 Cookie；导入按系统调用现有验证链路，逐系统返回成功和失败，不绕过真实验证。`start_all.py` 模式下，页面直接粘贴验证也通过该端点提交单系统 bundle；统一运行时按 `scripts/protocol-cores.json` 只把本次验证成功的系统 Cookie 分发给对应工作台，普通工作台不重复提供 Cookie 输入或文件按钮。独立 API 文档和独立 APP 仍各自维护本进程凭据。
 - 每个有效系统会话使用 30-60 秒随机只读请求独立保活；页面按后端返回的下一次间隔显示倒计时，登录失效会清空对应系统会话并停止该系统请求，不影响另一系统。
 - 会话验证成功后按系统身份请求解析当前使用人；IEB 从门户首页解析员工号和姓名，OA 从 `loginUserInfo` 解析员工号和姓名，SOC 只从外层导航页 `#checkout_soc`/`#checkout` 的服务端欢迎语解析并显示姓名，失败时不伪造身份。
 - SOC 使用独立 Cookie 和 `requests.Session`，验证请求为随机置位申请页；页面返回 `applyFm` 与 `KkTvlApply` 才视为进入业务页面。SOC 业务 action 失效时可能返回 `302 .../doSsoProxy` 或 IAM 登录页，静态资源 200 不能代替业务验证。

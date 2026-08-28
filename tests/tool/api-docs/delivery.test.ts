@@ -85,6 +85,10 @@ describe("API docs delivery", () => {
     expect(app).toContain("setInterval(refreshSessionStatus, 3000)");
     expect(app).toContain("Cookie 已验证");
     expect(app).toContain('"./api/credentials"');
+    expect(app).toContain("refreshSharedCredentials");
+    expect(app).toContain("当前本地后端进程的共享 Cookie");
+    expect(app).toContain('format: "csn2api-cookie-bundle"');
+    expect(app).toContain("distributionFailures");
     expect(app).not.toContain('fetchJson("./api/session", { method: "DELETE" })');
     expect(app).toContain("pollProgressiveExecution");
     expect(app).toContain("followProgressiveResponse");

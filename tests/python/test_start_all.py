@@ -26,6 +26,7 @@ if str(SHARED_ROOT) not in sys.path:
 from csn2api_runtime.lease import AccessLease  # noqa: E402
 from csn2api_runtime.gateway import create_gateway_server  # noqa: E402
 from csn2api_runtime.credential_runtime import CredentialRuntime  # noqa: E402
+from csn2api_runtime.lan_assets import RUNTIME_CSS, RUNTIME_JS  # noqa: E402
 from csn2api_runtime.supervisor import RuntimeSupervisor, RuntimeTarget  # noqa: E402
 from start_all import load_targets  # noqa: E402
 
@@ -59,34 +60,48 @@ class MutableClock:
 
 
 class AccessLeaseTests(unittest.TestCase):
-    def test_one_client_owns_all_tools_until_release(self) -> None:
+    def test_other_client_can_observe_shared_runtime_and_take_over(self) -> None:
         clock = MutableClock()
         lease = AccessLease(idle_timeout_seconds=30, clock=clock)
 
-        first = lease.authorize("10.0.0.11", "flight-stats", busy=False)
-        same_client = lease.authorize("10.0.0.11", "lock-entry", busy=False)
-        other_client = lease.authorize("10.0.0.12", "flight-stats", busy=False)
+        lease.observe("10.0.0.11", "flight-stats", busy=False)
+        lease.observe("10.0.0.12", "lock-entry", busy=False)
+        self.assertEqual(lease.snapshot()["ownerIp"], "10.0.0.11")
+        self.assertFalse(lease.heartbeat("10.0.0.12"))
 
-        self.assertTrue(first.allowed)
-        self.assertFalse(first.requires_reset)
-        self.assertTrue(same_client.allowed)
-        self.assertFalse(other_client.allowed)
-        self.assertEqual(other_client.owner_ip, "10.0.0.11")
-        self.assertTrue(lease.release("10.0.0.11", busy=False))
-        self.assertTrue(lease.authorize("10.0.0.12", "flight-stats", busy=False).allowed)
+        lease.takeover("10.0.0.12", "lock-entry")
+        self.assertEqual(lease.snapshot()["ownerIp"], "10.0.0.12")
+        self.assertTrue(lease.release("10.0.0.12", busy=False))
+        self.assertFalse(lease.snapshot()["occupied"])
 
-    def test_idle_expiry_requires_runtime_reset_before_new_owner(self) -> None:
+    def test_idle_expiry_changes_only_the_advisory_owner(self) -> None:
         clock = MutableClock()
         lease = AccessLease(idle_timeout_seconds=30, clock=clock)
-        lease.authorize("10.0.0.11", "flight-stats", busy=False)
+        lease.observe("10.0.0.11", "flight-stats", busy=False)
         clock.value += 31
 
-        while_busy = lease.authorize("10.0.0.12", "lock-entry", busy=True)
-        self.assertFalse(while_busy.allowed)
+        lease.observe("10.0.0.12", "lock-entry", busy=True)
+        self.assertEqual(lease.snapshot()["ownerIp"], "10.0.0.11")
 
-        after_idle = lease.authorize("10.0.0.12", "lock-entry", busy=False)
-        self.assertTrue(after_idle.allowed)
-        self.assertTrue(after_idle.requires_reset)
+        lease.observe("10.0.0.12", "lock-entry", busy=False)
+        self.assertEqual(lease.snapshot()["ownerIp"], "10.0.0.12")
+
+
+class RuntimeAssetTests(unittest.TestCase):
+    def test_cookie_files_are_managed_only_from_api_docs_in_lan_mode(self) -> None:
+        self.assertNotIn("导入 Cookie", RUNTIME_JS)
+        self.assertNotIn("导出 Cookie", RUNTIME_JS)
+        self.assertIn("/api-docs/", RUNTIME_JS)
+        self.assertIn("接管使用", RUNTIME_JS)
+        self.assertIn('#credentials', RUNTIME_CSS)
+        self.assertIn('.credential-panel h2', RUNTIME_JS)
+        self.assertIn('window.location.href = "/tool/"', RUNTIME_JS)
+
+        api_docs_page = (
+            ROOT / "public" / "tool" / "app" / "api-docs" / "index.html"
+        ).read_text(encoding="utf-8")
+        self.assertIn('id="importCookiesButton"', api_docs_page)
+        self.assertIn('id="exportCookiesButton"', api_docs_page)
 
 
 class RuntimeManifestTests(unittest.TestCase):
@@ -170,7 +185,8 @@ class CredentialRuntimeTests(unittest.TestCase):
         imported = {
             "bundle": {
                 "systems": [
-                    {"systemId": "flight-portal", "credentials": "JSESSIONID=a; iebJSid=b"}
+                    {"systemId": "flight-portal", "credentials": "JSESSIONID=a; iebJSid=b"},
+                    {"systemId": "soc", "credentials": "JSESSIONID=existing"},
                 ]
             },
             "imported": ["flight-portal"],
@@ -205,7 +221,8 @@ class CredentialRuntimeTests(unittest.TestCase):
                 "systems": [
                     {"systemId": "flight-portal", "credentials": "JSESSIONID=a; iebJSid=b"}
                 ]
-            }
+            },
+            "imported": ["flight-portal"],
         }
         responses = [
             (200, [], json.dumps(imported).encode("utf-8")),
@@ -254,7 +271,9 @@ class StandaloneArchiveTests(unittest.TestCase):
                     with urllib.request.urlopen(f"http://127.0.0.1:{port}/", timeout=10) as response:
                         self.assertEqual(response.status, 200)
                         self.assertEqual(response.headers.get_content_type(), "text/html")
-                        self.assertTrue(response.read())
+                        page = response.read().decode("utf-8")
+                        self.assertIn('id="credentials"', page)
+                        self.assertNotIn("/__runtime__/client.js", page)
                     if os.name == "nt":
                         process.send_signal(signal.CTRL_BREAK_EVENT)
                     else:
@@ -419,10 +438,12 @@ class LanGatewayTests(unittest.TestCase):
             self.assertTrue(json.loads(response.read().decode("utf-8"))["available"])
 
     def test_cookie_bundle_endpoint_uses_api_docs_contract(self) -> None:
+        self.lease.takeover("10.0.0.99", "another-tool")
         with urllib.request.urlopen(f"{self.base_url}/__runtime__/credentials", timeout=10) as response:
             bundle = json.loads(response.read().decode("utf-8"))
         self.assertEqual(bundle["format"], "csn2api-cookie-bundle")
         self.assertEqual(bundle["schemaVersion"], 1)
+        self.assertEqual(self.lease.snapshot()["ownerIp"], "10.0.0.99")
 
         request = urllib.request.Request(
             f"{self.base_url}/__runtime__/credentials",
@@ -435,34 +456,45 @@ class LanGatewayTests(unittest.TestCase):
         self.assertEqual(error.exception.code, 400)
         self.assertIn("格式或版本", json.loads(error.exception.read().decode("utf-8"))["error"])
 
-    def test_other_client_receives_friendly_locked_page_and_json(self) -> None:
-        self.assertTrue(self.lease.release("127.0.0.1", busy=False))
-        self.assertTrue(self.lease.authorize("10.0.0.99", "another-tool", busy=False).allowed)
+    def test_other_client_shares_pages_and_can_take_over_without_runtime_restart(self) -> None:
+        self.lease.takeover("10.0.0.99", "another-tool")
         html_request = urllib.request.Request(
             f"{self.base_url}/apps/http-flight-stats-helper/",
             headers={"Accept": "text/html"},
         )
-        with self.assertRaises(urllib.error.HTTPError) as html_error:
-            urllib.request.urlopen(html_request, timeout=10)
-        self.assertEqual(html_error.exception.code, 423)
-        locked_page = html_error.exception.read().decode("utf-8")
-        self.assertIn("正在使用中", locked_page)
-        self.assertIn("使用者 IP：10.0.0.99", locked_page)
+        with urllib.request.urlopen(html_request, timeout=10) as response:
+            self.assertEqual(response.status, 200)
+            self.assertIn("/__runtime__/client.js", response.read().decode("utf-8"))
+        with urllib.request.urlopen(
+            f"{self.base_url}/apps/http-flight-stats-helper/api/status",
+            timeout=10,
+        ) as response:
+            self.assertEqual(response.status, 200)
 
-        with self.assertRaises(urllib.error.HTTPError) as json_error:
-            urllib.request.urlopen(
-                f"{self.base_url}/apps/http-flight-stats-helper/api/status",
-                timeout=10,
+        with urllib.request.urlopen(f"{self.base_url}/__runtime__/status", timeout=10) as response:
+            status = json.loads(response.read().decode("utf-8"))
+        self.assertEqual(status["ownerIp"], "10.0.0.99")
+        self.assertFalse(status["youOwn"])
+
+        with patch.object(self.supervisor, "restart_all") as restart_all:
+            takeover = urllib.request.Request(
+                f"{self.base_url}/__runtime__/takeover",
+                data=b"{}",
+                headers={"Content-Type": "application/json"},
+                method="POST",
             )
-        self.assertEqual(json_error.exception.code, 423)
-        locked_payload = json.loads(json_error.exception.read().decode("utf-8"))
-        self.assertIn("请稍后再试", locked_payload["error"])
-        self.assertEqual(locked_payload["ownerIp"], "10.0.0.99")
+            with urllib.request.urlopen(takeover, timeout=10) as response:
+                result = json.loads(response.read().decode("utf-8"))
+            self.assertEqual(result["ownerIp"], "127.0.0.1")
 
-        self.assertTrue(self.lease.release("10.0.0.99", busy=False))
-        self.assertTrue(
-            self.lease.authorize("127.0.0.1", "http-flight-stats-helper", busy=False).allowed
-        )
+            release = urllib.request.Request(
+                f"{self.base_url}/__runtime__/release",
+                data=b"",
+                method="POST",
+            )
+            with urllib.request.urlopen(release, timeout=10) as response:
+                self.assertTrue(json.loads(response.read().decode("utf-8"))["ok"])
+            restart_all.assert_not_called()
 
 
 if __name__ == "__main__":

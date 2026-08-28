@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import copy
 import json
 import mimetypes
 from http import HTTPStatus
@@ -89,12 +88,7 @@ def create_gateway_server(
 
         def _proxy(self, entry: str, backend_path: str, query: str) -> None:
             with supervisor.lock:
-                decision = lease.authorize(self.client_address[0], entry, busy=supervisor.busy())
-                if not decision.allowed:
-                    self._locked(decision.owner_ip, decision.entry, backend_path)
-                    return
-                if decision.requires_reset:
-                    supervisor.restart_all()
+                lease.observe(self.client_address[0], entry, busy=supervisor.busy())
                 content_length = int(self.headers.get("Content-Length", "0") or 0)
                 body = self.rfile.read(content_length) if content_length else None
                 headers = {
@@ -142,40 +136,39 @@ def create_gateway_server(
                 self._runtime_credentials()
                 return
             if path == "/__runtime__/status" and self.command == "GET":
-                value = copy.deepcopy(lease.snapshot())
-                value["youOwn"] = value.get("ownerIp") == self.client_address[0]
-                value["busy"] = supervisor.busy()
-                self._json(value)
+                self._json(self._runtime_status())
                 return
             if path == "/__runtime__/heartbeat" and self.command == "POST":
-                if lease.heartbeat(self.client_address[0]):
-                    self._json({"ok": True})
-                else:
-                    self._json({"error": "当前工作台由其他用户占用"}, HTTPStatus.LOCKED)
+                heartbeat = lease.heartbeat(self.client_address[0])
+                self._json({"ok": heartbeat, **self._runtime_status()})
+                return
+            if path == "/__runtime__/takeover" and self.command == "POST":
+                referer_path = urlsplit(self.headers.get("Referer", "")).path
+                lease.takeover(self.client_address[0], referer_path or "shared-runtime")
+                self._json({"ok": True, **self._runtime_status()})
                 return
             if path == "/__runtime__/release" and self.command == "POST":
                 with supervisor.lock:
                     busy = supervisor.busy()
                     if not lease.release(self.client_address[0], busy=busy):
-                        status = HTTPStatus.CONFLICT if busy else HTTPStatus.LOCKED
-                        self._json({"error": "当前任务运行中或工作台不属于你"}, status)
+                        self._json(
+                            {"error": "当前任务运行中或使用权已变更", **self._runtime_status()},
+                            HTTPStatus.CONFLICT,
+                        )
                         return
-                    supervisor.restart_all()
-                self._json({"ok": True})
+                self._json({"ok": True, **self._runtime_status()})
                 return
             self._json({"error": "接口不存在"}, HTTPStatus.NOT_FOUND)
 
+        def _runtime_status(self) -> dict[str, object]:
+            value = lease.snapshot()
+            value["youOwn"] = value.get("ownerIp") == self.client_address[0]
+            value["busy"] = supervisor.busy()
+            return value
+
         def _runtime_credentials(self) -> None:
             with supervisor.lock:
-                decision = lease.authorize(self.client_address[0], "api-docs", busy=supervisor.busy())
-                if not decision.allowed:
-                    self._json(
-                        {"error": "当前工作台正在使用中，请稍后再试", "ownerIp": decision.owner_ip},
-                        HTTPStatus.LOCKED,
-                    )
-                    return
-                if decision.requires_reset:
-                    supervisor.restart_all()
+                lease.observe(self.client_address[0], "api-docs", busy=supervisor.busy())
                 body = None
                 if self.command == "POST":
                     content_length = int(self.headers.get("Content-Length", "0") or 0)
@@ -213,17 +206,6 @@ def create_gateway_server(
             if mime.startswith("text/") or candidate.suffix in {".js", ".mjs", ".css", ".json"}:
                 mime += "; charset=utf-8"
             self._bytes(content, mime)
-
-        def _locked(self, owner_ip: str, entry: str, backend_path: str) -> None:
-            accepts_html = "text/html" in self.headers.get("Accept", "") or backend_path in {"/", "/index.html"}
-            if not accepts_html:
-                self._json(
-                    {"error": "当前工作台正在使用中，请稍后再试", "ownerIp": owner_ip, "entry": entry},
-                    HTTPStatus.LOCKED,
-                )
-                return
-            html = f"""<!DOCTYPE html><html lang="zh-CN" data-default-theme="light"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>工作台正在使用中</title><script src="/theme.js"></script><link rel="stylesheet" href="/theme.css"><style>body{{margin:0;background:var(--soft-bg);color:var(--soft-ink);font-family:\"Microsoft YaHei UI\",sans-serif}}main{{width:min(560px,calc(100% - 32px));margin:12vh auto;padding:28px;border:2px solid var(--soft-border);background:var(--soft-surface);box-shadow:var(--hard-shadow-medium)}}h1{{font-size:22px}}p{{color:var(--soft-muted)}}a{{color:var(--soft-ink)}}</style></head><body><main><h1>当前工作台正在使用中</h1><p>使用者 IP：{owner_ip}</p><p>请稍后再试。</p><a href="/tool/index.html">返回工具首页</a></main></body></html>"""
-            self._bytes(html.encode("utf-8"), "text/html; charset=utf-8", HTTPStatus.LOCKED)
 
         @staticmethod
         def _inject_runtime(content: bytes) -> bytes:

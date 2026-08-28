@@ -26,12 +26,14 @@ class CredentialRuntime:
         failed = result.get("failed")
         failed_items = list(failed) if isinstance(failed, list) else []
         result["failed"] = failed_items
+        imported = result.get("imported")
+        imported_systems = {str(system_id) for system_id in imported} if isinstance(imported, list) else set()
         bundle = result.get("bundle")
         systems = bundle.get("systems") if isinstance(bundle, dict) else []
         credentials = {
             str(item.get("systemId", "")): str(item.get("credentials", ""))
             for item in systems
-            if isinstance(item, dict)
+            if isinstance(item, dict) and str(item.get("systemId", "")) in imported_systems
         }
         for target in self.supervisor.targets.values():
             value = credentials.get(target.system_id)

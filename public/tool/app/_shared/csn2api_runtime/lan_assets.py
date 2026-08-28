@@ -1,72 +1,69 @@
 RUNTIME_CSS = """
 .csn2api-runtime-strip{display:flex;min-height:42px;align-items:center;justify-content:space-between;gap:16px;padding:8px 14px;border:0;border-bottom:2px solid var(--soft-border);background:var(--soft-surface);color:var(--soft-muted);font:600 12px/1.4 \"Microsoft YaHei UI\",sans-serif;position:relative;z-index:10000}
 .csn2api-runtime-actions{display:flex;align-items:center;gap:8px}
-.csn2api-runtime-strip button{min-height:30px;padding:4px 12px;border:2px solid var(--soft-border);background:var(--soft-surface);color:var(--soft-ink);cursor:pointer}
-.csn2api-runtime-strip button:hover{background:var(--soft-sky);color:var(--soft-on-pastel)}
+.csn2api-runtime-strip button,.csn2api-runtime-strip a{display:inline-flex;min-height:30px;align-items:center;padding:4px 12px;border:2px solid var(--soft-border);background:var(--soft-surface);color:var(--soft-ink);cursor:pointer;text-decoration:none}
+.csn2api-runtime-strip button:hover,.csn2api-runtime-strip a:hover{background:var(--soft-sky);color:var(--soft-on-pastel)}
+.csn2api-lan-workbench label[for="credentials"],.csn2api-lan-workbench #credentials,.csn2api-lan-workbench #verifyButton,.csn2api-lan-workbench #savedCredentialsPanel{display:none!important}
 @media(max-width:640px){.csn2api-runtime-strip{align-items:flex-start;flex-direction:column}.csn2api-runtime-actions{width:100%;flex-wrap:wrap}}
 """.strip()
 
 RUNTIME_JS = """
 (() => {
   window.Csn2ApiRuntime = { mode: "lan" };
+  const isApiDocs = window.location.pathname.startsWith("/api-docs/");
+  if (!isApiDocs) document.body.classList.add("csn2api-lan-workbench");
   const bar = document.createElement("div");
   bar.className = "csn2api-runtime-strip";
-  bar.innerHTML = '<span>局域网工作台使用中</span><div class="csn2api-runtime-actions"><input type="file" accept=".json,.txt,application/json,text/plain" hidden><button type="button" data-action="import">导入 Cookie</button><button type="button" data-action="export">导出 Cookie</button><button type="button" data-action="release">结束使用</button></div>';
+  bar.innerHTML = '<span>正在读取当前使用状态</span><div class="csn2api-runtime-actions"><a href="/api-docs/" data-cookie-management>Cookie 管理</a><button type="button" data-lease-action>读取中</button></div>';
   document.body.prepend(bar);
-  if (window.location.pathname.startsWith("/api-docs/")) {
-    bar.querySelector('[data-action="import"]').remove();
-    bar.querySelector('[data-action="export"]').remove();
-  }
+  if (isApiDocs) bar.querySelector("[data-cookie-management]")?.remove();
+  const credentialHeading = document.querySelector("#credentialHeading, .credential-panel h2");
+  if (!isApiDocs && credentialHeading) credentialHeading.textContent = "1. Cookie 状态";
   const status = bar.querySelector("span");
-  const fileInput = bar.querySelector("input");
-  const requestJson = async (method, body) => {
-    const response = await fetch("/__runtime__/credentials", {
-      method,
-      cache: "no-store",
-      headers: body ? { "Content-Type": "application/json" } : undefined,
-      body: body ? JSON.stringify(body) : undefined,
-    });
+  const action = bar.querySelector("[data-lease-action]");
+  let current = null;
+  const requestJson = async (path, method = "GET") => {
+    const response = await fetch(path, { method, cache: "no-store" });
     const payload = await response.json();
     if (!response.ok) throw new Error(payload.error || `请求返回 HTTP ${response.status}`);
     return payload;
   };
-  const heartbeat = () => fetch("/__runtime__/heartbeat", { method: "POST", cache: "no-store" }).catch(() => undefined);
-  bar.querySelector('[data-action="import"]')?.addEventListener("click", () => fileInput.click());
-  fileInput?.addEventListener("change", async () => {
+  const render = (value) => {
+    current = value;
+    if (!value?.occupied) {
+      status.textContent = "当前无人使用";
+      action.textContent = "开始使用";
+      action.dataset.mode = "takeover";
+    } else if (value.youOwn) {
+      status.textContent = `当前由你的 IP ${value.ownerIp} 使用`;
+      action.textContent = value.busy ? "任务运行中" : "结束使用";
+      action.dataset.mode = "release";
+      action.disabled = value.busy === true;
+    } else {
+      status.textContent = `当前由 IP ${value.ownerIp} 使用`;
+      action.textContent = "接管使用";
+      action.dataset.mode = "takeover";
+    }
+    if (action.dataset.mode !== "release" || value.busy !== true) action.disabled = false;
+  };
+  const refresh = async () => render(await requestJson("/__runtime__/status"));
+  action.addEventListener("click", async () => {
     try {
-      const file = fileInput.files[0];
-      if (!file) return;
-      const result = await requestJson("POST", JSON.parse(await file.text()));
-      status.textContent = result.failed?.length
-        ? `Cookie 已导入，${result.failed.length} 个工作台验证失败`
-        : `Cookie 已导入 ${result.imported?.length || 0} 个系统`;
+      const release = action.dataset.mode === "release";
+      const path = release ? "/__runtime__/release" : "/__runtime__/takeover";
+      render(await requestJson(path, "POST"));
+      if (release) window.location.href = "/tool/";
     } catch (error) {
       status.textContent = error.message || String(error);
-    } finally {
-      fileInput.value = "";
     }
   });
-  bar.querySelector('[data-action="export"]')?.addEventListener("click", async () => {
+  const heartbeat = async () => {
     try {
-      const bundle = await requestJson("GET");
-      if (!bundle.systems?.length) throw new Error("当前没有可导出的有效 Cookie");
-      const url = URL.createObjectURL(new Blob([`${JSON.stringify(bundle, null, 2)}\n`], { type: "application/json;charset=utf-8" }));
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `csn2api-cookies-${new Date().toISOString().slice(0, 19).replace(/[:T-]/g, "")}.json`;
-      link.click();
-      URL.revokeObjectURL(url);
-      status.textContent = `已导出 ${bundle.systems.length} 个系统 Cookie`;
-    } catch (error) {
-      status.textContent = error.message || String(error);
-    }
-  });
-  bar.querySelector('[data-action="release"]').addEventListener("click", async () => {
-    const response = await fetch("/__runtime__/release", { method: "POST", cache: "no-store" });
-    if (response.ok) window.location.href = "/tool/index.html";
-    else status.textContent = "当前任务运行中，完成或停止后才能结束使用";
-  });
-  heartbeat();
+      if (current?.youOwn) await requestJson("/__runtime__/heartbeat", "POST");
+      await refresh();
+    } catch (_error) {}
+  };
+  void refresh();
   window.setInterval(heartbeat, 15000);
 })();
 """.strip()
