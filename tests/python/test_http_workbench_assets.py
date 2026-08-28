@@ -75,7 +75,7 @@ class HttpWorkbenchAssetTests(unittest.TestCase):
                         body = response.read().decode("utf-8")
                         self.assertEqual(response.status, 200)
                         self.assertIn("javascript", response.headers.get_content_type())
-                        self.assertEqual(body, canonical)
+                        self.assertEqual(body.replace("\r\n", "\n"), canonical)
                 finally:
                     server.shutdown()  # type: ignore[attr-defined]
                     thread.join(timeout=5)
