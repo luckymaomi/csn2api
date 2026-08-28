@@ -24,6 +24,13 @@ class SocCredentialTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "JSESSIONID"):
             parse_credentials("Cookie: tracking=value")
 
+    def test_normalizes_rich_text_escapes_before_soc_rules(self):
+        cookies = parse_credentials(
+            r"Cookie: \_tracking=browser\_value; JSESSIONID=session\_value"
+        )
+        self.assertEqual(cookies["_tracking"], "browser_value")
+        self.assertEqual(cookies["JSESSIONID"], "session_value")
+
 
 if __name__ == "__main__":
     unittest.main()

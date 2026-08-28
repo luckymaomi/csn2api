@@ -6,7 +6,7 @@
 
 ```powershell
 pip install -r requirements.txt
-python startapp.py
+python start.py
 ```
 
 程序在本机 `127.0.0.1` 的随机端口启动，并自动打开工作台。
@@ -18,7 +18,7 @@ python startapp.py
 3. 右键任意 `ieb.csair.com` 已登录请求，选择 `Copy > Copy as cURL`。
 4. 把完整内容粘贴到工作台，点击“验证凭据”。
 
-验证成功后页面显示当前登录人、动态类型数量、类型版本和保活倒计时。当前页可以复制规范化 Cookie；刷新页面、会话失效或本地服务退出后需要重新验证。
+验证成功后页面显示当前登录人、动态类型数量、类型版本和保活倒计时。当前页可以复制规范化 Cookie；刷新页面不会清除本地 Python 进程内的 Session，但页面不会自动恢复明文 Cookie。服务退出、主动清除或会话失效后需要重新导入或粘贴验证。
 
 ## 准备数据
 

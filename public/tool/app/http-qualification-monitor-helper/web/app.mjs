@@ -120,7 +120,7 @@ async function verify() {
   updateSavedCredentials("");
   elements.verifyButton.disabled = true;
   try {
-    const state = await postJson("/api/session/verify", { credentials });
+    const state = await postJson("./api/session/verify", { credentials });
     updateSavedCredentials(state.credentials);
     elements.credentials.value = "";
     renderState(state);
@@ -132,29 +132,29 @@ async function verify() {
 async function loadCategories() {
   elements.loadCategoriesButton.disabled = true;
   try {
-    renderState(await postJson("/api/metadata/load"));
+    renderState(await postJson("./api/metadata/load"));
   } finally {
     elements.loadCategoriesButton.disabled = false;
   }
 }
 
 async function exportAll() {
-  renderState(await postJson("/api/export/all"));
+  renderState(await postJson("./api/export/all"));
 }
 
 async function exportOne(code) {
-  renderState(await postJson("/api/export/one", { qualType: code }));
+  renderState(await postJson("./api/export/one", { qualType: code }));
 }
 
 async function stopExport() {
-  renderState(await postJson("/api/stop"));
+  renderState(await postJson("./api/stop"));
 }
 
 function setDownload(link, fileId) {
   const enabled = Boolean(fileId);
   link.classList.toggle("disabled", !enabled);
   link.setAttribute("aria-disabled", enabled ? "false" : "true");
-  if (enabled) link.href = `/api/download/${encodeURIComponent(fileId)}`;
+  if (enabled) link.href = `./api/download/${encodeURIComponent(fileId)}`;
   else link.removeAttribute("href");
 }
 
@@ -211,7 +211,7 @@ function renderGroups(groups = [], items = [], busy = false) {
         const download = document.createElement("a");
         download.className = "btn btn-outline-secondary btn-sm";
         download.textContent = "下载";
-        download.href = `/api/download/${encodeURIComponent(state.downloadId)}`;
+        download.href = `./api/download/${encodeURIComponent(state.downloadId)}`;
         actions.append(download);
       }
       row.append(name, code, status, actions);
@@ -298,7 +298,7 @@ function renderState(state) {
 
 async function pollStatus() {
   try {
-    const response = await fetch("/api/status", { cache: "no-store" });
+    const response = await fetch("./api/status", { cache: "no-store" });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     renderState(await response.json());
     pollingFailed = false;

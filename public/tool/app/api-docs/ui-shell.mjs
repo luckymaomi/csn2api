@@ -70,7 +70,11 @@ export function renderSessionStatus(elements, status, systemName = "当前系统
     let statusText = "Cookie 未验证";
     let detailText = "验证后每 30-60 秒自动检查一次";
     let visualState = "idle";
-    if (keepAlive.state === "expired") {
+    if (status?.error) {
+        statusText = "Cookie 验证失败";
+        detailText = String(status.error);
+        visualState = "error";
+    } else if (keepAlive.state === "expired") {
         statusText = "Cookie 已失效";
         detailText = `最近检查 ${checkedTime(keepAlive.lastCheckedAt)}`;
         visualState = "expired";

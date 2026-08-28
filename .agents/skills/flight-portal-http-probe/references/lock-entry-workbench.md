@@ -2,7 +2,7 @@
 
 ## 产品定位
 
-`http-lock-entry-helper` 是独立本地 APP。用户自行提供 IEB 已登录凭据，APP 按 Excel 或粘贴数据中的逐行类型、日期、时间和备注执行锁班录入。唯一入口为 `startapp.py`。
+`http-lock-entry-helper` 是独立本地 APP。用户自行提供 IEB 已登录凭据，APP 按 Excel 或粘贴数据中的逐行类型、日期、时间和备注执行锁班录入。独立入口为 `start.py`，统一局域网入口由仓库根目录 `start_all.py` 动态接入。
 
 工作台不提供整批类型选择器。每条记录在当前门户动态类型中归一后原样提交，不切换类型或拆分记录。
 

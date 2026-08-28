@@ -22,9 +22,14 @@ def _asset(app_root: Path, relative: str) -> Path:
     return public_root / relative
 
 
-def create_server(app_root: Path, port: int, manager: RunManager) -> WorkbenchServer:
+def create_server(
+    app_root: Path,
+    port: int = 0,
+    manager: RunManager | None = None,
+) -> WorkbenchServer:
     root = Path(app_root).resolve()
     web_root = root / "web"
+    run_manager = manager or RunManager(root / "results")
 
     class Handler(BaseHTTPRequestHandler):
         server_version = "csn2api-qualification-monitor/1"
@@ -70,11 +75,11 @@ def create_server(app_root: Path, port: int, manager: RunManager) -> WorkbenchSe
         def do_GET(self) -> None:  # noqa: N802
             path = urlparse(self.path).path
             if path == "/api/status":
-                self._send_json(manager.snapshot())
+                self._send_json(run_manager.snapshot())
                 return
             if path.startswith("/api/download/"):
                 file_id = unquote(path.removeprefix("/api/download/"))
-                result = manager.download_path(file_id)
+                result = run_manager.download_path(file_id)
                 if result is None:
                     self.send_error(HTTPStatus.NOT_FOUND)
                     return
@@ -106,17 +111,17 @@ def create_server(app_root: Path, port: int, manager: RunManager) -> WorkbenchSe
             try:
                 payload = self._read_json()
                 if path == "/api/session/verify":
-                    result = manager.verify_credentials(str(payload.get("credentials", "") or ""))
+                    result = run_manager.verify_credentials(str(payload.get("credentials", "") or ""))
                 elif path == "/api/metadata/load":
-                    result = manager.load_metadata()
+                    result = run_manager.load_metadata()
                 elif path == "/api/export/all":
-                    result = manager.export_all()
+                    result = run_manager.export_all()
                 elif path == "/api/export/one":
-                    result = manager.export_one(str(payload.get("qualType", "") or ""))
+                    result = run_manager.export_one(str(payload.get("qualType", "") or ""))
                 elif path == "/api/stop":
-                    result = manager.stop()
+                    result = run_manager.stop()
                 elif path == "/api/start":
-                    result = manager.start(str(payload.get("credentials", "") or ""))
+                    result = run_manager.start(str(payload.get("credentials", "") or ""))
                 else:
                     self._send_json({"error": "接口不存在"}, HTTPStatus.NOT_FOUND)
                     return
@@ -125,5 +130,5 @@ def create_server(app_root: Path, port: int, manager: RunManager) -> WorkbenchSe
                 self._send_json({"error": str(error)}, HTTPStatus.BAD_REQUEST)
 
     server = WorkbenchServer(("127.0.0.1", port), Handler)
-    server.run_manager = manager  # type: ignore[attr-defined]
+    server.run_manager = run_manager  # type: ignore[attr-defined]
     return server

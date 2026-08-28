@@ -34,6 +34,14 @@ class CredentialTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "iebJSid"):
             parse_credentials("Cookie: JSESSIONID=session-value")
 
+    def test_normalizes_rich_text_escapes_before_ieb_rules(self) -> None:
+        self.assertEqual(
+            parse_credentials(
+                r"Cookie: \_ga=ignored; JSESSIONID=session\_value; iebJSid=browser\_value"
+            ),
+            {"JSESSIONID": "session_value", "iebJSid": "browser_value"},
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

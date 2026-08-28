@@ -2,12 +2,14 @@ from __future__ import annotations
 
 import re
 
+from credential_text import normalize_credential_source
+
 
 COOKIE_NAME_PATTERN = re.compile(r"^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$")
 
 
 def _extract_cookie_text(source: str) -> str:
-    text = str(source or "").strip()
+    text = normalize_credential_source(source).strip()
     if not text:
         raise ValueError("请粘贴 SOC 登录凭据")
     for pattern in (

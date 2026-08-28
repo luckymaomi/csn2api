@@ -17,7 +17,7 @@ python start.py
 
 先在 Chrome 或 Edge 正常登录飞行门户，按 `F12` 打开 `Network`，右键已登录请求选择 `Copy`、`Copy as cURL`，把完整内容粘贴到工作台，点击“验证 Cookie”。也可以直接粘贴 Cookie Header。
 
-验证成功后输入框会清空，当前页凭据面板显示规范化 Cookie 并提供“复制凭据”。内容只存在当前页面生命周期内；刷新页面、服务关闭或门户 Session 失效后自动删除，需要重新复制。
+验证成功后输入框会清空，当前页凭据面板显示规范化 Cookie 并提供“复制凭据”。Cookie 只保存在本地 Python 进程内存；刷新页面不会清除已验证 Session，但页面不会自动重新展示明文 Cookie。服务关闭、主动清除或门户 Session 失效后需要重新导入或粘贴验证。
 
 ## 输入与查询
 

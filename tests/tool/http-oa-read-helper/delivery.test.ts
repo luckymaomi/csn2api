@@ -1,12 +1,12 @@
 import { readFileSync, readdirSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-import { resolveFromRoot } from "../../helpers/paths";
+import { resolveFromDist, resolveFromRoot } from "../../helpers/paths";
 
 describe("HTTP OA read helper delivery", () => {
   it("publishes the OA workbench controls and runtime assets", () => {
     const root = resolveFromRoot("public/tool/app/http-oa-read-helper");
-    const landing = readFileSync(`${root}/index.html`, "utf8");
+    const landing = readFileSync(resolveFromDist("tool/app/http-oa-read-helper/index.html"), "utf8");
     const workbench = readFileSync(`${root}/web/index.html`, "utf8");
     const workbenchStyles = readFileSync(`${root}/web/styles.css`, "utf8");
     const requirements = readFileSync(`${root}/requirements.txt`, "utf8");

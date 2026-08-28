@@ -135,7 +135,7 @@ async function verifyCredentials() {
   }
   updateSavedCredentials("");
   await withBusy(elements.verifyButton, "验证中", async () => {
-    const state = await request("/api/session/verify", { credentials });
+    const state = await request("./api/session/verify", { credentials });
     updateSavedCredentials(state.credentials);
     elements.credentials.value = "";
     render(state);
@@ -144,19 +144,19 @@ async function verifyCredentials() {
 
 async function checkData() {
   await withBusy(elements.dataCheckButton, "检查中", async () => {
-    render(await request("/api/check-data", await inputPayload()));
+    render(await request("./api/check-data", await inputPayload()));
   });
 }
 
 async function runEntries() {
   await withBusy(elements.runButton, "启动中", async () => {
-    render(await request("/api/run", await inputPayload()));
+    render(await request("./api/run", await inputPayload()));
   });
 }
 
 async function stopRun() {
   await withBusy(elements.stopButton, "终止中", async () => {
-    render(await request("/api/stop", {}));
+    render(await request("./api/stop", {}));
   });
 }
 
@@ -219,7 +219,7 @@ async function request(url, payload) {
 
 async function refreshStatus() {
   try {
-    const response = await fetch("/api/status", { cache: "no-store" });
+    const response = await fetch("./api/status", { cache: "no-store" });
     if (!response.ok) throw new Error(`状态请求失败：${response.status}`);
     render(await response.json());
     pollingFailed = false;
@@ -376,7 +376,7 @@ function syncDownload(available) {
   elements.resultDownload.classList.toggle("disabled", !available);
   elements.resultDownload.setAttribute("aria-disabled", String(!available));
   elements.resultDownload.tabIndex = available ? 0 : -1;
-  if (available) elements.resultDownload.href = "/api/download/result";
+  if (available) elements.resultDownload.href = "./api/download/result";
   else elements.resultDownload.removeAttribute("href");
 }
 

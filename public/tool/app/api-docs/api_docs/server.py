@@ -172,6 +172,9 @@ def create_server(
             if path == "/api/health":
                 self._send_json({"available": True, "sessions": request_executor.all_session_statuses()})
                 return
+            if path == "/api/credentials":
+                self._send_json(request_executor.export_credential_bundle())
+                return
             if path == "/api/catalog":
                 self._send_json(catalog.as_dict())
                 return
@@ -204,6 +207,8 @@ def create_server(
                         str(payload.get("credentials", "") or ""),
                         str(payload.get("systemId", "") or ""),
                     )
+                elif path == "/api/credentials":
+                    result = request_executor.import_credential_bundle(payload)
                 elif path == "/api/execute":
                     parameters = payload.get("parameters", {})
                     if not isinstance(parameters, dict):

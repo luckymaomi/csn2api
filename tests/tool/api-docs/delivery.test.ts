@@ -22,6 +22,8 @@ describe("API docs delivery", () => {
     expect(html).toContain('id="sessionPanels"');
     expect(html).toContain('id="sendRequestButton"');
     expect(html).toContain('id="exportMarkdownButton"');
+    expect(html).toContain('id="importCookiesButton"');
+    expect(html).toContain('id="exportCookiesButton"');
     expect(html).toContain('data-response-view="table"');
     expect(html).toContain('data-response-view="json"');
     expect(html).toContain('data-response-view="raw"');
@@ -82,7 +84,8 @@ describe("API docs delivery", () => {
     const app = readFileSync(`${root}/app.mjs`, "utf8");
     expect(app).toContain("setInterval(refreshSessionStatus, 3000)");
     expect(app).toContain("Cookie 已验证");
-    expect(app).toContain('fetchJson("/api/session", { method: "DELETE" })');
+    expect(app).toContain('"./api/credentials"');
+    expect(app).not.toContain('fetchJson("./api/session", { method: "DELETE" })');
     expect(app).toContain("pollProgressiveExecution");
     expect(app).toContain("followProgressiveResponse");
     expect(app).toContain("scrollProgressiveResponseToBottom");
@@ -104,6 +107,7 @@ describe("API docs delivery", () => {
     expect(shell).toContain("<details class=\"nav-module\"");
     expect(shell).toContain("system.id === \"oa\"");
     expect(shell).toContain("data-endpoint-id");
+    expect(shell).toContain("Cookie 验证失败");
     expect(shell).not.toContain("员工号未识别");
   });
 });

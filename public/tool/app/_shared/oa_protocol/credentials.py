@@ -4,13 +4,15 @@ import json
 import re
 from urllib.parse import urlsplit
 
+from credential_text import normalize_credential_source
+
 
 COOKIE_NAME_PATTERN = re.compile(r"^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$")
 MAX_USER_AGENT_LENGTH = 512
 
 
 def _extract_cookie_text(source: str) -> str:
-    text = str(source or "").strip()
+    text = normalize_credential_source(source).strip()
     if not text:
         raise ValueError("请粘贴 OA 登录凭据")
     for pattern in (
@@ -52,7 +54,7 @@ def _safe_user_agent(value: str) -> str:
 
 
 def parse_browser_headers(source: str) -> dict[str, str]:
-    text = str(source or "")
+    text = normalize_credential_source(source)
     for match in re.finditer(r"(?is)(?:-H|--header)\s+\^?(['\"])(.*?)\^?\1", text):
         name, separator, value = match.group(2).partition(":")
         if separator and name.strip().lower() == "user-agent":
@@ -69,7 +71,7 @@ def parse_browser_headers(source: str) -> dict[str, str]:
 
 
 def parse_waiting_template(source: str) -> dict[str, object] | None:
-    text = str(source or "")
+    text = normalize_credential_source(source)
     urls = re.findall(r"https://[^\s'\"]+", text, flags=re.IGNORECASE)
     if not any(urlsplit(url).hostname == "work.csair.com" and urlsplit(url).path == "/oai/work/box/query/waiting" for url in urls):
         return None

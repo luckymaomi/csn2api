@@ -33,14 +33,13 @@ describe("registered tool delivery contract", () => {
   });
 
   it.each(tools)("publishes a complete standalone application for $entry", async (tool) => {
-    const landingPath = resolveFromRoot("public", "tool", "app", tool.entry, "index.html");
     const builtLandingPath = resolveFromDist("tool", "app", tool.entry, "index.html");
     const archivePath = resolveFromDist("exports", `${tool.entry}.zip`);
 
-    expect(existsSync(landingPath), `${tool.entry} 缺少详情入口页`).toBe(true);
+    expect(existsSync(builtLandingPath), `${tool.entry} 缺少详情入口页`).toBe(true);
     const expectedHref = `href="../../../exports/${tool.entry}.zip"`;
     const expectedDownload = `download="${tool.entry}.zip"`;
-    for (const pagePath of [landingPath, builtLandingPath]) {
+    for (const pagePath of [builtLandingPath]) {
       expect(existsSync(pagePath), `${tool.entry} 缺少构建后的详情入口页`).toBe(true);
       const html = readFileSync(pagePath, "utf8");
       expect(html, `${tool.entry} 详情入口没有对应 ZIP 链接`).toContain(expectedHref);
@@ -72,6 +71,10 @@ describe("registered tool delivery contract", () => {
 
     const sourceWorkbenchPath = resolveFromRoot("public", "tool", "app", tool.entry, "web", "index.html");
     if (existsSync(sourceWorkbenchPath)) {
+      expect(zip.file("start.py"), `${tool.entry} 的 ZIP 缺少统一启动入口`).not.toBeNull();
+      expect(zip.file("csn2api_runtime/single_app.py"), `${tool.entry} 的 ZIP 缺少共享启动运行时`).not.toBeNull();
+      expect(zip.file("csn2api_runtime/application.py"), `${tool.entry} 的 ZIP 缺少服务生命周期实现`).not.toBeNull();
+      expect(zip.file("credential_text/__init__.py"), `${tool.entry} 的 ZIP 缺少共享凭据文本规范化`).not.toBeNull();
       const workbench = await zip.file("web/index.html")?.async("string");
       expect(workbench, `${tool.entry} 的 ZIP 缺少 Python 工作台入口`).toBeTruthy();
       expect(workbench).toContain('<script src="./theme.js"></script>');

@@ -17,7 +17,9 @@ export function assertPythonSyntax(filePaths: string[]): void {
     "    ast.parse(source, filename=path)"
   ].join("\n");
 
-  execFileSync("python", ["-c", script, ...filePaths], {
-    stdio: "pipe"
-  });
+  for (let offset = 0; offset < filePaths.length; offset += 40) {
+    execFileSync("python", ["-c", script, ...filePaths.slice(offset, offset + 40)], {
+      stdio: "pipe"
+    });
+  }
 }

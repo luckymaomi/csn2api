@@ -4,11 +4,11 @@
 
 `http-lock-entry-helper` 是独立本地 Python APP。它使用用户提供的 IEB 已登录会话，通过 `requests.Session` 按输入顺序逐条调用非生产任务 HTTP 接口，不实现登录、不启动浏览器，也不依赖其他本地仓库。
 
-页面名称为“锁班皇帝（新）”，唯一入口为 `startapp.py`，只监听 `127.0.0.1` 的随机端口。
+页面名称为“锁班皇帝（新）”，独立入口为统一命名的 `start.py`，只监听 `127.0.0.1` 的随机端口；局域网入口由根目录 `start_all.py` 统一代理。
 
 ## 2. 会话与动态类型
 
-工作台接受浏览器 Network 面板的 Copy as cURL 文本或完整 Cookie Header，只提取 `JSESSIONID` 和 `iebJSid`。粘贴内容不作为命令执行，凭据只保存在当前 Python 进程内存和当前页面生命周期。
+工作台接受浏览器 Network 面板的 Copy as cURL 文本或完整 Cookie Header，只提取 `JSESSIONID` 和 `iebJSid`。粘贴内容不作为命令执行，凭据只保存在当前 Python 进程内存；页面刷新不会清除后端 Session，但不会自动恢复明文展示。
 
 验证阶段请求：
 

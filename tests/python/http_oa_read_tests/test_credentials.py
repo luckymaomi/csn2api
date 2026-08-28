@@ -33,6 +33,32 @@ class CredentialTests(unittest.TestCase):
         self.assertEqual(cookies, {"SESSION": "one", "route": "two"})
         self.assertEqual(parse_browser_headers(source), {"User-Agent": "Browser/152 exact-profile"})
 
+    def test_parses_linux_curl_after_rich_text_markdown_escaping(self) -> None:
+        source = (
+            "curl '[https://work.csair.com/oai/work/box/query/waiting]"
+            "(https://work.csair.com/oai/work/box/query/waiting)' \\\n"
+            "-H 'Cookie: \\_ga=analytics; \\_*bid_n=browser; "
+            "ROUTE-SESSION=route-value; SESSION=session-value' \\\n"
+            "-H 'User-Agent: Linux Browser/108' \\\n"
+            "\\--data-raw '{\"pageMode\":\"page\",\"offsetPageIndex\":0}' \\\n"
+            "\\--compressed"
+        )
+
+        self.assertEqual(
+            parse_credentials(source),
+            {
+                "_ga": "analytics",
+                "_*bid_n": "browser",
+                "ROUTE-SESSION": "route-value",
+                "SESSION": "session-value",
+            },
+        )
+        self.assertEqual(parse_browser_headers(source), {"User-Agent": "Linux Browser/108"})
+        self.assertEqual(
+            parse_waiting_template(source),
+            {"pageMode": "page", "offsetPageIndex": 0},
+        )
+
     def test_browser_headers_only_accepts_user_agent_without_line_breaks(self) -> None:
         source = (
             "curl 'https://work.csair.com/oai/work/box/query/waiting' "

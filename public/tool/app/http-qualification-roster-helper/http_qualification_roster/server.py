@@ -19,9 +19,14 @@ def _asset(app_root: Path, relative: str) -> Path:
     return local if local.is_file() else app_root.parents[2] / relative
 
 
-def create_server(app_root: Path, port: int, manager: RunManager) -> WorkbenchServer:
+def create_server(
+    app_root: Path,
+    port: int = 0,
+    manager: RunManager | None = None,
+) -> WorkbenchServer:
     root = Path(app_root).resolve()
     web_root = root / "web"
+    run_manager = manager or RunManager(root / "results")
 
     class Handler(BaseHTTPRequestHandler):
         server_version = "csn2api-qualification-roster/1"
@@ -62,10 +67,10 @@ def create_server(app_root: Path, port: int, manager: RunManager) -> WorkbenchSe
         def do_GET(self) -> None:  # noqa: N802
             path = urlparse(self.path).path
             if path == "/api/status":
-                self._send_json(manager.snapshot())
+                self._send_json(run_manager.snapshot())
                 return
             if path == "/api/download/excel":
-                result = manager.download_path()
+                result = run_manager.download_path()
                 if result is None:
                     self.send_error(HTTPStatus.NOT_FOUND)
                     return
@@ -97,13 +102,13 @@ def create_server(app_root: Path, port: int, manager: RunManager) -> WorkbenchSe
             try:
                 payload = self._read_json()
                 if path == "/api/session/verify":
-                    result = manager.verify_credentials(str(payload.get("credentials", "") or ""))
+                    result = run_manager.verify_credentials(str(payload.get("credentials", "") or ""))
                 elif path == "/api/metadata/load":
-                    result = manager.load_metadata()
+                    result = run_manager.load_metadata()
                 elif path == "/api/run":
-                    result = manager.start_query(payload)
+                    result = run_manager.start_query(payload)
                 elif path == "/api/stop":
-                    result = manager.stop()
+                    result = run_manager.stop()
                 else:
                     self._send_json({"error": "接口不存在"}, HTTPStatus.NOT_FOUND)
                     return
@@ -112,5 +117,5 @@ def create_server(app_root: Path, port: int, manager: RunManager) -> WorkbenchSe
                 self._send_json({"error": str(error)}, HTTPStatus.BAD_REQUEST)
 
     server = WorkbenchServer(("127.0.0.1", port), Handler)
-    server.run_manager = manager  # type: ignore[attr-defined]
+    server.run_manager = run_manager  # type: ignore[attr-defined]
     return server

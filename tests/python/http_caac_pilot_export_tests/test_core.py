@@ -36,6 +36,22 @@ class _AssetParser(HTMLParser):
 
 
 class CoreTests(unittest.TestCase):
+    def test_accepts_direct_cookie_header_from_linux_browser(self) -> None:
+        cookies = parse_credentials(
+            "Cookie: yzzzm=operator; "
+            "JSESSIONID=session-route!123456; "
+            "home=employee"
+        )
+
+        self.assertEqual(
+            cookies,
+            {
+                "yzzzm": "operator",
+                "JSESSIONID": "session-route!123456",
+                "home": "employee",
+            },
+        )
+
     def test_shell_cookie_escape_is_decoded(self) -> None:
         cookies = parse_credentials(r"-b $'yzzzm=a; JSESSIONID=abc\u0021xyz; home=h\_1'")
         self.assertEqual(cookies["JSESSIONID"], "abc!xyz")

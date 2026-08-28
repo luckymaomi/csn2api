@@ -1,12 +1,12 @@
 import { readFileSync, readdirSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-import { resolveFromRoot } from "../../helpers/paths";
+import { resolveFromDist, resolveFromRoot } from "../../helpers/paths";
 
 describe("HTTP flight stats delivery", () => {
   it("publishes the staged HTTP workbench without Playwright", () => {
     const root = resolveFromRoot("public/tool/app/http-flight-stats-helper");
-    const landing = readFileSync(`${root}/index.html`, "utf8");
+    const landing = readFileSync(resolveFromDist("tool/app/http-flight-stats-helper/index.html"), "utf8");
     const workbench = readFileSync(`${root}/web/index.html`, "utf8");
     const requirements = readFileSync(`${root}/requirements.txt`, "utf8");
     const pythonEntries = readdirSync(root).filter((name) => name.endsWith(".py")).sort();

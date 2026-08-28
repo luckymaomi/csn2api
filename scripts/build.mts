@@ -1,5 +1,4 @@
 import fs from "node:fs/promises";
-import { readdirSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { createHash } from "node:crypto";
@@ -8,8 +7,12 @@ import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 
 import { build } from "esbuild";
-import ts from "typescript";
-import { readProtocolCoreDefinitions } from "./protocol-cores.mjs";
+import {
+  copyPythonWorkbenchAssets,
+  generateRuntimeDelivery,
+  readToolCatalog,
+  type ToolCatalogItem
+} from "./runtime-delivery.mjs";
 import { buildToolExports, isRuntimeGeneratedPath, type ToolExportDefinition } from "./tool-exports.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -40,24 +43,9 @@ function resolveDistRoot(): string {
 
 type PageEntry = { source: string; output: string; page: string };
 
-function discoverHttpWorkbenchEntries(): PageEntry[] {
-  const appSourceRoot = path.join(sourceRoot, "tool", "app");
-  return readdirSync(appSourceRoot, { withFileTypes: true })
-    .filter((entry) => entry.isDirectory() && /^http-.+-helper$/.test(entry.name))
-    .map((entry) => entry.name)
-    .filter((entry) => readdirSync(path.join(appSourceRoot, entry)).includes("shell.ts"))
-    .sort()
-    .map((entry) => ({
-      source: `src/tool/app/${entry}/shell.ts`,
-      output: `tool/app/${entry}/app`,
-      page: `tool/app/${entry}/index.html`,
-    }));
-}
-
 const pageEntries: ReadonlyArray<PageEntry> = [
   { source: "src/tool/tools-render.ts", output: "tool/app", page: "tool/index.html" },
   { source: "src/tool/app/api-docs/main.ts", output: "tool/app/api-docs/app", page: "tool/app/api-docs/index.html" },
-  ...discoverHttpWorkbenchEntries(),
 ];
 
 const workerEntries: ReadonlyArray<{ source: string; output: string }> = [];
@@ -190,56 +178,13 @@ async function buildPageEntries(): Promise<void> {
   );
 }
 
-async function copyPythonWorkbenchAssets() {
-  const standardKeepAlivePath = path.join(staticRoot, "tool", "app", "_shared", "session_keepalive.mjs");
-  const toolEntries = [...new Set(
-    pageEntries
-      .map((entry) => toolEntryFromPage(entry.page))
-      .filter((entry) => entry.startsWith("http-") && entry.endsWith("-helper"))
-  )].sort();
-  for (const toolEntry of toolEntries) {
-    const workbenchRoot = path.join(distRoot, "tool", "app", toolEntry, "web");
-    const libraryRoot = path.join(workbenchRoot, "libs");
-    await fs.mkdir(libraryRoot, { recursive: true });
-    await fs.copyFile(path.join(staticRoot, "theme.js"), path.join(workbenchRoot, "theme.js"));
-    await fs.copyFile(path.join(staticRoot, "theme.css"), path.join(workbenchRoot, "theme.css"));
-    await fs.copyFile(standardKeepAlivePath, path.join(workbenchRoot, "session_keepalive.mjs"));
-    await fs.copyFile(
-      path.join(staticRoot, "libs", "bootstrap.min.css"),
-      path.join(libraryRoot, "bootstrap.min.css")
-    );
-  }
-
-  const registeredToolTargets = (await readToolCatalog())
-    .map((tool) => tool.entry)
-    .filter((entry) => entry.startsWith("http-") && entry.endsWith("-helper"));
-  const sharedProtocolCopies = await readProtocolCoreDefinitions({
-    projectRoot,
-    staticRoot,
-    registeredToolTargets
-  });
-  for (const item of sharedProtocolCopies) {
-    const source = path.join(staticRoot, "tool", "app", "_shared", item.protocol);
-    for (const target of item.targets) {
-      await fs.cp(source, path.join(distRoot, "tool", "app", target, item.protocol), {
-        recursive: true,
-        force: true,
-        filter: (sourcePath) => !isRuntimeGeneratedPath(path.relative(source, sourcePath))
-      });
-    }
-  }
-}
-
-async function buildStandaloneApplicationBundles(): Promise<string> {
+async function buildStandaloneApplicationBundles(toolCatalog: ToolCatalogItem[]): Promise<string> {
   const standaloneRoot = path.join(distRoot, ".standalone");
   await fs.rm(standaloneRoot, { recursive: true, force: true });
-  const toolCatalog = await readToolCatalog();
   const toolEntryNames = new Set(toolCatalog.map((tool) => tool.entry));
   const entryPoints: Record<string, string> = {};
-  for (const pageEntry of pageEntries) {
-    const toolEntry = toolEntryFromPage(pageEntry.page);
-    if (!toolEntry || !toolEntryNames.has(toolEntry)) continue;
-    entryPoints[`${toolEntry}/${path.basename(pageEntry.output)}`] = path.join(projectRoot, pageEntry.source);
+  for (const toolEntry of toolEntryNames) {
+    entryPoints[`${toolEntry}/app`] = path.join(sourceRoot, "tool", "standalone-detail.ts");
   }
   for (const workerEntry of workerEntries) {
     const toolEntry = toolEntryFromOutput(workerEntry.output);
@@ -265,19 +210,11 @@ async function buildStandaloneApplicationBundles(): Promise<string> {
   return standaloneRoot;
 }
 
-async function generateStandaloneToolExports(standaloneRoot: string): Promise<number> {
-  const toolCatalog = await readToolCatalog();
+async function generateStandaloneToolExports(
+  standaloneRoot: string,
+  toolCatalog: ToolCatalogItem[]
+): Promise<number> {
   const definitions: ToolExportDefinition[] = toolCatalog.map((tool) => {
-    const pagePrefix = `tool/app/${tool.entry}/`;
-    const toolPageEntries = pageEntries.filter((entry) => entry.page.startsWith(pagePrefix));
-    const mainPageEntry = toolPageEntries.find((entry) => entry.page === `${pagePrefix}index.html`);
-    if (!mainPageEntry) throw new Error(`工具 ${tool.entry} 没有对应的页面构建入口。`);
-    const auxiliaryBundles = toolPageEntries
-      .filter((entry) => entry !== mainPageEntry)
-      .map((entry) => ({
-        source: path.join(standaloneRoot, tool.entry, `${path.basename(entry.output)}.js`),
-        target: `${path.basename(entry.output)}.js`
-      }));
     const toolWorkerBundles = workerEntries
       .filter((entry) => toolEntryFromOutput(entry.output) === tool.entry)
       .map((entry) => ({
@@ -288,8 +225,7 @@ async function generateStandaloneToolExports(standaloneRoot: string): Promise<nu
       entry: tool.entry,
       name: tool.name,
       pageDirectory: path.join(distRoot, "tool/app", tool.entry),
-      applicationBundle: path.join(standaloneRoot, tool.entry, `${path.basename(mainPageEntry.output)}.js`),
-      ...(auxiliaryBundles.length ? { auxiliaryBundles } : {}),
+      applicationBundle: path.join(standaloneRoot, tool.entry, "app.js"),
       ...(toolWorkerBundles.length ? { workerBundles: toolWorkerBundles } : {})
     };
     return definition;
@@ -312,45 +248,6 @@ function toolEntryFromOutput(output: string): string {
   return match?.[1] || "";
 }
 
-function readObjectStringProperty(node: ts.ObjectLiteralExpression, propertyName: string): string {
-  for (const property of node.properties) {
-    if (!ts.isPropertyAssignment(property)) continue;
-    const name = ts.isIdentifier(property.name) || ts.isStringLiteral(property.name)
-      ? property.name.text
-      : "";
-    if (name !== propertyName || !ts.isStringLiteralLike(property.initializer)) continue;
-    return property.initializer.text;
-  }
-  return "";
-}
-
-async function readToolCatalog(): Promise<Array<{ name: string; description: string; entry: string }>> {
-  const sourcePath = path.join(sourceRoot, "tool", "tools-data.ts");
-  const sourceText = await fs.readFile(sourcePath, "utf8");
-  const sourceFile = ts.createSourceFile(sourcePath, sourceText, ts.ScriptTarget.Latest, true);
-  let catalog: Array<{ name: string; description: string; entry: string }> = [];
-
-  sourceFile.forEachChild((node) => {
-    if (!ts.isVariableStatement(node)) return;
-    for (const declaration of node.declarationList.declarations) {
-      if (!ts.isIdentifier(declaration.name) || declaration.name.text !== "tools") continue;
-      if (!declaration.initializer || !ts.isArrayLiteralExpression(declaration.initializer)) continue;
-      catalog = declaration.initializer.elements.flatMap((element) => {
-        if (!ts.isObjectLiteralExpression(element)) return [];
-        const name = readObjectStringProperty(element, "name");
-        const description = readObjectStringProperty(element, "desc");
-        const entry = readObjectStringProperty(element, "entry");
-        return name && entry ? [{ name, description, entry }] : [];
-      });
-    }
-  });
-
-  if (!catalog.length) {
-    throw new Error("无法从 src/tool/tools-data.ts 读取工具清单。");
-  }
-  return catalog;
-}
-
 async function copySourceAsset(sourceFilePath: string): Promise<string> {
   const outputFilePath = toAssetOutputPath(sourceFilePath);
   await fs.mkdir(path.dirname(outputFilePath), { recursive: true });
@@ -361,7 +258,8 @@ async function copySourceAsset(sourceFilePath: string): Promise<string> {
 async function main() {
   await prepareDist();
   await copyStaticFiles();
-  await copyPythonWorkbenchAssets();
+  const toolCatalog = await readToolCatalog(sourceRoot);
+  const toolSystems = await copyPythonWorkbenchAssets({ staticRoot, distRoot, tools: toolCatalog });
 
   const assetFiles = await walkSourceAssetFiles(sourceRoot);
   for (const sourceFilePath of assetFiles) {
@@ -369,10 +267,11 @@ async function main() {
   }
 
   await buildPageEntries();
-  const standaloneRoot = await buildStandaloneApplicationBundles();
+  const standaloneRoot = await buildStandaloneApplicationBundles(toolCatalog);
   let exportCount = 0;
   try {
-    exportCount = await generateStandaloneToolExports(standaloneRoot);
+    await generateRuntimeDelivery({ staticRoot, distRoot, tools: toolCatalog, standaloneRoot, toolSystems });
+    exportCount = await generateStandaloneToolExports(standaloneRoot, toolCatalog);
   } finally {
     await fs.rm(standaloneRoot, { recursive: true, force: true });
   }

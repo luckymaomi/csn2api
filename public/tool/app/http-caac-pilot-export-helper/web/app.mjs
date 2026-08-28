@@ -153,20 +153,20 @@ async function postJson(path, payload = {}) {
 async function verifyCredentials() {
   const credentials = elements.credentials.value.trim();
   if (!credentials) throw new Error("请粘贴登录凭据");
-  const state = await postJson("/api/session/verify", { credentials });
+  const state = await postJson("./api/session/verify", { credentials });
   updateSavedCredentials(state.credentials);
   elements.credentials.value = "";
   renderState(state);
 }
 
 async function checkData() {
-  renderState(await postJson("/api/check-data", await buildPayload()));
+  renderState(await postJson("./api/check-data", await buildPayload()));
 }
 
 async function startRun() {
   followLog = true;
   resultTable.followLatest();
-  renderState(await postJson("/api/run", await buildPayload()));
+  renderState(await postJson("./api/run", await buildPayload()));
 }
 
 function renderCheck(check = {}) {
@@ -211,7 +211,7 @@ function renderLogs(logs = []) {
 function setDownload(enabled) {
   elements.excelDownload.classList.toggle("disabled", !enabled);
   elements.excelDownload.setAttribute("aria-disabled", enabled ? "false" : "true");
-  if (enabled) elements.excelDownload.href = "/api/download";
+  if (enabled) elements.excelDownload.href = "./api/download";
   else elements.excelDownload.removeAttribute("href");
 }
 
@@ -270,7 +270,7 @@ function showActionError(error) {
 
 async function pollStatus() {
   try {
-    const response = await fetch("/api/status", { cache: "no-store" });
+    const response = await fetch("./api/status", { cache: "no-store" });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     renderState(await response.json());
   } catch (error) {
@@ -282,10 +282,10 @@ document.querySelectorAll('input[name="runMode"]').forEach((input) => input.addE
 elements.excelFile.addEventListener("change", syncControls);
 elements.verifyButton.addEventListener("click", () => verifyCredentials().catch(showActionError));
 elements.copyCredentialsButton.addEventListener("click", () => copyCurrentCredentials());
-elements.templateDownload.addEventListener("click", () => { window.location.href = "/api/template"; });
+elements.templateDownload.addEventListener("click", () => { window.location.href = "./api/template"; });
 elements.dataCheckButton.addEventListener("click", () => checkData().catch(showActionError));
 elements.runButton.addEventListener("click", () => startRun().catch(showActionError));
-elements.stopButton.addEventListener("click", () => postJson("/api/stop").then(renderState).catch(showActionError));
+elements.stopButton.addEventListener("click", () => postJson("./api/stop").then(renderState).catch(showActionError));
 elements.themeToggle.addEventListener("click", () => window.WatchdogTheme?.toggleTheme());
 elements.logList.addEventListener("scroll", () => { followLog = isNearBottom(elements.logList); });
 

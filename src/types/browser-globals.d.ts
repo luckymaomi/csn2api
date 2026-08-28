@@ -6,6 +6,9 @@ interface HomePatternGateLogic {
 }
 
 interface Window {
+  Csn2ApiRuntime?: {
+    mode: "lan";
+  };
   HomePatternGateLogic: HomePatternGateLogic;
   WatchdogTheme?: {
     getTheme(): "light" | "dark";

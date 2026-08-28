@@ -162,7 +162,7 @@ function render(value) {
 
 async function refresh() {
   try {
-    const response = await fetch("/api/status", { cache: "no-store" });
+    const response = await fetch("./api/status", { cache: "no-store" });
     render(await response.json());
   } catch (_error) {
     // The next poll restores the local status connection.
@@ -191,7 +191,7 @@ document.querySelectorAll('input[name="inputMode"]').forEach((input) => input.ad
 }));
 elements.verify.addEventListener("click", async () => {
   try {
-    const value = await api("/api/session/verify", { credentials: elements.credentials.value });
+    const value = await api("./api/session/verify", { credentials: elements.credentials.value });
     render(value);
     if (value.credentials) {
       elements.saved.value = value.credentials;
@@ -209,7 +209,7 @@ elements.copyCredentialsButton.addEventListener("click", async () => {
 elements.check.addEventListener("click", async () => {
   try {
     state.payload = $("excelMode").checked ? await readFile() : { inputMode: "paste", pastedText: elements.paste.value };
-    render(await api("/api/check-data", state.payload));
+    render(await api("./api/check-data", state.payload));
   } catch (error) {
     alert(error.message);
   }
@@ -219,14 +219,14 @@ elements.run.addEventListener("click", async () => {
     if (!state.payload) state.payload = $("excelMode").checked ? await readFile() : { inputMode: "paste", pastedText: elements.paste.value };
     followLogs = true;
     followResults = true;
-    render(await api("/api/run", state.payload));
+    render(await api("./api/run", state.payload));
   } catch (error) {
     alert(error.message);
   }
 });
-elements.stop.addEventListener("click", async () => { render(await api("/api/stop")); });
+elements.stop.addEventListener("click", async () => { render(await api("./api/stop")); });
 elements.download.addEventListener("click", () => {
-  if (!elements.download.classList.contains("disabled")) window.location.href = "/api/download/result";
+  if (!elements.download.classList.contains("disabled")) window.location.href = "./api/download/result";
 });
 elements.logs.addEventListener("scroll", () => { followLogs = isNearBottom(elements.logs); });
 elements.resultsViewport.addEventListener("scroll", () => { followResults = isNearBottom(elements.resultsViewport); });

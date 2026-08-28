@@ -101,7 +101,7 @@ elements.verifyButton.addEventListener("click", async () => {
   if (!credentials) return showLocalError("请粘贴 cURL 或 Cookie Header");
   updateSavedCredentials("");
   try {
-    const state = await postJson("/api/session/verify", { credentials });
+    const state = await postJson("./api/session/verify", { credentials });
     updateSavedCredentials(state.credentials);
     elements.credentials.value = "";
     render(state);
@@ -110,7 +110,7 @@ elements.verifyButton.addEventListener("click", async () => {
   }
 });
 elements.copyCredentialsButton.addEventListener("click", () => copySavedCredentials());
-elements.scanButton.addEventListener("click", () => invoke("/api/scan", {}));
+elements.scanButton.addEventListener("click", () => invoke("./api/scan", {}));
 elements.finiteMode.addEventListener("change", updateTargetPreview);
 elements.allMode.addEventListener("change", updateTargetPreview);
 elements.maxCount.addEventListener("input", updateTargetPreview);
@@ -120,7 +120,7 @@ elements.runButton.addEventListener("click", async () => {
     return showLocalError("本次数量必须是正整数");
   }
   try {
-    await postJson("/api/run", {
+    await postJson("./api/run", {
       maxCount,
       runMode: elements.allMode.checked ? "all" : "finite",
     });
@@ -129,7 +129,7 @@ elements.runButton.addEventListener("click", async () => {
     showLocalError(error);
   }
 });
-elements.stopButton.addEventListener("click", () => invoke("/api/stop", {}));
+elements.stopButton.addEventListener("click", () => invoke("./api/stop", {}));
 elements.resultsViewport.addEventListener("scroll", () => {
   followResults = isNearBottom(elements.resultsViewport);
 });
@@ -159,7 +159,7 @@ async function postJson(path, payload) {
 
 async function refreshStatus() {
   try {
-    const response = await fetch("/api/status", { cache: "no-store" });
+    const response = await fetch("./api/status", { cache: "no-store" });
     if (!response.ok) throw new Error(`状态请求失败：${response.status}`);
     render(await response.json());
     pollingErrorShown = false;
@@ -312,6 +312,6 @@ function updateTargetPreview() {
     : `指定数量模式将处理 ${target} 条同类公文`;
 }
 
-await postJson("/api/session/clear", {}).catch(() => undefined);
+await postJson("./api/session/clear", {}).catch(() => undefined);
 await refreshStatus();
 window.setInterval(refreshStatus, 800);

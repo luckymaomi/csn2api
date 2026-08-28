@@ -77,7 +77,7 @@ export function createResultTable(showError) {
     if (followResults && total > 0) page = pageCount - 1;
     page = Math.max(0, Math.min(page, pageCount - 1));
     const currentRequest = ++requestId;
-    const response = await fetch(`/api/results?offset=${page * pageSize}&limit=${pageSize}`, { cache: "no-store" });
+    const response = await fetch(`./api/results?offset=${page * pageSize}&limit=${pageSize}`, { cache: "no-store" });
     if (!response.ok) throw new Error(`结果读取失败：HTTP ${response.status}`);
     const payload = await response.json();
     if (currentRequest !== requestId) return;

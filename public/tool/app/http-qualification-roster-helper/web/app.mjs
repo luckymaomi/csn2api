@@ -112,7 +112,7 @@ async function verify() {
   updateSavedCredentials("");
   elements.verifyButton.disabled = true;
   try {
-    const state = await postJson("/api/session/verify", { credentials: value });
+    const state = await postJson("./api/session/verify", { credentials: value });
     updateSavedCredentials(state.credentials);
     elements.credentials.value = "";
     renderState(state);
@@ -124,7 +124,7 @@ async function verify() {
 async function loadMetadata() {
   elements.loadFiltersButton.disabled = true;
   try {
-    renderState(await postJson("/api/metadata/load"));
+    renderState(await postJson("./api/metadata/load"));
   } finally {
     elements.loadFiltersButton.disabled = false;
   }
@@ -303,7 +303,7 @@ function renderLogs(logs = []) {
 function setDownload(enabled) {
   elements.excelDownload.classList.toggle("disabled", !enabled);
   elements.excelDownload.setAttribute("aria-disabled", enabled ? "false" : "true");
-  if (enabled) elements.excelDownload.href = "/api/download/excel";
+  if (enabled) elements.excelDownload.href = "./api/download/excel";
   else elements.excelDownload.removeAttribute("href");
 }
 
@@ -364,7 +364,7 @@ function renderState(state) {
 
 async function pollStatus() {
   try {
-    const response = await fetch("/api/status", { cache: "no-store" });
+    const response = await fetch("./api/status", { cache: "no-store" });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     renderState(await response.json());
     pollingFailed = false;
@@ -386,8 +386,8 @@ elements.selectDefaultsButton.addEventListener("click", () => {
   updateSelectionSummary();
 });
 elements.clearQualificationsButton.addEventListener("click", () => { document.querySelectorAll("[data-qualification-code]").forEach((input) => { input.checked = false; }); updateSelectionSummary(); });
-elements.runButton.addEventListener("click", () => postJson("/api/run", { filters: readFilters(), qualificationCodes: selectedQualificationCodes() }).then(renderState).catch(showActionError));
-elements.stopButton.addEventListener("click", () => postJson("/api/stop").then(renderState).catch(showActionError));
+elements.runButton.addEventListener("click", () => postJson("./api/run", { filters: readFilters(), qualificationCodes: selectedQualificationCodes() }).then(renderState).catch(showActionError));
+elements.stopButton.addEventListener("click", () => postJson("./api/stop").then(renderState).catch(showActionError));
 elements.themeToggle.addEventListener("click", () => window.WatchdogTheme?.toggleTheme());
 elements.resultsViewport.addEventListener("scroll", () => { followResults = nearBottom(elements.resultsViewport); });
 elements.logList.addEventListener("scroll", () => { followLogs = nearBottom(elements.logList); });

@@ -61,7 +61,7 @@ describe("repository structure", () => {
 
   it("has an index page for every tool entry", () => {
     const missingEntries = collectToolEntries().filter((entry) => {
-      return !fs.existsSync(resolveFromRoot("public", "tool", "app", entry, "index.html"));
+      return !fs.existsSync(resolveFromRoot("dist", "tool", "app", entry, "index.html"));
     });
 
     expect(missingEntries, `tool entries without index.html:\n${missingEntries.join("\n")}`).toEqual([]);

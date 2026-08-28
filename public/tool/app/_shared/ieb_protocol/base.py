@@ -8,6 +8,8 @@ from urllib.parse import urljoin, urlparse
 import requests
 from bs4 import BeautifulSoup
 
+from credential_text import normalize_credential_source
+
 
 BASE_URL = "https://ieb.csair.com"
 HOME_PATH = "/index/index"
@@ -31,7 +33,7 @@ def _text(value: object) -> str:
 
 
 def _extract_cookie_text(source: str) -> str:
-    text = str(source or "").strip()
+    text = normalize_credential_source(source).strip()
     if not text:
         raise ValueError("请粘贴登录凭据")
     labeled = re.match(r"(?is)^(?:飞行门户|IEB)\s*[:：]\s*(.+)$", text)

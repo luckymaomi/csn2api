@@ -10,11 +10,17 @@ Cookie 管理右侧按 catalog 顺序纵向排列各系统区域，各套凭据�
 
 IEB：打开 `https://ieb.csair.com/index/index` 并登录，在 F12 Network 中选择任意 `ieb.csair.com` 已登录请求，右键 Copy as cURL 后粘贴验证。`JSESSIONID` 与 `iebJSid` 为 HttpOnly，普通 `document.cookie` 无法完整读取。
 
-OA：打开 `https://work.csair.com/oaw/work/my-dealt-with/schedule-list?sourceType=wait` 并登录，确认待办列表已显示；在 F12 Network 筛选 `query/waiting`，选择 `POST https://work.csair.com/oai/work/box/query/waiting` 并 Copy as cURL。优先粘贴完整 cURL，使本地执行器同时取得 Cookie、User-Agent 和待办 JSON 模板。
+OA：打开 `https://work.csair.com/oaw/work/my-dealt-with/schedule-list?sourceType=wait` 并登录，确认待办列表已显示；在 F12 Network 筛选 `query/waiting`，选择 `POST https://work.csair.com/oai/work/box/query/waiting` 并 Copy as cURL。优先粘贴完整 cURL，使本地执行器同时取得 Cookie、User-Agent 和待办 JSON 模板。Windows 和 Linux cURL 均可使用；经过聊天或富文本后出现的等价 Markdown URL、`\_`、`\*` 和 `\--data-raw` 会在解析前还原。
 
 SOC：打开 `https://soc.csair.com/opws-web/pages/public/soc.jsp?f=2&s=11&t=1` 并进入随机置位申请页面；在 F12 Network 选择随机置位页面或其 Fetch/XHR 请求，Copy as cURL 后粘贴验证。SOC 至少需要当前有效的 `JSESSIONID`，建议保留完整 Cookie Header；它与 IEB、OA 会话完全独立。
 
-验证成功后对应系统区域显示当前使用人、可复制的规范化 Cookie Header，并显示下一次只读保活请求的动态倒计时。IEB 和 OA 显示员工号与姓名，SOC 只显示外层页返回的当前登录姓名。保活间隔为 30-60 秒，倒计时归零后由本地执行器发送系统会话请求，成功后重新开始下一轮。刷新或重新打开会清除当前页面的全部 Session；每个区域的“清除”只清该系统。页面不使用浏览器持久化存储保存凭据。
+验证成功后对应系统区域显示当前使用人、可复制的规范化 Cookie Header，并显示下一次只读保活请求的动态倒计时。IEB 和 OA 显示员工号与姓名，SOC 只显示外层页返回的当前登录姓名。保活间隔为 30-60 秒，倒计时归零后由本地执行器发送系统会话请求，成功后重新开始下一轮。刷新页面会恢复当前 Python 进程内仍有效的 Session；每个区域的“清除”只清该系统，服务退出后内存 Session 消失。页面不使用浏览器持久化存储保存凭据，验证失败原因会保留在对应 Cookie 卡片中。
+
+## Cookie 文件
+
+点击“导出 Cookie”会下载 `csn2api-cookies-*.json`，其中包含当前有效系统的规范化明文 Cookie。点击“导入 Cookie”可选择该 JSON，或内容相同的 TXT 文件；系统会逐项重新验证，失败项不会伪装成已导入。文件可同时用于独立 API 文档和 `start_all.py` 局域网模式；局域网模式还会把成功项分发到同一生产系统的独立工作台。
+
+Cookie 文件等同于登录凭据，只保存在受控本机，不发送给他人，不放入仓库、聊天、日志或结果目录。导入/导出不会把 Cookie 写入 LocalStorage。
 
 ## 调试请求
 

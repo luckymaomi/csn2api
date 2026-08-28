@@ -106,7 +106,7 @@ function escapeText(value) {
 function setDownload(link, enabled, kind) {
   link.classList.toggle("disabled", !enabled);
   link.setAttribute("aria-disabled", enabled ? "false" : "true");
-  if (enabled) link.href = `/api/download/${kind}`;
+  if (enabled) link.href = `./api/download/${kind}`;
   else link.removeAttribute("href");
 }
 
@@ -173,7 +173,7 @@ async function verifyCredentials() {
   if (!credentials) throw new Error("请粘贴登录凭据");
   elements.verifyButton.disabled = true;
   try {
-    const state = await postJson("/api/session/verify", { credentials });
+    const state = await postJson("./api/session/verify", { credentials });
     updateSavedCredentials(state.credentials);
     elements.credentials.value = "";
     renderState(state);
@@ -186,15 +186,15 @@ async function verifyCredentials() {
 }
 
 async function checkData() {
-  renderState(await postJson("/api/check-data", await buildPayload()));
+  renderState(await postJson("./api/check-data", await buildPayload()));
 }
 
 async function runQuery() {
-  renderState(await postJson("/api/run", await buildPayload()));
+  renderState(await postJson("./api/run", await buildPayload()));
 }
 
 async function stopQuery() {
-  renderState(await postJson("/api/stop"));
+  renderState(await postJson("./api/stop"));
 }
 
 function showActionError(error) {
@@ -336,7 +336,7 @@ function renderState(state) {
 
 async function pollStatus() {
   try {
-    const response = await fetch("/api/status", { cache: "no-store" });
+    const response = await fetch("./api/status", { cache: "no-store" });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     renderState(await response.json());
     pollingFailed = false;

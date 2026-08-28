@@ -10,9 +10,17 @@ const homepageStateLabels: Record<ToolHomepageState, string> = {
 
 const toolList = document.getElementById("toolList");
 const homeThemeToggle = document.getElementById("homeThemeToggle");
+const apiDocsLink = document.getElementById("apiDocsLink");
 
 bindHomeThemeToggle();
+bindRuntimeLinks();
 renderToolList(tools);
+
+function bindRuntimeLinks(): void {
+    if (window.Csn2ApiRuntime?.mode === "lan" && apiDocsLink instanceof HTMLAnchorElement) {
+        apiDocsLink.href = "/api-docs/";
+    }
+}
 
 function bindHomeThemeToggle(): void {
     if (!(homeThemeToggle instanceof HTMLButtonElement) || !window.WatchdogTheme) return;
@@ -78,6 +86,7 @@ function renderToolListItem(item: ToolItem): string {
 }
 
 function resolveToolUrl(item: ToolItem): string {
+    if (window.Csn2ApiRuntime?.mode === "lan") return `/apps/${item.entry}/`;
     return `./app/${item.entry}/index.html`;
 }
 

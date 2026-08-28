@@ -20,6 +20,7 @@ import {
     renderResponseError
 } from "./response-view.mjs";
 import { buildApiDocsMarkdown, downloadMarkdown } from "./markdown-export.mjs";
+import { downloadCredentialBundle, readCredentialBundleFile } from "./credential-file.mjs";
 import { createToast, renderEndpointNavigation, renderSessionStatus } from "./ui-shell.mjs";
 
 const state = {
@@ -46,6 +47,9 @@ const elements = {
     document: document.getElementById("endpointDocument"),
     search: document.getElementById("endpointSearch"),
     exportMarkdownButton: document.getElementById("exportMarkdownButton"),
+    importCookiesInput: document.getElementById("importCookiesInput"),
+    importCookiesButton: document.getElementById("importCookiesButton"),
+    exportCookiesButton: document.getElementById("exportCookiesButton"),
     themeToggle: document.getElementById("themeToggle"),
     sessionPanel: document.getElementById("sessionPanel"),
     sessionPanels: document.getElementById("sessionPanels"),
@@ -185,6 +189,56 @@ function renderDocument() {
         elements.document.innerHTML = renderModuleDocument(module, systemById(module?.systemId), state.modules);
     } else {
         elements.document.innerHTML = renderEndpointDocument(selectedRecord(), state.codeLanguage, collectParameters());
+    }
+}
+
+function credentialEndpoint() {
+    return window.Csn2ApiRuntime?.mode === "lan"
+        ? "/__runtime__/credentials"
+        : "./api/credentials";
+}
+
+function hydrateSavedCredentials(bundle) {
+    state.savedCredentials.clear();
+    for (const item of bundle?.systems || []) {
+        setSavedCredentials(String(item.systemId || ""), String(item.credentials || ""));
+    }
+}
+
+async function exportCookies() {
+    try {
+        const bundle = await fetchJson(credentialEndpoint());
+        if (!bundle.systems?.length) throw new Error("当前没有可导出的有效 Cookie");
+        downloadCredentialBundle(bundle);
+        showToast(`已导出 ${bundle.systems.length} 个系统 Cookie`);
+    } catch (error) {
+        showToast(error.message || String(error), true);
+    }
+}
+
+async function importCookies(file) {
+    try {
+        elements.importCookiesButton.disabled = true;
+        const bundle = await readCredentialBundleFile(file);
+        const result = await fetchJson(credentialEndpoint(), {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(bundle),
+        });
+        applySessionStatuses(result.sessions);
+        hydrateSavedCredentials(result.bundle);
+        const failedCount = Array.isArray(result.failed) ? result.failed.length : 0;
+        showToast(
+            failedCount
+                ? `已导入 ${result.imported?.length || 0} 个系统，${failedCount} 个失败`
+                : `已导入 ${result.imported?.length || 0} 个系统 Cookie`,
+            failedCount > 0,
+        );
+    } catch (error) {
+        showToast(error.message || String(error), true);
+    } finally {
+        elements.importCookiesInput.value = "";
+        elements.importCookiesButton.disabled = !state.backendAvailable;
     }
 }
 
@@ -330,6 +384,8 @@ function updateRuntimeControls() {
     const status = activeSessionStatus();
     const ready = status?.ready === true;
     state.systems.forEach((item) => updateSessionPanel(item.id));
+    if (elements.importCookiesButton) elements.importCookiesButton.disabled = !state.backendAvailable;
+    if (elements.exportCookiesButton) elements.exportCookiesButton.disabled = !state.backendAvailable;
     if (elements.endpointSessionLabel) elements.endpointSessionLabel.textContent = `${system.name}会话`;
     renderSessionStatus({
         sessionState: elements.sessionState,
@@ -399,7 +455,7 @@ async function ensureDynamicOptions() {
     try {
         for (const source of sources) {
             if (state.options.has(source)) continue;
-            const payload = await fetchJson(`/api/options/${encodeURIComponent(source)}`);
+            const payload = await fetchJson(`./api/options/${encodeURIComponent(source)}`);
             state.options.set(source, payload.options || []);
         }
         renderParameterForm();
@@ -411,13 +467,11 @@ async function ensureDynamicOptions() {
 
 async function detectBackend() {
     try {
-        const health = await fetchJson("/api/health");
+        const health = await fetchJson("./api/health");
         state.backendAvailable = health.available === true;
         if (!state.backendAvailable) throw new Error("本地执行器不可用");
-        const cleared = await fetchJson("/api/session", { method: "DELETE" });
-        state.savedCredentials.clear();
         state.credentialDrafts.clear();
-        applySessionStatuses(cleared.sessions);
+        applySessionStatuses(health.sessions);
         showToast("已连接本地执行器");
     } catch (_error) {
         state.backendAvailable = false;
@@ -430,7 +484,7 @@ async function detectBackend() {
 
 async function refreshSessionStatus() {
     try {
-        const health = await fetchJson("/api/health");
+        const health = await fetchJson("./api/health");
         state.backendAvailable = health.available === true;
         applySessionStatuses(health.sessions, true);
     } catch (_error) {
@@ -445,7 +499,7 @@ async function loadSession(systemId) {
     const system = systemById(systemId);
     try {
         panelElements.loadSessionButton.disabled = true;
-        const payload = await fetchJson("/api/session", {
+        const payload = await fetchJson("./api/session", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ systemId, credentials: panelElements.credentialInput.value })
@@ -460,8 +514,9 @@ async function loadSession(systemId) {
         showToast(`${system?.name || systemId} Cookie 已验证`);
         await ensureDynamicOptions();
     } catch (error) {
-        applySessionStatus(systemId, null);
-        showToast(error.message || String(error), true);
+        const message = error.message || String(error);
+        applySessionStatus(systemId, { ready: false, error: message });
+        showToast(message, true);
     } finally {
         updateRuntimeControls();
     }
@@ -471,7 +526,7 @@ async function clearSession(systemId) {
     if (!state.backendAvailable) return;
     const system = systemById(systemId);
     try {
-        const payload = await fetchJson(`/api/session?systemId=${encodeURIComponent(systemId)}`, { method: "DELETE" });
+        const payload = await fetchJson(`./api/session?systemId=${encodeURIComponent(systemId)}`, { method: "DELETE" });
         applySessionStatuses(payload.sessions);
         setSavedCredentials(systemId, "");
         state.credentialDrafts.delete(systemId);
@@ -508,7 +563,7 @@ async function pollProgressiveExecution(initialTask, endpointId) {
     renderProgressiveExecution(task, endpointId);
     while (task.state === "running") {
         await new Promise((resolve) => window.setTimeout(resolve, 300));
-        task = await fetchJson(`/api/execute/${encodeURIComponent(task.taskId)}`);
+        task = await fetchJson(`./api/execute/${encodeURIComponent(task.taskId)}`);
         renderProgressiveExecution(task, endpointId);
     }
     if (task.state === "failed") throw new Error(task.error || "本地执行任务失败");
@@ -525,7 +580,7 @@ async function sendRequest() {
         elements.responseMeta.textContent = "请求中";
         const progressive = record.endpoint.progressive === true;
         if (progressive) followProgressiveResponse = true;
-        const payload = await fetchJson("/api/execute", {
+        const payload = await fetchJson("./api/execute", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -591,6 +646,12 @@ function bindEvents() {
         renderNavigation();
     });
     elements.exportMarkdownButton?.addEventListener("click", exportMarkdown);
+    elements.importCookiesButton?.addEventListener("click", () => elements.importCookiesInput?.click());
+    elements.importCookiesInput?.addEventListener("change", () => {
+        const file = elements.importCookiesInput.files?.[0];
+        if (file) void importCookies(file);
+    });
+    elements.exportCookiesButton?.addEventListener("click", exportCookies);
     elements.themeToggle?.addEventListener("click", () => window.WatchdogTheme?.toggleTheme());
     elements.manageSessionButton?.addEventListener("click", () => {
         selectCookie(selectedRecord()?.module.systemId || "");

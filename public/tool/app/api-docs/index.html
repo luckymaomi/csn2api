@@ -16,6 +16,9 @@
                 <span class="visually-hidden">搜索接口</span>
                 <input id="endpointSearch" type="search" placeholder="搜索接口名称或地址" autocomplete="off">
             </label>
+            <input id="importCookiesInput" class="visually-hidden" type="file" accept=".json,.txt,application/json,text/plain">
+            <button class="header-action" id="importCookiesButton" type="button" title="导入 csn2api Cookie 文件" disabled>导入 Cookie</button>
+            <button class="header-action" id="exportCookiesButton" type="button" title="导出当前有效 Cookie，文件包含明文凭据" disabled>导出 Cookie</button>
             <button class="header-action" id="exportMarkdownButton" type="button" title="导出供人和语言模型阅读的单文件 Markdown" disabled>导出 Markdown</button>
             <button class="icon-button" id="themeToggle" type="button" aria-label="切换主题" title="切换主题">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">

@@ -45,6 +45,39 @@ class StubExecutor:
         for target in targets:
             self.ready[target] = False
 
+    def export_credential_bundle(self) -> dict[str, object]:
+        systems = []
+        if self.ready["flight-portal"]:
+            systems.append({
+                "systemId": "flight-portal",
+                "credentials": "JSESSIONID=session-value; iebJSid=browser-value",
+            })
+        if self.ready["oa"]:
+            systems.append({
+                "systemId": "oa",
+                "credentials": "SESSION=oa-value; ROUTE-SESSION=route-value",
+            })
+        return {
+            "format": "csn2api-cookie-bundle",
+            "schemaVersion": 1,
+            "exportedAt": "2026-08-28T00:00:00+00:00",
+            "systems": systems,
+        }
+
+    def import_credential_bundle(self, payload: object) -> dict[str, object]:
+        if not isinstance(payload, dict) or not isinstance(payload.get("systems"), list):
+            raise ValueError("Cookie 文件无效")
+        imported = []
+        for item in payload["systems"]:
+            self.load_credentials(str(item["credentials"]), str(item["systemId"]))
+            imported.append(str(item["systemId"]))
+        return {
+            "bundle": self.export_credential_bundle(),
+            "imported": imported,
+            "failed": [],
+            "sessions": self.all_session_statuses(),
+        }
+
     def load_options(self, source: str) -> list[dict[str, str]]:
         self.calls.append(("options", source))
         return [{"value": "TEST", "label": "测试类型"}]
@@ -138,6 +171,21 @@ class ServerTests(unittest.TestCase):
         cleared = self.request("/api/session", "DELETE")
         self.assertFalse(cleared["sessions"]["flight-portal"]["ready"])
         self.assertNotIn("credentials", cleared)
+
+    def test_exports_and_imports_one_cookie_bundle(self) -> None:
+        self.request(
+            "/api/session",
+            "POST",
+            {"systemId": "flight-portal", "credentials": "secret-cookie-text"},
+        )
+        exported = self.request("/api/credentials")
+        self.assertEqual(exported["format"], "csn2api-cookie-bundle")
+        self.assertEqual(exported["systems"][0]["systemId"], "flight-portal")
+
+        self.request("/api/session", "DELETE")
+        imported = self.request("/api/credentials", "POST", exported)
+        self.assertEqual(imported["imported"], ["flight-portal"])
+        self.assertTrue(imported["sessions"]["flight-portal"]["ready"])
 
     def test_source_server_serves_page_catalog_and_shared_theme(self) -> None:
         for path in (

@@ -25,8 +25,8 @@ API 文档是跨系统 HTTP 接口的事实导航和真实调试器，不是独�
 ## Cookie 生命周期
 
 - API 文档本地执行器只监听 `127.0.0.1`。`POST /api/session` 验证成功后可向发起请求的当前页面返回一次规范化 Cookie Header，用于页面展示和复制。
-- Cookie 只属于当前页面生命周期：不写 `localStorage`、静态文件或日志；`GET /api/health`、Markdown 导出和其他状态响应不得包含 Cookie 值。
-- 页面初始化连接本地执行器后立即清除后端旧 Session，再显示“Cookie 未验证”。刷新、重新打开或主动清除后，不得沿用旧保活状态或声称旧 Cookie 仍有效。
+- Cookie 默认只属于当前本地后端进程，不写 `localStorage`、静态构建或日志；`GET /api/health`、Markdown 导出和常规状态响应不得包含 Cookie 值。
+- 用户明确导出的 `csn2api-cookie-bundle` 可以包含规范化明文 Cookie；导入必须逐系统复用现有真实验证链路。具体文件格式、刷新恢复和 `start_all.py` 分发行为以当前 API 文档 spec 为准，不在 skill 复制。
 - 后端报告会话失效时，页面同步隐藏当前页 Cookie、停用真实请求并展示失效状态。
 
 ## 真实验证门槛

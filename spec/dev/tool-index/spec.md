@@ -4,7 +4,7 @@
 
 仓库和首页品牌为 `csn2api`。工具名称与目标业务系统名称独立维护；飞行门户 IEB 等应用名称不随仓库品牌改名。
 
-src/tool/tools-data.ts 是首页工具内容和独立应用导出的唯一清单，保存名称、说明、入口、发布状态和可选的 homepageState。清单中的工具全部直接进入首页和独立 ZIP 构建；新增工具不需要修改固定数量规约。
+src/tool/tools-data.ts 是首页工具内容和独立应用导出的唯一清单，保存名称、说明、入口、发布状态和可选的 homepageState。构建从该清单生成静态详情页、独立 ZIP 和 `runtime-tools.json`；系统归属复用 `scripts/protocol-cores.json`，新增工具不维护第二份局域网名单或专属详情页脚本。
 
 首页保留顶部导航和图案门禁结构，门禁由 src/site-visibility.ts 控制且默认关闭。顶栏只提供 API 文档、白天/暗夜模式切换和 GitHub，不提供用户手册或开发者页面。首次访问默认白天模式，选择通过共享主题设置保存在浏览器本地。
 
@@ -15,3 +15,5 @@ homepageState 只有 enabled、beta、cooling 三种状态。未填写或为 ena
 生产构建在 dist/exports/ 中按工具 entry 逐项生成 ZIP，导出数量始终等于当前工具清单数量。每个工具的详情入口提供对应 ZIP 下载；每个 ZIP 根目录包含 index.html、独立应用脚本、离线运行时、主题和页面实际需要的库、Python 文件及依赖说明，不包含其他工具、缓存或仓库开发文件。
 
 工具登记同时进入统一交付合同。合同从当前工具清单动态检查详情入口、ZIP、`csn2api-tool.json` 和包内页面资源闭包；Python 工作台还必须在包内加载 Bootstrap、公共主题和页面专属样式。新增工具不维护单独测试名单。
+
+静态模式由 `start_index.py` 提供，卡片进入构建生成的说明与下载页。局域网模式由 `start_all.py` 注入运行标记，卡片直接进入 `/apps/<entry>/` 的真实工作台，API 文档进入 `/api-docs/`；两种模式消费同一首页渲染和工具清单。
