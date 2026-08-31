@@ -59,3 +59,11 @@ plan.md
 
 # 真实接口验收的本地凭据模板，不进入版本库
 /spec/dev/real-api-verification/cookies.local.md
+
+# 新 APP 开发前置探针审核材料，仅供 owner 本地确认
+/flight_detail_probe.tmp.py
+/flight_detail_probe_report.tmp.md
+/flight_detail_sample.tmp.csv
+/flight_detail_export.tmp.py
+/flight_detail_*.tmp.xlsx
+/flight_detail_audit.tmp.md

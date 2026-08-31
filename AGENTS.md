@@ -37,6 +37,7 @@
 - 涉及 IEB Cookie/cURL、Network 请求、纯 HTTP 查询或状态动作时，读 `.agents/skills/flight-portal-http-probe/SKILL.md`。
 - 涉及 API 目录、页面、本地执行器、Cookie 生命周期、真实调试或 Markdown 导出时，读 `.agents/skills/api-docs-dev/SKILL.md`。
 - 涉及 SOC 随机置位、`KkTvlApply` 或随机审批申请时，读 `.agents/skills/soc-positioning/SKILL.md`；不得把 SOC 与 IEB skill 或接口事实混用。
+- 新增任何 APP 必须遵循固定前置顺序：先用当次授权 Session 完成真实 HTTP 探针并确认数据结构，再把已确认经验沉淀到对应 skill，随后仅在被 `.gitignore` 忽略的根目录临时文件中提供脱敏探针脚本、样例输入和结果摘要，交由 owner 审核确认；owner 未确认前不得创建或实现新的 APP。
 - 如果 skill 和 owner 当前明确需求冲突，以 owner 当前需求为准，并说明冲突点。
 
 ## 规则归属
@@ -123,6 +124,7 @@ npx.cmd vitest run tests/tool/<name>.test.ts
 - 从 `spec/dev/real-api-verification/cookies.template.md` 复制本地 `cookies.local.md`，只在被 Git 忽略的本地文件填写 Cookie、真实身份和验收参数。
 - 脚本默认只读；使用 `--system`、`--scope` 和 `--case` 单独复跑系统、入口或业务模块。写操作必须同时提供 `--allow-write` 及对应精确确认参数，并遵守本文件的当次授权边界。
 - 真实验收脚本必须经过前端路由、APP loopback HTTP 服务和共享 protocol core；执行后关闭临时服务并清理临时结果。自动测试只保护已确认契约，不替代真实验收。
+- 新 APP 的修改前探针不进入 `scripts/real_verification/` 或生产代码；审核材料只允许使用脱敏摘要和合成样例，真实 Cookie、身份、员工号、原始响应和临时结果放系统临时目录并在本轮清理。owner 审核通过后，才能把已确认契约转入 spec、core、APP 和正式真实验收 Case。
 
 ## 提交与推送
 

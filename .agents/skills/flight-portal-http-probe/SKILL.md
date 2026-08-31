@@ -12,6 +12,7 @@ description: 探测、复用或维护 IEB 飞行门户纯 HTTP 接口与本地 H
 - 每次 HTTP 探测都先完整读取 [会话与探测方法](references/session-and-probing.md)。
 - 非生产任务锁班接口、动态类型、时间模式、查询、通过、撤销、解锁或冲突恢复：读取 [锁班接口事实](references/lock-entry-api.md)。维护锁班本地 APP 时再读取 [锁班工作台约束](references/lock-entry-workbench.md)。
 - 飞行时间、飞行经历、左座经历与起落数查询：读取 [飞行经历接口事实](references/flight-stats-api.md)。维护对应本地 APP 时再读取 [飞行经历工作台约束](references/flight-stats-workbench.md)。
+- 飞行航班逐月明细、`flytimeList` 时间轴、`showFlyDetail` 多行表格或按月导出：读取 [飞行航班明细接口事实](references/flight-detail-api.md)。该路径只在真实探针确认后维护，不得用汇总接口或固定五行假设替代。
 - 技术等级、运行资格和人员技术资料查询：读取 [技术等级与运行资格接口事实](references/qualification-query-api.md)。维护对应本地 APP 时再读取 `spec/dev/http-qualification-query-helper/spec.md`。
 - 资质监控、按资质查询、三类动态子类、分页明细或门户原生 Excel 导出：读取 [资质监控按资质查询接口事实](references/qualification-monitor-api.md)。维护对应本地 APP 时再读取 `spec/dev/http-qualification-monitor-helper/spec.md`。
 - 涉及 Excel 时同时使用 `excel-dev`；正式修改工具时同时使用 `csn2api-dev`，涉及页面时再使用 `ui-clarity`。
@@ -28,6 +29,18 @@ description: 探测、复用或维护 IEB 飞行门户纯 HTTP 接口与本地 H
 8. 探针、Cookie、原始响应、真实人员和临时结果只放系统临时目录，结束后删除，不进入仓库。
 9. 还原用户正向链路：页面先按姓名、员工号或动态字典查询，再取得内部 ID 或动态值时，客户端保持同样的解析与唯一归属，不把内部 ID 直接暴露为主要输入。
 10. 实现前用真实 Session 记录请求和响应契约，实现后通过统一真实验收分别复验 API 文档与 APP；只调用 client 或只看到 HTTP 200 都不算入口验收完成。
+
+## 新 APP 前置门禁
+
+新增 APP 的工作顺序固定为：
+
+1. 使用 owner 当次授权的真实 Session，以页面正向链路完成只读 HTTP 探针，确认 URL、方法、参数存在性、动态选项、响应结构、实体归属和异常边界。
+2. 只把已经由探针确认、且会改变后续实现决策的经验写入本 skill 的相关 reference；一次响应的人员、数量、排序、Cookie、原始 HTML/JSON 不写入 skill。
+3. 在仓库根目录创建被 `.gitignore` 忽略的临时探针脚本、合成样例输入和脱敏结果摘要，供 owner 审核。脚本不得内嵌 Cookie 或真实身份，结果不得包含原始响应、姓名、员工号、记录 ID 或截图。
+4. owner 明确审核确认前，只能继续补充探针证据和修正规约，不得创建新的 APP 目录、工具登记、独立 ZIP、业务实现或正式真实验收 Case。
+5. owner 确认后，先写目标 spec 和失败测试，再实现共享 core、API 文档、APP、测试和分发闭包；修改后仍需用同一真实链路复验 API 文档和 APP。
+
+月度明细的已确认实现提示：`dateType=1` 年请求是月度汇总；`dateType=2` 且 `startStr=YYYY-MM` 返回航班明细。明细表的数字序号行后面可能跟人工飞行方式和空白行，必须按下一条数字序号边界解析，不能按固定行数切分。
 
 ## 维护边界
 
