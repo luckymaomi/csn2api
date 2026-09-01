@@ -17,6 +17,8 @@ concurrency:
 
 jobs:
   build:
+    outputs:
+      pages_enabled: ${{ steps.pages_preflight.outputs.enabled }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -44,17 +46,45 @@ jobs:
       - name: Verify site
         run: npm run verify
 
+      - name: Check GitHub Pages availability
+        id: pages_preflight
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          status="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' \
+            --header 'Accept: application/vnd.github+json' \
+            --header "Authorization: Bearer ${GH_TOKEN}" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/pages")"
+          case "${status}" in
+            200)
+              echo 'enabled=true' >> "${GITHUB_OUTPUT}"
+              ;;
+            404)
+              echo 'enabled=false' >> "${GITHUB_OUTPUT}"
+              echo '::notice::GitHub Pages is not enabled for this repository; deployment is skipped.'
+              ;;
+            *)
+              echo "GitHub Pages API returned HTTP ${status}."
+              exit 1
+              ;;
+          esac
+
       - name: Configure Pages
+        if: steps.pages_preflight.outputs.enabled == 'true'
         uses: actions/configure-pages@v5
         with:
-          enablement: true
+          enablement: false
 
       - name: Upload Pages artifact
+        if: steps.pages_preflight.outputs.enabled == 'true'
         uses: actions/upload-pages-artifact@v4
         with:
           path: dist
 
   deploy:
+    if: needs.build.outputs.pages_enabled == 'true'
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
