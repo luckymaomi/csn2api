@@ -21,7 +21,6 @@ const elements = {
   allModePanel: document.querySelector("#allModePanel"),
   selectedModePanel: document.querySelector("#selectedModePanel"),
   allModeTotal: document.querySelector("#allModeTotal"),
-  templateDownload: document.querySelector("#templateDownload"),
   excelFile: document.querySelector("#excelFile"),
   dataCheckButton: document.querySelector("#dataCheckButton"),
   runButton: document.querySelector("#runButton"),
@@ -282,7 +281,6 @@ document.querySelectorAll('input[name="runMode"]').forEach((input) => input.addE
 elements.excelFile.addEventListener("change", syncControls);
 elements.verifyButton.addEventListener("click", () => verifyCredentials().catch(showActionError));
 elements.copyCredentialsButton.addEventListener("click", () => copyCurrentCredentials());
-elements.templateDownload.addEventListener("click", () => { window.location.href = "./api/template"; });
 elements.dataCheckButton.addEventListener("click", () => checkData().catch(showActionError));
 elements.runButton.addEventListener("click", () => startRun().catch(showActionError));
 elements.stopButton.addEventListener("click", () => postJson("./api/stop").then(renderState).catch(showActionError));

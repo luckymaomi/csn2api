@@ -8,7 +8,6 @@ from pathlib import Path
 from urllib.parse import parse_qs, quote, urlparse
 
 from .manager import RunManager
-from .input_data import create_template
 
 
 class WorkbenchServer(ThreadingHTTPServer):
@@ -81,16 +80,6 @@ def create_server(app_directory: Path, port: int = 0, manager: RunManager | None
                     self.send_json({"error": str(error)}, HTTPStatus.BAD_REQUEST)
                     return
                 self.send_json(payload)
-                return
-            if path == "/api/template":
-                content = create_template()
-                self.send_response(HTTPStatus.OK)
-                self.send_header("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-                self.send_header("Content-Disposition", f"attachment; filename*=UTF-8''{quote('航班明细查询模板.xlsx')}")
-                self.send_header("Content-Length", str(len(content)))
-                self.send_header("Cache-Control", "no-store")
-                self.end_headers()
-                self.wfile.write(content)
                 return
             if path == "/api/download/result":
                 result = run_manager.download_path()

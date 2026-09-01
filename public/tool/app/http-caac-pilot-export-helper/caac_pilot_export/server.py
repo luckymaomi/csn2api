@@ -9,7 +9,6 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, quote, urlparse
 
-from .input_data import create_template
 from .manager import RunManager
 from .models import InputPayload
 
@@ -98,9 +97,6 @@ def create_server(app_directory: Path, port: int = 0, manager: RunManager | None
                 offset = int(query.get("offset", ["0"])[0])
                 limit = int(query.get("limit", ["50"])[0])
                 self._json(HTTPStatus.OK, run_manager.results_page(offset, limit))
-                return
-            if parsed.path == "/api/template":
-                self._excel(create_template(), "CAAC飞行员名单模板.xlsx")
                 return
             if parsed.path == "/api/download":
                 result = run_manager.download_path()

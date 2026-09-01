@@ -88,8 +88,6 @@ body {
 .mode-switch .btn { min-height: 40px; }
 .input-content { min-height: 112px; }
 .input-content[hidden] { display: none; }
-.file-actions { display: grid; grid-template-columns: minmax(0, 1fr) 150px; gap: 12px; align-items: end; }
-.file-actions .btn { min-height: 38px; }
 .stage-actions { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 16px; }
 .stage-actions .btn { flex: 1 1 140px; min-height: 42px; }
 .health-check { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 38px; margin-top: 12px; padding: 7px 10px; border: 1px solid var(--watchdog-divider); background: var(--watchdog-surface-soft); color: var(--watchdog-text-muted); font-size: 13px; }
@@ -133,8 +131,7 @@ body {
   .credential-panel,
   .results-panel,
   .log-panel { grid-column: auto; }
-  .credential-layout,
-  .file-actions { grid-template-columns: 1fr; }
+  .credential-layout { grid-template-columns: 1fr; }
   .session-summary,
   .run-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .session-summary div:nth-child(2),

@@ -23,7 +23,7 @@ APP 与 API 文档共用 `caac_protocol`。该 core 统一维护 Cookie、列表
 
 Excel 活动 Sheet 使用“姓名”必填列和“档案号”选填列。每个有效输入按姓名请求筛选列表，姓名必须精确一致；填写档案号时进一步按规范化档案号精确筛选。唯一候选的 `pilotId` 用于详情请求；无候选或多候选记录为该行失败。
 
-缺姓名和重复输入记录为失败且不发起人员请求。名单结构错误阻止运行。模板由 `GET /api/template` 动态生成，不保存二进制模板文件。
+缺姓名和重复输入记录为失败且不发起人员请求。名单结构错误阻止运行。Excel 模板由纯前端工具详情页统一提供，工作台只负责上传已填写的名单。
 
 ## 执行与保存
 
@@ -39,7 +39,6 @@ Excel 只有“飞行员信息”一个 Sheet。每完成一人，`ResultExporte
 
 - `GET /api/status`：返回会话、保活、模式、检查、进度、下载状态和结果表版本。
 - `GET /api/results?offset=<n>&limit=<n>`：分页返回当前 Excel 同源列和行，`limit` 最大 200。
-- `GET /api/template`：下载人员名单模板。
 - `GET /api/download`：下载当前检查点或最终 Excel。
 - `POST /api/session/verify`：验证凭据并启动列表接口保活。
 - `POST /api/check-data`：检查名单；全量模式返回当前接口人数摘要。

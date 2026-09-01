@@ -132,10 +132,6 @@ class ManagerServerTests(unittest.TestCase):
                     with urllib.request.urlopen(f"http://{host}:{port}{route}", timeout=5) as response:
                         self.assertEqual(response.status, 200)
                         self.assertGreater(len(response.read()), 20)
-                with urllib.request.urlopen(f"http://{host}:{port}/api/template", timeout=5) as response:
-                    self.assertEqual(response.status, 200)
-                    self.assertEqual(response.headers["Content-Type"].split(";", 1)[0], "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-                    self.assertGreater(len(response.read()), 1000)
                 with urllib.request.urlopen(f"http://{host}:{port}/api/status", timeout=5) as response:
                     state = json.loads(response.read().decode("utf-8"))
                 self.assertEqual(state["phase"], "waiting_credentials")

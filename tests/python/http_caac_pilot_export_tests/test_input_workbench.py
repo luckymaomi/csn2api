@@ -1,9 +1,7 @@
 from __future__ import annotations
 
 import sys
-import threading
 import unittest
-import urllib.request
 from io import BytesIO
 from pathlib import Path
 from unittest.mock import Mock
@@ -13,11 +11,10 @@ from openpyxl import Workbook, load_workbook
 ROOT = Path(__file__).resolve().parents[3] / "public" / "tool" / "app" / "http-caac-pilot-export-helper"
 sys.path.insert(0, str(ROOT))
 
-from caac_pilot_export.input_data import create_template, read_excel_records  # noqa: E402
+from caac_pilot_export.input_data import read_excel_records  # noqa: E402
 from caac_pilot_export.models import PilotOutcome, PilotRecord  # noqa: E402
 from caac_pilot_export.portal_client import PortalClient, PortalContractError  # noqa: E402
 from caac_pilot_export.runner import BatchRunner  # noqa: E402
-from caac_pilot_export.server import create_server  # noqa: E402
 
 
 def input_workbook(rows: list[list[object]]) -> bytes:
@@ -33,7 +30,7 @@ def input_workbook(rows: list[list[object]]) -> bytes:
 
 class InputWorkbenchTests(unittest.TestCase):
     def test_template_and_excel_input_use_name_with_optional_archive_number(self) -> None:
-        template = load_workbook(BytesIO(create_template()), data_only=True)
+        template = load_workbook(ROOT / "template.xlsx", data_only=True)
         self.assertEqual([cell.value for cell in template.active[1]], ["姓名", "档案号"])
         self.assertEqual(template.active.max_row, 1)
         template.close()
@@ -80,26 +77,6 @@ class InputWorkbenchTests(unittest.TestCase):
         result = BatchRunner(portal).run([invalid, valid], 2)
         self.assertEqual([item.status for item in result.outcomes], ["失败", "成功"])
         self.assertEqual(portal.query_one.call_count, 1)
-
-    def test_workbench_serves_dynamic_excel_template(self) -> None:
-        manager = Mock()
-        manager.snapshot.return_value = {"phase": "idle"}
-        manager.download_path.return_value = None
-        server = create_server(ROOT, 0, manager)
-        thread = threading.Thread(target=server.serve_forever, daemon=True)
-        thread.start()
-        host, port = server.server_address
-        try:
-            with urllib.request.urlopen(f"http://{host}:{port}/api/template", timeout=5) as response:
-                content = response.read()
-                self.assertEqual(response.headers.get_content_type(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-            workbook = load_workbook(BytesIO(content), data_only=True)
-            self.assertEqual([cell.value for cell in workbook.active[1]], ["姓名", "档案号"])
-            workbook.close()
-        finally:
-            server.shutdown()
-            thread.join(timeout=5)
-            server.server_close()
 
 
 if __name__ == "__main__":

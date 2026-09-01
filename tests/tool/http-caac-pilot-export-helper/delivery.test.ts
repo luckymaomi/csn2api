@@ -20,7 +20,9 @@ describe("CAAC pilot export delivery", () => {
     const catalog = readFileSync(resolveFromRoot("public/tool/app/api-docs/catalog/caac-pilot-export.json"), "utf8");
     expect(page).toContain("全量抓取");
     expect(page).toContain("名单抓取");
-    expect(page).toContain("下载名单模板");
+    expect(page).not.toContain("下载名单模板");
+    expect(browser).not.toContain("api/template");
+    expect(server).not.toContain("/api/template");
     expect(page).toContain("复制凭据");
     expect(browser).toContain('./results_table.mjs');
     expect(styles).toMatch(/\.result-viewport\s*\{[^}]*height:\s*460px;[^}]*overflow:\s*auto;/s);

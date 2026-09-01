@@ -105,7 +105,6 @@ def create_server(app_directory: Path, port: int = 0, manager: RunManager | None
                 "/app.mjs": web_root / "app.mjs",
                 "/session_keepalive.mjs": web_root / "session_keepalive.mjs",
                 "/styles.css": web_root / "styles.css",
-                "/template.xlsx": web_root / "template.xlsx",
                 "/theme.js": workbench_asset("theme.js", "theme.js"),
                 "/theme.css": workbench_asset("theme.css", "theme.css"),
                 "/libs/bootstrap.min.css": workbench_asset("libs/bootstrap.min.css", "libs/bootstrap.min.css"),

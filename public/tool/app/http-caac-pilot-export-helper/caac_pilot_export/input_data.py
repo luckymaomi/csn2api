@@ -6,7 +6,7 @@ from io import BytesIO
 from pathlib import Path
 from typing import Any, BinaryIO
 
-from openpyxl import Workbook, load_workbook
+from openpyxl import load_workbook
 
 from .models import InputIssue, InputPayload, PilotRecord
 
@@ -30,22 +30,6 @@ def normalize_text(value: Any) -> str:
 def archive_key(value: Any) -> str:
     text = normalize_text(value)
     return (text.lstrip("0") or "0") if text.isdigit() else text
-
-
-def create_template() -> bytes:
-    workbook = Workbook()
-    sheet = workbook.active
-    sheet.title = "人员名单"
-    sheet.append([NAME_HEADER, ARCHIVE_HEADER])
-    sheet.freeze_panes = "A2"
-    sheet.auto_filter.ref = "A1:B1"
-    sheet.column_dimensions["A"].width = 18
-    sheet.column_dimensions["B"].width = 18
-    sheet.column_dimensions["B"].number_format = "@"
-    output = BytesIO()
-    workbook.save(output)
-    workbook.close()
-    return output.getvalue()
 
 
 def read_excel_records(source: str | Path | BinaryIO) -> tuple[list[PilotRecord], list[InputIssue]]:

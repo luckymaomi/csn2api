@@ -7,7 +7,7 @@ from io import BytesIO, StringIO
 from pathlib import Path
 from typing import Any
 
-from openpyxl import Workbook, load_workbook
+from openpyxl import load_workbook
 
 from ieb_protocol.flight_detail_contract import month_range
 
@@ -15,22 +15,6 @@ from .models import InputPayload, QueryRecord
 
 
 EXPECTED_HEADERS = ["员工号", "姓名", "开始年月", "结束年月"]
-
-
-def create_template() -> bytes:
-    workbook = Workbook()
-    sheet = workbook.active
-    sheet.title = "输入模板"
-    sheet.append(EXPECTED_HEADERS)
-    sheet.freeze_panes = "A2"
-    sheet.auto_filter.ref = "A1:D1"
-    for column in "ABCD":
-        sheet.column_dimensions[column].width = 16
-    from io import BytesIO
-    output = BytesIO()
-    workbook.save(output)
-    workbook.close()
-    return output.getvalue()
 
 
 def normalize_month(value: Any) -> str:
