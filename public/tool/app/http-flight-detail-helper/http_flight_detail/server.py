@@ -19,7 +19,7 @@ def create_server(app_directory: Path, port: int = 0, manager: RunManager | None
     app_directory = app_directory.resolve()
     run_manager = manager or RunManager(app_directory)
     web_root = app_directory / "web"
-    shared_root = app_directory.parents[2]
+    shared_root = app_directory.parents[2] if len(app_directory.parents) >= 3 else app_directory
 
     def asset(local: str, shared: str) -> Path:
         local_path = web_root / local

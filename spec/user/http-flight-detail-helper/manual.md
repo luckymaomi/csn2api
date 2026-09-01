@@ -41,5 +41,3 @@ python start.py
 - `GET /api/results?kind=status|detail&offset=0&limit=50`
 - `POST /api/stop`
 - `GET /api/download/result`
-
-大批量性能压力门禁由维护者按需运行 `npm.cmd run test:pressure:flight-detail`，日常使用不需要执行。

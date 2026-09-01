@@ -30,7 +30,6 @@
 - `POST /api/stop`：停止后续人员/月请求。
 - `GET /api/download/result`：下载最近检查点 Excel。
 
-压力门禁单独运行 `npm.cmd run test:pressure:flight-detail`，不进入常规回归测试。
 
 ## 文件职责
 
