@@ -26,6 +26,7 @@ class CatalogTests(unittest.TestCase):
         modules = self.catalog.as_dict()["modules"]
         self.assertTrue({
             "飞行经历查询接口",
+            "月度航班明细接口",
             "飞行人员锁班接口",
             "飞行人员信息查询接口",
             "OA 公文已阅接口",
@@ -33,11 +34,12 @@ class CatalogTests(unittest.TestCase):
         }.issubset({module["name"] for module in modules}))
         self.assertTrue({
             "flight-stats.query",
+            "flight-detail.query-month",
             "lock-entry.submit",
             "personnel-info.basic",
             "oa-read.count",
         }.issubset(self.catalog.endpoints))
-        personnel = modules[2]
+        personnel = next(module for module in modules if module["id"] == "personnel-info")
         self.assertEqual(
             [group["name"] for group in personnel["groups"]],
             ["基础信息", "技术等级", "运行资格", "训练检查记录"],
@@ -83,7 +85,7 @@ class CatalogTests(unittest.TestCase):
 
     def test_request_roles_separate_sessions_execution_and_related_requests(self) -> None:
         serialized = json.dumps(self.catalog.as_dict(), ensure_ascii=False)
-        self.assertEqual(len(self.catalog.request_definitions), 28)
+        self.assertEqual(len(self.catalog.request_definitions), 29)
 
         ieb_validation = self.catalog.get_session_request("flight-portal", "validation")
         ieb_keepalive = self.catalog.get_session_request("flight-portal", "keepAlive")
@@ -99,7 +101,7 @@ class CatalogTests(unittest.TestCase):
             for record in self.catalog.endpoints.values()
             if record.endpoint["execution"]["kind"] == "direct-http"
         ]
-        self.assertEqual(len(direct), 46)
+        self.assertEqual(len(direct), 47)
         for record in direct:
             primary = [
                 step

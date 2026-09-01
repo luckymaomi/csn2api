@@ -6,6 +6,7 @@ from .common import CaseResult, describe, is_session_failure, redact
 
 
 CASE_SYSTEMS = {
+    "flight-detail": "ieb",
     "flight-stats": "ieb",
     "personnel-info": "ieb",
     "qualification-roster": "ieb",

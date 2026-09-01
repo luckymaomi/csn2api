@@ -54,7 +54,13 @@ def _legacy_section(text: str, aliases: tuple[str, ...]) -> str:
 
 def load_credential_sections(path: Path) -> dict[str, str]:
     text = path.read_text(encoding="utf-8")
-    return {system: _section(text, aliases) or _legacy_section(text, aliases) for system, aliases in SYSTEM_ALIASES.items()}
+    sections = {
+        system: _section(text, aliases) or _legacy_section(text, aliases)
+        for system, aliases in SYSTEM_ALIASES.items()
+    }
+    if not any(sections.values()) and re.search(r"(?i)(?:^|[;\s])iebJSid\s*=", text):
+        sections["ieb"] = text.strip()
+    return sections
 
 
 def load_verification_inputs(path: Path) -> dict[str, str]:

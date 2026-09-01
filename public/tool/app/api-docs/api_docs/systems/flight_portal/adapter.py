@@ -13,6 +13,7 @@ from ieb_protocol import (
     format_credentials,
 )
 from ieb_protocol.flight_stats import FlightStatsProtocol
+from ieb_protocol.flight_detail import FlightDetailProtocol
 from ieb_protocol.lock_protocol import LockProtocol
 from ieb_protocol.personnel import PersonnelProtocol
 from ieb_protocol.qualification_monitor import QualificationMonitorProtocol
@@ -21,7 +22,7 @@ from ieb_protocol.qualification_roster import QualificationRosterProtocol
 from ...catalog import ApiCatalog, EndpointRecord
 from ..errors import ExecutionError, SessionExpiredError
 from ..session_keepalive import SessionKeepAlive
-from . import flight_stats, lock_entry, personnel, qualification_monitor, qualification_roster
+from . import flight_detail, flight_stats, lock_entry, personnel, qualification_monitor, qualification_roster
 from .common import random_keepalive_interval, response_payload
 
 
@@ -43,6 +44,7 @@ class FlightPortalAdapter:
         self.cookies: dict[str, str] = {}
         self.identity: dict[str, str] | None = None
         self.flight_stats: FlightStatsProtocol | None = None
+        self.flight_detail: FlightDetailProtocol | None = None
         self.lock: LockProtocol | None = None
         self.personnel: PersonnelProtocol | None = None
         self.monitor: QualificationMonitorProtocol | None = None
@@ -62,6 +64,7 @@ class FlightPortalAdapter:
         self.session = ieb.session  # API executor 的当前会话观察面。
         self.cookies = cookies
         self.flight_stats = FlightStatsProtocol(ieb)
+        self.flight_detail = FlightDetailProtocol(ieb)
         self.lock = LockProtocol(ieb)
         self.personnel = PersonnelProtocol(ieb)
         self.monitor = QualificationMonitorProtocol(ieb)
@@ -83,6 +86,7 @@ class FlightPortalAdapter:
         self.identity = None
         self.option_cache = {}
         self.flight_stats = None
+        self.flight_detail = None
         self.lock = None
         self.personnel = None
         self.monitor = None
@@ -113,6 +117,8 @@ class FlightPortalAdapter:
         try:
             if record.full_id == "flight-stats.query":
                 response, data = flight_stats.execute(record, supplied, self._flight_stats())
+            elif record.full_id == "flight-detail.query-month":
+                response, data = flight_detail.execute(record, supplied, self._flight_detail())
             elif record.full_id.startswith("personnel-info."):
                 response, data = personnel.execute(record, supplied, self._personnel())
             elif record.module.get("id") == "qualification-monitor":
@@ -140,6 +146,11 @@ class FlightPortalAdapter:
         if self.flight_stats is None:
             raise SessionExpiredError("请先载入有效 Cookie")
         return self.flight_stats
+
+    def _flight_detail(self) -> FlightDetailProtocol:
+        if self.flight_detail is None:
+            raise SessionExpiredError("请先载入有效 Cookie")
+        return self.flight_detail
 
     def _personnel(self) -> PersonnelProtocol:
         if self.personnel is None:

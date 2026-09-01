@@ -118,10 +118,20 @@ function escapeHtml(value: string): string {
     .replace(/'/g, "&#39;");
 }
 
-function staticToolLanding(tool: ToolCatalogItem): string {
+function staticToolLanding(tool: ToolCatalogItem, hasTemplate: boolean): string {
   const name = escapeHtml(tool.name);
   const description = escapeHtml(tool.description);
   const entry = escapeHtml(tool.entry);
+  const templateLink = hasTemplate
+    ? `<a class="text-decoration-none" href="./template.xlsx" download="${entry}-模板.xlsx">下载 Excel 模板</a>`
+    : "";
+  const templateSection = hasTemplate
+    ? `<section class="card mb-4"><div class="card-body">
+            <h2 class="h5">输入模板</h2>
+            <p>下载 Excel 模板，按表头填写后上传到工作台。</p>
+            <a class="btn btn-outline-primary" href="./template.xlsx" download="${entry}-模板.xlsx">下载 Excel 模板</a>
+        </div></section>`
+    : "";
   return `<!DOCTYPE html>
 <html lang="zh-CN" data-default-theme="light">
 <head>
@@ -135,10 +145,14 @@ function staticToolLanding(tool: ToolCatalogItem): string {
 <body style="background: transparent; padding: 20px;">
     <main class="container">
         <section class="card mb-4"><div class="card-body">
-            <a href="../../../index.html" class="text-decoration-none">返回首页</a>
+            <div class="d-flex justify-content-between align-items-center gap-3 flex-wrap">
+                <a href="../../../index.html" class="text-decoration-none">返回首页</a>
+                ${templateLink}
+            </div>
             <h1 class="h4 mt-3">${name}</h1>
             <p class="text-muted mb-0">${description}</p>
         </div></section>
+        ${templateSection}
         <section class="card"><div class="card-body">
             <h2 class="h5">独立应用</h2>
             <p>下载并解压后，安装依赖并运行 <code>python start.py</code>。</p>
@@ -180,7 +194,8 @@ export async function generateRuntimeDelivery(
   for (const tool of options.tools) {
     const outputRoot = path.join(options.distRoot, "tool", "app", tool.entry);
     await fs.mkdir(outputRoot, { recursive: true });
-    await fs.writeFile(path.join(outputRoot, "index.html"), staticToolLanding(tool), "utf8");
+    const hasTemplate = await pathExists(path.join(outputRoot, "template.xlsx"));
+    await fs.writeFile(path.join(outputRoot, "index.html"), staticToolLanding(tool, hasTemplate), "utf8");
     await fs.copyFile(
       path.join(options.standaloneRoot, tool.entry, "app.js"),
       path.join(outputRoot, "app.js")

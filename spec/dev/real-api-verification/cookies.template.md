@@ -12,6 +12,7 @@
   "iebStaffName": "",
   "flightStartDate": "",
   "flightEndDate": "",
+  "flightDetailMonth": "",
   "iebRosterQualification": "",
   "iebMonitorQualification": "",
   "lockStaffNumber": "",

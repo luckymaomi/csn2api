@@ -1,0 +1,73 @@
+{
+  "schemaVersion": 2,
+  "id": "flight-detail",
+  "systemId": "flight-portal",
+  "name": "月度航班明细接口",
+  "navigationGroup": "综合报表",
+  "description": "按员工号、姓名和自然月读取门户逐航班明细；机型参数来自当前人员时间轴。",
+  "baseUrl": "https://ieb.csair.com",
+  "navigationUrl": "https://ieb.csair.com/newieb/flytime/showFlytimeManyQuery",
+  "cookies": [
+    { "name": "JSESSIONID", "required": true, "description": "门户 Session Cookie，HttpOnly" },
+    { "name": "iebJSid", "required": true, "description": "IEB 会话 Cookie，HttpOnly" }
+  ],
+  "commonHeaders": [
+    { "name": "Accept", "value": "text/html, */*; q=0.01", "description": "HTML 表格响应" },
+    { "name": "Referer", "value": "https://ieb.csair.com/index/index", "description": "已验证请求来源" },
+    { "name": "X-Requested-With", "value": "XMLHttpRequest", "description": "门户 XHR 标记" }
+  ],
+  "groups": [{ "id": "business", "name": "飞行门户" }],
+  "endpoints": [{
+    "id": "query-month",
+    "groupId": "business",
+    "name": "按月查询航班明细",
+    "summary": "先读取当前人员时间轴取得动态机型，再请求一个自然月的逐航班明细。",
+    "risk": "read",
+    "method": "GET",
+    "path": "/newieb/flytime/showFlyDetail",
+    "execution": {
+      "kind": "direct-http",
+      "steps": [
+        { "id": "timeline", "requestRef": "flight-detail.timeline", "role": "prerequisite", "cardinality": "once" },
+        { "id": "request", "requestRef": "$endpoint", "role": "primary", "cardinality": "once" }
+      ]
+    },
+    "parameters": [
+      { "name": "staffNum", "in": "query", "label": "员工号", "type": "text", "required": true, "placeholder": "六位员工号", "description": "按员工号校验时间轴和明细归属" },
+      { "name": "staffName", "in": "query", "label": "姓名", "type": "text", "required": true, "description": "与时间轴姓名校验" },
+      { "name": "startStr", "in": "query", "label": "查询月份", "type": "text", "required": true, "placeholder": "YYYY-MM", "description": "一个自然月；内部规范化为 YYYY-MM" },
+      { "name": "endStr", "in": "query", "label": "结束月份", "type": "text", "default": "", "fixed": true, "includeWhenEmpty": true, "description": "真实月度请求为空" },
+      { "name": "dateType", "in": "query", "label": "日期类型", "type": "text", "default": "2", "fixed": true, "description": "月度明细值" },
+      { "name": "fleetCdArray", "in": "query", "label": "动态机型", "type": "text", "auto": "timeline", "fixed": true, "description": "来自当前人员时间轴，不手工固定" }
+    ],
+    "response": {
+      "format": "HTML table",
+      "statuses": [{ "code": 200, "description": "仍需校验明细表头、主行列数和人员归属；空月可保留表头但航班行为空" }],
+      "fields": [
+        { "name": "序号", "type": "string" }, { "name": "航班号", "type": "string" }, { "name": "机型", "type": "string" }, { "name": "日期", "type": "date" },
+        { "name": "左座", "type": "string" }, { "name": "右座", "type": "string" }, { "name": "操纵", "type": "string" }, { "name": "观察", "type": "string" },
+        { "name": "离场", "type": "string" }, { "name": "到达", "type": "string" }, { "name": "飞行时间", "type": "duration" }, { "name": "夜航", "type": "duration" },
+        { "name": "飞行阶段", "type": "string" }, { "name": "人工飞行时间", "type": "duration" }, { "name": "人工飞行方式", "type": "string" }
+      ]
+    }
+  }],
+  "requestDefinitions": [{
+    "id": "timeline",
+    "name": "人员月度时间轴",
+    "purpose": "按员工号读取当前页面动态年份、月份和机型调用参数。",
+    "risk": "read",
+    "method": "POST",
+    "path": "/newieb/basics/flytimeList",
+    "parameters": [
+      { "name": "staffNum", "in": "form", "label": "员工号", "type": "text", "required": true },
+      { "name": "currentStr", "in": "form", "label": "防缓存参数", "type": "text", "auto": "timestamp", "fixed": true }
+    ],
+    "response": "HTML；解析 showflyTimeDetail 调用参数，按当前员工号和姓名归属。"
+  }],
+  "technicalNotes": [
+    "月度明细请求使用 dateType=2、startStr=YYYY-MM、endStr 为空。",
+    "fleetCdArray 必须来自当前人员时间轴；月份按钮优先，年度按钮作为同年度回退。",
+    "航班表头为 15 列，主行通常 14 个单元格，后续附加行包含人工飞行方式；按下一条数字序号边界解析。",
+    "当前模块只提供单月真实接口；跨月批量编排属于独立 APP。"
+  ]
+}

@@ -35,6 +35,7 @@
 - 涉及页面 UI、表格、筛选区、结果区或主题时，读 `.agents/skills/ui-clarity/SKILL.md`。
 - 涉及 Excel 读取、导出、表头映射或日期解析时，读 `.agents/skills/excel-dev/SKILL.md`。
 - 涉及 IEB Cookie/cURL、Network 请求、纯 HTTP 查询或状态动作时，读 `.agents/skills/flight-portal-http-probe/SKILL.md`。
+- 涉及 IEB 飞行航班明细、`flytimeList`、`showFlyDetail`、按自然月查询或 `http-flight-detail-helper` 时，除通用开发规约外必须按 `flight-portal-http-probe` 的明细 reference 和真实验收链路执行；接口事实只进入该 skill reference、catalog 和对应 spec，不在本文件复制。
 - 涉及 API 目录、页面、本地执行器、Cookie 生命周期、真实调试或 Markdown 导出时，读 `.agents/skills/api-docs-dev/SKILL.md`。
 - 涉及 SOC 随机置位、`KkTvlApply` 或随机审批申请时，读 `.agents/skills/soc-positioning/SKILL.md`；不得把 SOC 与 IEB skill 或接口事实混用。
 - 新增任何 APP 必须遵循固定前置顺序：先用当次授权 Session 完成真实 HTTP 探针并确认数据结构，再把已确认经验沉淀到对应 skill，随后仅在被 `.gitignore` 忽略的根目录临时文件中提供脱敏探针脚本、样例输入和结果摘要，交由 owner 审核确认；owner 未确认前不得创建或实现新的 APP。

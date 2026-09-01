@@ -12,6 +12,7 @@
     "apiPackage": "flight_portal",
     "catalogModules": [
       "flight-stats",
+      "flight-detail",
       "lock-entry",
       "personnel-info",
       "qualification-monitor",
@@ -20,6 +21,7 @@
     "targets": [
       "api-docs",
       "http-flight-stats-helper",
+      "http-flight-detail-helper",
       "http-lock-entry-helper",
       "http-qualification-monitor-helper",
       "http-qualification-query-helper",

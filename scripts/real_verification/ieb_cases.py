@@ -7,6 +7,7 @@ from typing import Any
 
 from .common import API_DOCS_ROOT, ROOT
 from .ieb import (
+    flight_detail,
     flight_stats,
     lock_entry,
     personnel_info,
@@ -17,12 +18,14 @@ from .ieb import (
 
 APP_ROOTS = [
     ROOT / "public/tool/app/http-flight-stats-helper",
+    ROOT / "public/tool/app/http-flight-detail-helper",
     ROOT / "public/tool/app/http-qualification-query-helper",
     ROOT / "public/tool/app/http-qualification-roster-helper",
     ROOT / "public/tool/app/http-qualification-monitor-helper",
     ROOT / "public/tool/app/http-lock-entry-helper",
 ]
 CASES = (
+    ("flight-detail", flight_detail),
     ("flight-stats", flight_stats),
     ("personnel-info", personnel_info),
     ("qualification-roster", qualification_roster),

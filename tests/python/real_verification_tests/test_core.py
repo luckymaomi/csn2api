@@ -60,6 +60,15 @@ Cookie: yzzzm=one; JSESSIONID=two; home=three
         self.assertIn("lockStatuses=['待审批']", summary)
         self.assertIn("rows=1", summary)
 
+    def test_plain_cookie_file_is_recognized_as_ieb_only(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "cookie.txt"
+            path.write_text("JSESSIONID=ieb-session; iebJSid=ieb-browser", encoding="utf-8")
+            sections = load_credential_sections(path)
+
+        self.assertIn("iebJSid=ieb-browser", sections["ieb"])
+        self.assertEqual(sections["oa"], "")
+
     def test_case_selection_and_write_allowance_are_independent(self) -> None:
         verifier = RealVerifier({}, {}, "both", "all", {"oa-read"}, True, "", 1)
         self.assertFalse(verifier.selected("ieb"))

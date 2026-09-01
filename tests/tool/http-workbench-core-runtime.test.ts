@@ -3,7 +3,7 @@ import path from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { resolveFromRoot } from "../helpers/paths";
+import { resolveFromDist, resolveFromRoot } from "../helpers/paths";
 import { assertJavaScriptSyntax } from "../helpers/syntax";
 
 
@@ -43,6 +43,7 @@ describe("HTTP workbench core runtime", () => {
   it.each(workbenches)("enforces the shared UI and keepalive contract in %s", (entry) => {
     const root = resolveFromRoot(`public/tool/app/${entry}`);
     const html = readFileSync(`${root}/web/index.html`, "utf8");
+    const landing = readFileSync(resolveFromDist(`tool/app/${entry}/index.html`), "utf8");
     const script = readFileSync(`${root}/web/app.mjs`, "utf8");
     const browserModules = readdirSync(`${root}/web`).filter((name) => name.endsWith(".mjs"));
     browserModules.forEach((name) => assertJavaScriptSyntax(`${root}/web/${name}`));
@@ -78,6 +79,11 @@ describe("HTTP workbench core runtime", () => {
       expect(html).toContain(`id="${id}"`);
     }
     expect(html).toContain('id="logList"');
+    if (existsSync(path.join(root, "template.xlsx"))) {
+      expect(landing).toContain('href="./template.xlsx"');
+      expect(landing).toContain("下载 Excel 模板");
+      expect(existsSync(path.join(resolveFromDist(`tool/app/${entry}`), "template.xlsx"))).toBe(true);
+    }
     if (html.includes('id="resultsTable"')) expect(html).toContain('id="resultsViewport"');
 
     const headings = [...html.matchAll(/<h2[^>]*>([\s\S]*?)<\/h2>/g)]

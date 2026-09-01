@@ -85,6 +85,12 @@
       "source": "./flight-stats.json"
     },
     {
+      "id": "flight-detail",
+      "name": "月度航班明细接口",
+      "description": "按员工和自然月读取逐航班明细，使用动态时间轴机型参数",
+      "source": "./flight-detail.json"
+    },
+    {
       "id": "lock-entry",
       "name": "飞行人员锁班接口",
       "description": "单次提交非生产任务，并区分真实执行步骤与相关状态请求",
