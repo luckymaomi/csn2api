@@ -83,6 +83,16 @@ TECHNICAL_RESULT_HTML = """
 </div>
 """
 
+HISTORICAL_OPERATION_RESULT_HTML = """
+<div id="showSingleEmpOperQualList">
+  <table><tr><th>类型</th><th>运行资格代码</th><th>运行资格</th><th>水平等级</th><th>机型</th><th>生效时间</th><th>失效时间</th><th>备注</th></tr></table>
+  <table><tbody>
+    <tr><td>航线</td><td>R1</td><td>当前资格</td><td>一级</td><td>A320</td><td>2025-01-01</td><td>2026-01-01</td><td></td></tr>
+    <tr><td>航线</td><td>R0</td><td>历史资格</td><td>一级</td><td>A320</td><td>2020-01-01</td><td>2021-01-01</td><td>已失效</td></tr>
+  </tbody></table>
+</div>
+"""
+
 QUALIFICATION_PAGE_INFO = json.dumps({
     "list": [
         {"staffNum": "900001", "name": "测试人员", "alarmType": "2"},
@@ -449,6 +459,7 @@ class ExecutorTests(unittest.TestCase):
             FakeResponse(IEB_HOME_HTML),
             FakeResponse(BASIC_INFO_JSON, content_type="application/json"),
             FakeResponse(TECHNICAL_RESULT_HTML),
+            FakeResponse(HISTORICAL_OPERATION_RESULT_HTML),
         ])
         executor.load_credentials("JSESSIONID=session-value; iebJSid=browser-value")
 
@@ -463,6 +474,12 @@ class ExecutorTests(unittest.TestCase):
         self.assertEqual(technical["data"]["summary"]["recordCount"], 1)
         self.assertEqual(technical["data"]["tables"][0]["rows"][0]["技术等级"], "机长")
         self.assertEqual(session.requests[-1]["data"]["staffNum"], "900001")
+
+        operation = executor.execute("personnel-info.operation", {"empid": "900001"})
+        self.assertEqual(operation["data"]["summary"]["recordCount"], 2)
+        self.assertEqual(operation["data"]["tables"][0]["rows"][1]["运行资格"], "历史资格")
+        self.assertTrue(session.requests[-1]["url"].endswith("/newieb/basics/showSingleEmpHisOperQualListByempId"))
+        self.assertEqual(set(session.requests[-1]["data"]), {"empid", "date"})
 
     def test_qualification_query_uses_fixed_code_and_parses_page_info(self) -> None:
         executor, session = self.create_executor([

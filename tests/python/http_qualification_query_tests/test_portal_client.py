@@ -214,7 +214,9 @@ class PortalClientTests(unittest.TestCase):
         self.assertTrue(session.calls[3][1].endswith("/newieb/hrInfo/showEmpInfo"))
         self.assertEqual(session.calls[3][2]["files"]["staffNum"], (None, "900001"))
         self.assertTrue(session.calls[4][1].endswith("/newieb/basics/qualList"))
-        self.assertTrue(session.calls[5][1].endswith("/newieb/basics/showSingleEmpOperQualListByempIdNew"))
+        self.assertTrue(session.calls[5][1].endswith("/newieb/basics/showSingleEmpHisOperQualListByempId"))
+        self.assertEqual(set(session.calls[5][2]["data"]), {"empid", "date"})
+        self.assertEqual(session.calls[5][2]["data"]["empid"], "900001")
         self.assertTrue(session.calls[6][1].endswith("/newieb/basics/trainingRecordList"))
         self.assertTrue(session.calls[7][1].endswith("/newieb/basics/trainResultList"))
 

@@ -163,6 +163,7 @@ class CatalogTests(unittest.TestCase):
 
     def test_personnel_info_keeps_verified_request_contracts(self) -> None:
         basic = self.catalog.get_endpoint("personnel-info.basic").endpoint
+        operation = self.catalog.get_endpoint("personnel-info.operation").endpoint
         training = self.catalog.get_endpoint("personnel-info.training-records").endpoint
         experience = self.catalog.get_endpoint("personnel-info.training-experiences").endpoint
 
@@ -171,6 +172,8 @@ class CatalogTests(unittest.TestCase):
         self.assertEqual([item["name"] for item in basic["response"]["fields"]], [
             "empDto", "eduList", "workList", "titleList", "relationList",
         ])
+        self.assertEqual(operation["path"], "/newieb/basics/showSingleEmpHisOperQualListByempId")
+        self.assertEqual({item["name"] for item in operation["parameters"]}, {"empid", "date"})
         self.assertEqual(training["path"], "/newieb/basics/trainingRecordList")
         self.assertEqual({item["name"] for item in training["parameters"]}, {
             "page", "staffId", "fuzzyQuery", "newMachineId", "trainName",

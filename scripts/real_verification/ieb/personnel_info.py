@@ -52,11 +52,15 @@ def verify_app(verifier: Any) -> None:
                 )
                 state = require_completed(wait_for_final(base_url))
         progress = state.get("progress", {})
+        results = state.get("results", [])
+        if progress.get("success") != 1 or not isinstance(results, list) or len(results) != 1:
+            raise RuntimeError("前端人员查询未成功返回唯一结果")
+        operation_count = results[0].get("operationCount", 0)
         verifier.record(
             "ieb",
             "app.personnel-info.all",
             "PASS",
-            f"前端 /api/run 已接通，成功 {progress.get('success', 0)} 条",
+            f"前端 /api/run 已接通，成功 1 条，运行资格 {operation_count} 条",
         )
     except Exception as error:  # noqa: BLE001
         verifier.fail("ieb", "app.personnel-info.all", error)

@@ -21,7 +21,7 @@ VERIFY_PATH = "/newieb/basics/showEmpprofileCompositeListPageNew"
 EMPLOYEE_PATH = "/newieb/basics/showEmpProfileCompositeResult"
 BASIC_INFO_PATH = "/newieb/hrInfo/showEmpInfo"
 TECHNICAL_PATH = "/newieb/basics/qualList"
-OPERATION_PATH = "/newieb/basics/showSingleEmpOperQualListByempIdNew"
+OPERATION_PATH = "/newieb/basics/showSingleEmpHisOperQualListByempId"
 TRAINING_RECORD_PATH = "/newieb/basics/trainingRecordList"
 TRAINING_EXPERIENCE_PATH = "/newieb/basics/trainResultList"
 
@@ -69,7 +69,7 @@ class PersonnelProtocol:
         return response, parse_detail_table(str(response.text or ""), "#qualList", TECHNICAL_HEADERS)
 
     def request_operation(self, employee_id: str) -> tuple[object, list[dict[str, str]]]:
-        response = self.session.request("POST", OPERATION_PATH, data={"empid": employee_id, "currentStr": str(int(time.time() * 1000))})
+        response = self.session.request("POST", OPERATION_PATH, data={"empid": employee_id, "date": str(int(time.time() * 1000))})
         return response, parse_detail_table(str(response.text or ""), "#showSingleEmpOperQualList", OPERATION_HEADERS)
 
     def request_training_record_page(self, employee_id: str, page: int) -> object:
