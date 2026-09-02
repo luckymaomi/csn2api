@@ -139,14 +139,30 @@ class PortalClientTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "当前登录人"):
             parse_current_identity("<html></html>", 200)
 
-    def test_employee_params_preserve_both_active_status_values(self) -> None:
+    def test_employee_params_preserve_all_active_status_values(self) -> None:
         params = build_employee_query_params("900001", "123")
         self.assertEqual(
             [value for key, value in params if key == "activeStatusArray"],
-            ["ZAIZHI", "WAIBU"],
+            ["ZAIZHI", "WAIBU", "TUIXIU", "LIZHI"],
         )
         self.assertIn(("personName", "900001"), params)
         self.assertIn(("currentStr", "123"), params)
+
+    def test_employee_params_keep_statuses_as_repeated_query_keys(self) -> None:
+        params = build_employee_query_params("900001", "123")
+        self.assertEqual(
+            [key for key, _value in params].count("activeStatusArray"),
+            4,
+        )
+        self.assertEqual(
+            params[8:12],
+            [
+                ("activeStatusArray", "ZAIZHI"),
+                ("activeStatusArray", "WAIBU"),
+                ("activeStatusArray", "TUIXIU"),
+                ("activeStatusArray", "LIZHI"),
+            ],
+        )
 
     def test_parses_separate_tables_titles_and_rowspans(self) -> None:
         identity = parse_employee_identity(EMPLOYEE_HTML, "900001", "测试甲")
@@ -210,7 +226,7 @@ class PortalClientTests(unittest.TestCase):
         employee_call = session.calls[2]
         self.assertEqual(employee_call[0], "GET")
         statuses = [value for key, value in employee_call[2]["params"] if key == "activeStatusArray"]
-        self.assertEqual(statuses, ["ZAIZHI", "WAIBU"])
+        self.assertEqual(statuses, ["ZAIZHI", "WAIBU", "TUIXIU", "LIZHI"])
         self.assertTrue(session.calls[3][1].endswith("/newieb/hrInfo/showEmpInfo"))
         self.assertEqual(session.calls[3][2]["files"]["staffNum"], (None, "900001"))
         self.assertTrue(session.calls[4][1].endswith("/newieb/basics/qualList"))

@@ -32,6 +32,8 @@ bolPriBase=
 bolJCY=
 activeStatusArray=ZAIZHI
 activeStatusArray=WAIBU
+activeStatusArray=TUIXIU
+activeStatusArray=LIZHI
 fleetCdbranch=
 isOperQual=Y
 operQualArray=
@@ -39,7 +41,7 @@ page=1
 currentStr=<毫秒时间戳>
 ```
 
-`activeStatusArray` 必须用 tuple 列表或等价的重复参数结构保留。使用普通字典只会保留最后一个值，已验证会造成查询结果变化。响应为 HTML table，不能依赖固定包装 class；应按动态表头读取并按员工号唯一归属。姓名由员工号同行取得，输入姓名非空时再核对。真实姓名单元格内含有标题为“查看作风纪律资料”的链接，该 `title` 是操作提示，姓名必须读取单元格可见文本，不能把任意交互控件的 `title` 当作业务值。
+`activeStatusArray` 必须用 tuple 列表或等价的重复参数结构保留；人员查询默认发送“在职、外部、退休、离职”四个值。使用普通字典只会保留最后一个值，已验证会造成查询结果变化；缺少退休或离职值时，部分非在职员工无法命中。响应为 HTML table，不能依赖固定包装 class；应按动态表头读取并按员工号唯一归属。姓名由员工号同行取得，输入姓名非空时再核对。真实姓名单元格内含有标题为“查看作风纪律资料”的链接，该 `title` 是操作提示，姓名必须读取单元格可见文本，不能把任意交互控件的 `title` 当作业务值。
 
 ## 技术资料组合筛选
 

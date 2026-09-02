@@ -201,7 +201,8 @@ def build_employee_query_params(employee_id: str, current_str: str | None = None
         ("personName", employee_id), ("staffNumAllDesc", ""), ("primaryBaseArray", ""),
         ("baseArray", ""), ("techBase", ""), ("bolMultiQualCd", ""),
         ("bolPriBase", ""), ("bolJCY", ""), ("activeStatusArray", "ZAIZHI"),
-        ("activeStatusArray", "WAIBU"), ("fleetCdbranch", ""), ("isOperQual", "Y"),
+        ("activeStatusArray", "WAIBU"), ("activeStatusArray", "TUIXIU"),
+        ("activeStatusArray", "LIZHI"), ("fleetCdbranch", ""), ("isOperQual", "Y"),
         ("operQualArray", ""), ("page", "1"),
         ("currentStr", current_str or str(int(time.time() * 1000))),
     ]
