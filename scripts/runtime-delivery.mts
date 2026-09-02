@@ -122,14 +122,15 @@ function staticToolLanding(tool: ToolCatalogItem, hasTemplate: boolean): string 
   const name = escapeHtml(tool.name);
   const description = escapeHtml(tool.description);
   const entry = escapeHtml(tool.entry);
+  const templateFileName = escapeHtml(`${tool.name}-模板.xlsx`);
   const templateLink = hasTemplate
-    ? `<a class="text-decoration-none" href="./template.xlsx" download="${entry}-模板.xlsx">下载 Excel 模板</a>`
+    ? `<a class="text-decoration-none" href="./template.xlsx" download="${templateFileName}">下载 Excel 模板</a>`
     : "";
   const templateSection = hasTemplate
     ? `<section class="card mb-4"><div class="card-body">
             <h2 class="h5">输入模板</h2>
             <p>下载 Excel 模板，按表头填写后上传到工作台。</p>
-            <a class="btn btn-outline-primary" href="./template.xlsx" download="${entry}-模板.xlsx">下载 Excel 模板</a>
+            <a class="btn btn-outline-primary" href="./template.xlsx" download="${templateFileName}">下载 Excel 模板</a>
         </div></section>`
     : "";
   return `<!DOCTYPE html>
