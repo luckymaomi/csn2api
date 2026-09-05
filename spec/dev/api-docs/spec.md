@@ -38,6 +38,8 @@ CAAC 有效飞行员列表把当前 `{total, rows}` 转为动态字段表格。�
 
 页面只提交完整 endpoint ID 和业务参数，基础地址、路径和方法来自目录。后端按 `systemId` 选择适配器，区分 HTTP 状态、登录失效、解析错误和业务返回；HTTP 200 不单独代表业务成功。结构化表格、原始 JSON/HTML、响应 Headers 和状态码同时返回。
 
+生产请求仍由 Python `requests` 发送，但共享 protocol core 会显式设置浏览器 User-Agent，不使用 `python-requests/...` 默认标识；OA 完整 cURL 中存在 User-Agent 时优先复用用户提供的值，未提供时才使用默认浏览器 User-Agent。
+
 资质监控常规入口使用通用 GET 执行分支，固定 `qualType` 不接受调用方覆盖且空筛选参数仍进入 Query。JCY 执行分支由 protocol core 根据稳定业务代码切换到检查员库路径，省略空筛选项且不发送 `qualType`。两类 PageInfo 的 `list` 都转为动态字段表格，摘要保留当前页记录数、总数、页数、页码、每页条数和下一页标记。API 文档不代理原生 Excel 二进制下载；资质监控（皇帝版）的一键 ZIP 是独立本地 APP 的组合工作流。
 
 OA 对外只提供两个本地组合工作流。“获取全部 OA 数量”遍历全部待办分页并返回总数、可处理公文数、跳过数和动态模块汇总；“按数量点击 OA 已阅”先执行相同全量扫描，再只选取 `DOC/official-document`，按用户输入的任意正整数逐条调用生产 `haveRead`。生产待办分页和单条已阅登记为端点真实执行步骤，不独立显示为业务入口。
