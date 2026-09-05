@@ -26,6 +26,10 @@ WAITING_QUERY_PATH = "/oai/work/box/query/waiting"
 HAVE_READ_PATH = "/oai/doc/pc/form/sw/haveRead"
 PAGE_SIZE = 100
 VERIFY_TIMEOUT = (5, 10)
+DEFAULT_BROWSER_USER_AGENT = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+    "AppleWebKit/537.36 Chrome/151 Safari/537.36"
+)
 
 
 class OaProtocolClient:
@@ -56,7 +60,7 @@ class OaProtocolClient:
             "Accept": "application/json, text/plain, */*", "Accept-Language": "zh-CN,zh;q=0.9",
             "Origin": self.base_url,
             "Referer": f"{self.base_url}/oaw/work/my-dealt-with/schedule-list?sourceType=wait",
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/151 Safari/537.36",
+            "User-Agent": DEFAULT_BROWSER_USER_AGENT,
             "X-Requested-With": "XMLHttpRequest",
         }
         headers.update(parse_browser_headers(source))

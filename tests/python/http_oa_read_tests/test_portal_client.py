@@ -11,6 +11,7 @@ from http_oa_read.portal_client import (
     PortalError,
     PortalSessionExpired,
 )
+from oa_protocol.client import DEFAULT_BROWSER_USER_AGENT
 from oa_protocol.contract import parse_identity
 from oa_protocol.models import WaitingRecord
 
@@ -126,6 +127,14 @@ class PortalClientTests(unittest.TestCase):
         )
 
         self.assertEqual(session.headers["User-Agent"], "Browser/152 exact-profile")
+
+    def test_verify_uses_default_browser_user_agent_for_cookie_only_credentials(self) -> None:
+        session = FakeSession(get_responses=[user_info()])
+        client = PortalClient(session_factory=lambda: session)
+
+        client.load_credentials("Cookie: SESSION=secret")
+
+        self.assertEqual(session.headers["User-Agent"], DEFAULT_BROWSER_USER_AGENT)
 
     def test_verify_rejects_expired_business_code_even_on_http_200(self) -> None:
         session = FakeSession(get_responses=[FakeResponse({"code": "301", "message": "expired"})])

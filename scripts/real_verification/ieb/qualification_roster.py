@@ -8,7 +8,14 @@ from typing import Any
 import requests
 from openpyxl import load_workbook
 
-from ..app_http import post_json, require_completed, serve_app, verify_frontend_route, wait_for_final
+from ..app_http import (
+    DEFAULT_BROWSER_USER_AGENT,
+    post_json,
+    require_completed,
+    serve_app,
+    verify_frontend_route,
+    wait_for_final,
+)
 from ..common import ROOT, result_summary
 
 
@@ -80,7 +87,11 @@ def verify_app(verifier: Any) -> None:
                         raise RuntimeError("APP 人员资质明细序号不连续")
                     if list((row.get("fields") or {}).keys()) != columns or row.get("qualificationCode") != qualification:
                         raise RuntimeError("APP 人员字段或资质类别与本轮查询不一致")
-                response = requests.get(f"{base_url}/api/download/excel", timeout=30)
+                response = requests.get(
+                    f"{base_url}/api/download/excel",
+                    headers={"User-Agent": DEFAULT_BROWSER_USER_AGENT},
+                    timeout=30,
+                )
                 if response.status_code != 200:
                     raise RuntimeError(f"APP Excel 下载返回 HTTP {response.status_code}")
                 workbook = load_workbook(BytesIO(response.content), read_only=True, data_only=True)

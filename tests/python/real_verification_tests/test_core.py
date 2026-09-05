@@ -19,7 +19,11 @@ from real_verification.common import (  # noqa: E402
     result_summary,
 )
 from real_verification.runner import RealVerifier  # noqa: E402
-from real_verification.app_http import require_completed, verify_frontend_route  # noqa: E402
+from real_verification.app_http import (  # noqa: E402
+    DEFAULT_BROWSER_USER_AGENT,
+    require_completed,
+    verify_frontend_route,
+)
 
 
 class RealVerificationCoreTests(unittest.TestCase):
@@ -126,6 +130,10 @@ Cookie: yzzzm=one; JSESSIONID=two; home=three
         with patch("real_verification.app_http.requests.get", side_effect=lambda url, **_kwargs: responses[url]) as get:
             verify_frontend_route("http://127.0.0.1:1234", "/api/run")
         self.assertEqual(get.call_count, len(responses))
+        self.assertTrue(all(
+            call.kwargs["headers"] == {"User-Agent": DEFAULT_BROWSER_USER_AGENT}
+            for call in get.call_args_list
+        ))
 
 
 if __name__ == "__main__":

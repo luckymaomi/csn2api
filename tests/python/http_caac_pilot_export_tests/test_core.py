@@ -17,6 +17,7 @@ sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(SHARED_ROOT))
 
 from caac_protocol import parse_credentials  # noqa: E402
+from caac_protocol.client import DEFAULT_BROWSER_USER_AGENT, CaacProtocolClient  # noqa: E402
 from caac_pilot_export.exporter import ResultExporter, TRAILING_HEADERS  # noqa: E402
 from caac_pilot_export.models import PilotOutcome, PilotRecord  # noqa: E402
 from caac_pilot_export.portal_client import PortalClient, PortalContractError, PortalSessionExpired  # noqa: E402
@@ -36,6 +37,13 @@ class _AssetParser(HTMLParser):
 
 
 class CoreTests(unittest.TestCase):
+    def test_session_uses_default_browser_user_agent(self) -> None:
+        session = type("Session", (), {"headers": {}})()
+
+        CaacProtocolClient(session=session)
+
+        self.assertEqual(session.headers["User-Agent"], DEFAULT_BROWSER_USER_AGENT)
+
     def test_accepts_direct_cookie_header_from_linux_browser(self) -> None:
         cookies = parse_credentials(
             "Cookie: yzzzm=operator; "

@@ -11,7 +11,7 @@ from .common import (  # noqa: F401
 )
 from http_lock_entry.portal_client import PortalClient, PortalSessionExpired
 from ieb_protocol import IebContractError, format_credentials
-from ieb_protocol.base import parse_current_identity
+from ieb_protocol.base import DEFAULT_BROWSER_USER_AGENT, parse_current_identity
 from ieb_protocol.lock_metadata import parse_portal_metadata
 from ieb_protocol.lock_models import EmployeeIdentity
 from ieb_protocol.lock_results import parse_query_result, parse_submit_result
@@ -67,6 +67,12 @@ class FakeSession:
 class HttpPortalClientTest(unittest.TestCase):
     def make_client(self, session=None):
         return PortalClient(session=session or FakeSession())
+
+    def test_session_uses_default_browser_user_agent(self):
+        session = FakeSession()
+        self.make_client(session)
+
+        self.assertEqual(session.headers["User-Agent"], DEFAULT_BROWSER_USER_AGENT)
 
     def test_parses_current_session_identity_from_home_page(self):
         self.assertEqual(

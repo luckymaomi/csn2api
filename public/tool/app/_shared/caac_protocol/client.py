@@ -15,6 +15,10 @@ from .credentials import parse_credentials
 BASE_URL = "https://fsop.caac.gov.cn"
 LIST_PATH = "/yzzzm/rygl/queryPilotByParamForPage"
 DETAIL_PATH = "/yzzzm/rygl/queryPilotDetails"
+DEFAULT_BROWSER_USER_AGENT = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+    "AppleWebKit/537.36 Chrome/151 Safari/537.36"
+)
 LIST_FILTER_NAMES = (
     "archiveNo",
     "idCode",
@@ -94,7 +98,7 @@ class CaacProtocolClient:
         self.request_lock = RLock()
         self.cookies: dict[str, str] = {}
         self.session.headers.update({
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/151 Safari/537.36",
+            "User-Agent": DEFAULT_BROWSER_USER_AGENT,
             "Accept": "application/json, text/javascript, */*; q=0.01",
             "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
             "Origin": self.base_url,

@@ -6,7 +6,14 @@ from typing import Any
 
 import requests
 
-from ..app_http import post_json, require_completed, serve_app, verify_frontend_route, wait_for_final
+from ..app_http import (
+    DEFAULT_BROWSER_USER_AGENT,
+    post_json,
+    require_completed,
+    serve_app,
+    verify_frontend_route,
+    wait_for_final,
+)
 from ..common import ROOT, result_summary
 from ieb_protocol.qualification_monitor_contract import validate_ooxml
 
@@ -109,7 +116,11 @@ def verify_app(verifier: Any) -> None:
                 download_id = item_state.get("downloadId") if isinstance(item_state, dict) else None
                 if not download_id:
                     raise RuntimeError("APP 资质导出没有登记下载文件")
-                download = requests.get(f"{base_url}/api/download/{download_id}", timeout=60)
+                download = requests.get(
+                    f"{base_url}/api/download/{download_id}",
+                    headers={"User-Agent": DEFAULT_BROWSER_USER_AGENT},
+                    timeout=60,
+                )
                 if download.status_code != 200:
                     raise RuntimeError(f"APP 资质下载返回 HTTP {download.status_code}")
                 validate_ooxml(download.content)

@@ -8,6 +8,7 @@ sys.path.insert(0, str(APP_ROOT))
 sys.path.insert(0, str(SHARED_ROOT))
 
 from soc_protocol import FlightOption, StaffIdentity  # noqa: E402
+from soc_protocol.client import DEFAULT_BROWSER_USER_AGENT  # noqa: E402
 from soc_positioning.portal_client import SocPortalClient  # noqa: E402
 
 
@@ -63,6 +64,11 @@ class FakeSession:
 
 
 class SocPortalClientTests(unittest.TestCase):
+    def test_request_headers_use_default_browser_user_agent(self):
+        client = SocPortalClient(session=FakeSession())
+
+        self.assertEqual(client.protocol.headers()["User-Agent"], DEFAULT_BROWSER_USER_AGENT)
+
     def test_parses_only_server_rendered_login_name(self):
         identity = SocPortalClient._parse_identity(
             "<div id='checkout_soc'>欢迎您，测试用户 <span>员工号：900001</span><a>退出</a></div>"

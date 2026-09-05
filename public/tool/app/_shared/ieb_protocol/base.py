@@ -14,6 +14,10 @@ from credential_text import normalize_credential_source
 BASE_URL = "https://ieb.csair.com"
 HOME_PATH = "/index/index"
 REQUIRED_COOKIE_NAMES = ("JSESSIONID", "iebJSid")
+DEFAULT_BROWSER_USER_AGENT = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+    "AppleWebKit/537.36 Chrome/151 Safari/537.36"
+)
 
 
 class IebProtocolError(RuntimeError):
@@ -121,7 +125,7 @@ class IebSession:
         self.cookies: dict[str, str] = {}
         self.identity: dict[str, str] | None = None
         self.session.headers.update({
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/151 Safari/537.36",
+            "User-Agent": DEFAULT_BROWSER_USER_AGENT,
             "Accept-Language": "zh-CN,zh;q=0.9",
             "Referer": f"{self.base_url}/index/index",
             "X-Requested-With": "XMLHttpRequest",

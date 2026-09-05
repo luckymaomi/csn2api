@@ -27,6 +27,10 @@ REQUIRED_RUNTIME_ASSETS = {
     "/theme.css",
     "/styles.css",
 }
+DEFAULT_BROWSER_USER_AGENT = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+    "AppleWebKit/537.36 Chrome/151 Safari/537.36"
+)
 
 
 class _RuntimeAssetParser(HTMLParser):
@@ -65,24 +69,41 @@ def serve_app(server: object, manager: object) -> Generator[str, None, None]:
 
 
 def get_json(base_url: str, path: str) -> dict[str, object]:
-    response = requests.get(f"{base_url}{path}", timeout=30)
+    response = requests.get(
+        f"{base_url}{path}",
+        headers={"User-Agent": DEFAULT_BROWSER_USER_AGENT},
+        timeout=30,
+    )
     return _json_response(response, path)
 
 
 def post_json(base_url: str, path: str, payload: dict[str, object]) -> dict[str, object]:
-    response = requests.post(f"{base_url}{path}", json=payload, timeout=60)
+    response = requests.post(
+        f"{base_url}{path}",
+        json=payload,
+        headers={"User-Agent": DEFAULT_BROWSER_USER_AGENT},
+        timeout=60,
+    )
     return _json_response(response, path)
 
 
 def _require_runtime_asset(base_url: str, path: str) -> requests.Response:
-    response = requests.get(f"{base_url}{path}", timeout=30)
+    response = requests.get(
+        f"{base_url}{path}",
+        headers={"User-Agent": DEFAULT_BROWSER_USER_AGENT},
+        timeout=30,
+    )
     if response.status_code != 200 or not response.content:
         raise RuntimeError(f"APP 本地服务没有返回运行资源 {path}")
     return response
 
 
 def verify_frontend_route(base_url: str, route: str) -> None:
-    page = requests.get(f"{base_url}/", timeout=30)
+    page = requests.get(
+        f"{base_url}/",
+        headers={"User-Agent": DEFAULT_BROWSER_USER_AGENT},
+        timeout=30,
+    )
     if page.status_code != 200 or not page.content:
         raise RuntimeError("APP 本地服务没有返回首页")
     parser = _RuntimeAssetParser()

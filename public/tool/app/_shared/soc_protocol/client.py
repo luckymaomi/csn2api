@@ -30,6 +30,11 @@ from .contract import (
 from .credentials import parse_credentials
 from .models import FlightOption, StaffIdentity, SubmitOutcome
 
+DEFAULT_BROWSER_USER_AGENT = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+    "AppleWebKit/537.36 Chrome/151 Safari/537.36"
+)
+
 
 class SocProtocolClient:
     def __init__(
@@ -57,7 +62,7 @@ class SocProtocolClient:
             "Origin": self.base_url,
             "Referer": self.url(referer),
             "X-Requested-With": "XMLHttpRequest",
-            "User-Agent": "Mozilla/5.0",
+            "User-Agent": DEFAULT_BROWSER_USER_AGENT,
         }
 
     def request(self, method: str, path: str, *, data: object | None = None, action: str = "SOC 请求") -> object:
