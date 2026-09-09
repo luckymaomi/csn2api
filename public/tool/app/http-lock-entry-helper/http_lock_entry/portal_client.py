@@ -12,7 +12,6 @@ from ieb_protocol import (
     IebSessionExpired,
     format_credentials,
 )
-from ieb_protocol.lock_metadata import normalize_text
 from ieb_protocol.lock_models import (
     EmployeeIdentity,
     LockSubmission,
@@ -21,7 +20,7 @@ from ieb_protocol.lock_models import (
     SubmitResult,
 )
 from ieb_protocol.lock_protocol import LockProtocol, random_value
-from ieb_protocol.lock_submission import build_submit_form
+from ieb_protocol.lock_submission import build_submit_form, resolve_lock_reason
 
 from .session_keepalive import SessionKeepAlive, random_keepalive_interval
 
@@ -100,12 +99,7 @@ class PortalClient:
         item = metadata.lock_types.get(str(record.get("请假类型", "")))
         if item is None:
             raise PortalError("当前记录的锁班类型不在动态类型列表中")
-        reason = normalize_text(record.get("备注")) or normalize_text(common_reason)
-        if not reason:
-            reason = f"{metadata.default_reason_prefix}{item.description}"
-        if not reason or len(reason) > 60:
-            raise PortalError("锁班原因不能为空且不能超过60个字符")
-        return reason
+        return resolve_lock_reason(metadata, item, record.get("备注"), common_reason)
 
     @staticmethod
     def _submission(record: dict[str, object], identity: EmployeeIdentity, reason: str) -> LockSubmission:

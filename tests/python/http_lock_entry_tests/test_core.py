@@ -10,6 +10,7 @@ from .common import APP_DIR, ENTRY_HTML  # noqa: F401
 from http_lock_entry.input_data import normalize_business_date, parse_excel
 from ieb_protocol import credential_summary, parse_credentials
 from ieb_protocol.lock_metadata import parse_portal_metadata
+from ieb_protocol.lock_submission import resolve_lock_reason
 
 
 class HttpLockEntryCoreTest(unittest.TestCase):
@@ -34,6 +35,9 @@ class HttpLockEntryCoreTest(unittest.TestCase):
         self.assertEqual(metadata.lock_types["BS_STUDY"].date_split_flag, "0")
         self.assertTrue(metadata.lock_types["RECU_LVE"].limit_flag == "1")
         self.assertEqual(metadata.default_reason_prefix, "测试操作员(900000):")
+        item = metadata.lock_types["GDO"]
+        self.assertEqual(resolve_lock_reason(metadata, item), "测试操作员(900000):地面休息")
+        self.assertEqual(resolve_lock_reason(metadata, item, "自定义备注"), "自定义备注")
 
     def test_excel_dates_are_normalized_at_read_boundary(self):
         metadata = parse_portal_metadata(ENTRY_HTML)

@@ -68,6 +68,26 @@ LOCK_RESULT_TABLE_ONLY_HTML = LOCK_RESULT_HTML.replace(
     'id="showNonproductionTaskImportResultPage1table"',
 )
 
+
+def lock_query_html(status: str | None) -> str:
+    row = (
+        '<tr><td><input type="checkbox" value="record-approve"></td><td>1</td>'
+        f'<td>{status}</td><td>900001</td><td>测试人员</td>'
+        '<td>2026-10-08 08:59:00</td><td>2026-10-08 19:59:00</td>'
+        '<td>业务学习</td><td>测试备注</td></tr>'
+        if status
+        else '<tr><td colspan="9">没有相关信息</td></tr>'
+    )
+    return f"""
+    <div class="flexigrid">
+      <div class="hDiv"><table><tr>
+        <th>选择</th><th>序号</th><th>状态</th><th>员工号</th><th>姓名</th>
+        <th>开始日期</th><th>结束日期</th><th>锁班类型</th><th>锁班原因</th>
+      </tr></table></div>
+      <div class="bDiv"><table><tbody class="list">{row}</tbody></table></div>
+    </div>
+    """
+
 BASIC_INFO_JSON = json.dumps({
     "empDto": {"birthDate": "2000-01-01", "position": "飞行员"},
     "eduList": [{"school": "样例院校", "education": "本科"}],
@@ -385,19 +405,25 @@ class ExecutorTests(unittest.TestCase):
             "lockTimeType": "1",
             "startDt": "2026-10-08T08:59",
             "endDt": "2026-10-08T19:59",
-            "lockRemark": "测试备注",
         })
         self.assertEqual([table["id"] for table in result["data"]["tables"]], ["results", "conflicts"])
         self.assertEqual(result["data"]["tables"][0]["rows"][0]["锁班状态"], "待审批")
         self.assertEqual(
             result["data"]["summary"],
-            {"resultCount": 1, "conflictCount": 0, "lockStatuses": ["待审批"], "outcome": "提交成功"},
+            {
+                "resultCount": 1,
+                "conflictCount": 0,
+                "lockStatuses": ["待审批"],
+                "outcome": "提交成功",
+                "remark": "业务学习",
+            },
         )
         submit_data = session.requests[-1]["data"]
         self.assertIn(("lockTypeDesc", "业务学习"), submit_data)
         self.assertIn(("chnName", "测试人员"), submit_data)
         self.assertIn(("orgUnitName", "测试部门"), submit_data)
         self.assertIn(("lockDays", "1"), submit_data)
+        self.assertIn(("lockRemark", "业务学习"), submit_data)
         self.assertEqual(
             session.requests[-2]["url"],
             self.catalog.get_execution_request("lock-entry.submit", "validate-employee").url,
@@ -452,6 +478,85 @@ class ExecutorTests(unittest.TestCase):
                 "endDt": "2026-10-08T19:59",
                 "lockRemark": "测试备注",
             })
+
+    def test_lock_approval_workflow_uniquely_approves_and_verifies_locked(self) -> None:
+        identity = json.dumps({
+            "permissionFlag": "true",
+            "nameInfo": "测试人员",
+            "deptInfo": "测试部门",
+        }, ensure_ascii=False)
+        approved = json.dumps({"success": "true", "successMsg": "通过成功"}, ensure_ascii=False)
+        executor, session = self.create_executor([
+            FakeResponse(QUERY_PAGE_HTML),
+            FakeResponse(IEB_HOME_HTML),
+            FakeResponse(ENTRY_HTML),
+            FakeResponse(identity, content_type="application/json"),
+            FakeResponse(lock_query_html("待审批")),
+            FakeResponse(approved, content_type="application/json"),
+            FakeResponse(lock_query_html("已锁")),
+            FakeResponse(lock_query_html(None)),
+        ])
+        executor.load_credentials("JSESSIONID=session-value; iebJSid=browser-value")
+        result = executor.execute("lock-entry.approve-pending", {
+            "staffnum": "900001",
+            "lockType": "BS_STUDY",
+            "lockTimeType": "1",
+            "startDt": "2026-10-08T08:59",
+            "endDt": "2026-10-08T19:59",
+            "lockRemark": "测试备注",
+        })
+
+        self.assertEqual(result["data"]["summary"], {
+            "resultCount": 1,
+            "lockStatuses": ["已锁"],
+            "outcome": "通过成功",
+            "remark": "测试备注",
+            "message": "通过成功",
+        })
+        self.assertEqual(result["data"]["tables"][0]["rows"][0]["状态"], "已锁")
+        self.assertNotIn("记录ID", result["data"]["tables"][0]["rows"][0])
+        approval_request = next(
+            request for request in session.requests
+            if str(request["url"]).endswith("/importNonproductionTaskLockListToSoc")
+        )
+        self.assertIn(("ids", "record-approve"), approval_request["data"])
+        self.assertIn(("approveRemark", "测试备注"), approval_request["data"])
+
+    def test_lock_approval_workflow_rejects_ambiguous_pending_records_before_write(self) -> None:
+        identity = json.dumps({
+            "permissionFlag": "true",
+            "nameInfo": "测试人员",
+            "deptInfo": "测试部门",
+        }, ensure_ascii=False)
+        pending = lock_query_html("待审批")
+        duplicate = (
+            '<tr><td><input type="checkbox" value="record-second"></td><td>2</td>'
+            '<td>待审批</td><td>900001</td><td>测试人员</td>'
+            '<td>2026-10-08 08:59:00</td><td>2026-10-08 19:59:00</td>'
+            '<td>业务学习</td><td>测试备注</td></tr>'
+        )
+        pending = pending.replace('</tbody>', f'{duplicate}</tbody>')
+        executor, session = self.create_executor([
+            FakeResponse(QUERY_PAGE_HTML),
+            FakeResponse(IEB_HOME_HTML),
+            FakeResponse(ENTRY_HTML),
+            FakeResponse(identity, content_type="application/json"),
+            FakeResponse(pending),
+        ])
+        executor.load_credentials("JSESSIONID=session-value; iebJSid=browser-value")
+        with self.assertRaisesRegex(Exception, "无法按员工、类型和日期时间精确归属"):
+            executor.execute("lock-entry.approve-pending", {
+                "staffnum": "900001",
+                "lockType": "BS_STUDY",
+                "lockTimeType": "1",
+                "startDt": "2026-10-08T08:59",
+                "endDt": "2026-10-08T19:59",
+                "lockRemark": "测试备注",
+            })
+        self.assertFalse(any(
+            str(request["url"]).endswith("/importNonproductionTaskLockListToSoc")
+            for request in session.requests
+        ))
 
     def test_personnel_info_executes_multipart_json_and_html_table_requests(self) -> None:
         executor, session = self.create_executor([

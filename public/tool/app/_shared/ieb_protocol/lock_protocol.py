@@ -120,7 +120,16 @@ class LockProtocol:
             return [], "门户返回冲突结果"
         if not result.result_rows:
             return [], "门户没有返回普通结果"
-        return attribute_rows(result.result_rows, submission, identity, metadata, "提交结果")
+        return self.attribute_records(result.result_rows, submission, identity, "提交结果")
+
+    def attribute_records(
+        self,
+        rows: list[dict[str, str]],
+        submission: LockSubmission,
+        identity: EmployeeIdentity,
+        label: str,
+    ) -> tuple[list[dict[str, str]], str]:
+        return attribute_rows(rows, submission, identity, self.require_metadata(), label)
 
     def query_records(self, employee_id: str, status: str) -> list[dict[str, str]]:
         first_form = query_form(employee_id, status, 1, random_value())

@@ -245,6 +245,9 @@ class ServerTests(unittest.TestCase):
             ["staffNum", "startStr", "endStr"],
         )
         self.assertTrue(any(item["operation"] == "lock-entry.submit" and item["risk"] == "write" for item in operations["operations"]))
+        approval = next(item for item in operations["operations"] if item["operation"] == "lock-entry.approve-pending")
+        self.assertEqual(approval["risk"], "write")
+        self.assertEqual(approval["executionKind"], "local-workflow")
         self.assertTrue(any(parameter["name"] == "currentStr" and parameter["mode"] == "automatic" for parameter in flight_stats["parameters"]))
         self.executor.ready["soc"] = True
         self.assertTrue(self.request("/api/universal-query/v1/sessions")["sessions"]["soc"]["ready"])

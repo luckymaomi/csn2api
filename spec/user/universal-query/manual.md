@@ -31,4 +31,6 @@
 
 普通查询立即返回 `state=completed`、摘要和表格。渐进操作返回 HTTP 202、`runId` 和 `state=running`；使用 `GET /executions/<runId>` 读取最新进度。会话状态通过 `GET /sessions` 查看，完成后可用 `DELETE /sessions/<systemId>` 清除。
 
+锁班需要顺序执行两个写操作。先调用 `lock-entry.submit`，只有返回 `outcome=提交成功` 且 `lockStatuses=["待审批"]` 才进入下一步；存在冲突时停止。再以相同员工、类型和日期时间调用 `lock-entry.approve-pending`，并把第一步返回的 `remark` 作为备注传入。第二步只有在服务回查目标已锁且不再待审批后才返回 `outcome=通过成功` 和 `lockStatuses=["已锁"]`。调用方不需要也不能猜测门户记录 ID。
+
 万能查询不返回底层请求 URL、原始响应、调试 headers 或 Cookie；业务查询结果保留在 `result.summary` 和 `result.tables`。生产写操作也会出现在操作清单中，但应只在已获得当前对象和动作授权时调用。

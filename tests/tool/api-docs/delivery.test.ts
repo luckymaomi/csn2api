@@ -50,7 +50,12 @@ describe("API docs delivery", () => {
     expect(index.systems[0].navigationUrl).toBe("https://ieb.csair.com/index/index");
     expect(index.systems[1].credentialRequestUrl).toBe("https://work.csair.com/oai/work/box/query/waiting");
     const lockCatalog = JSON.parse(readFileSync(`${root}/catalog/lock-entry.json`, "utf8"));
-    expect(lockCatalog.endpoints).toHaveLength(1);
+    expect(lockCatalog.endpoints).toHaveLength(2);
+    expect(lockCatalog.endpoints.map((endpoint: { id: string }) => endpoint.id)).toEqual([
+      "submit",
+      "approve-pending"
+    ]);
+    expect(lockCatalog.endpoints[1].execution.kind).toBe("local-workflow");
     expect(JSON.stringify(lockCatalog)).toContain("showNonproductionTaskImportPage");
     expect(JSON.stringify(lockCatalog)).toContain("importNonproductionTaskLockListToSoc");
     const personnelCatalog = JSON.parse(readFileSync(`${root}/catalog/personnel-info.json`, "utf8"));

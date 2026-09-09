@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import json
 import re
+import time
 from calendar import monthrange
 from datetime import datetime
 
@@ -8,6 +10,7 @@ from ieb_protocol import IebContractError
 from ieb_protocol.lock_metadata import normalize_text
 from ieb_protocol.lock_models import EmployeeIdentity, LockSubmission, LockTypeMetadata, PortalMetadata, SubmitResult
 from ieb_protocol.lock_protocol import LockProtocol
+from ieb_protocol.lock_submission import resolve_lock_reason
 
 from ...catalog import EndpointRecord
 from .common import required
@@ -38,11 +41,9 @@ def _submission(
     supplied: dict[str, object],
     identity: EmployeeIdentity,
     item: LockTypeMetadata,
+    reason: str,
 ) -> LockSubmission:
     mode = int(required(supplied, "lockTimeType", "时间模式"))
-    reason = required(supplied, "lockRemark", "锁班原因")
-    if len(reason) > 60:
-        raise ValueError("锁班原因不能超过 60 个字符")
     if mode == 1:
         start_text = required(supplied, "startDt", "开始日期时间").replace("T", " ")
         end_text = required(supplied, "endDt", "结束日期时间").replace("T", " ")
@@ -81,7 +82,7 @@ def _submission(
     )
 
 
-def _result_data(result: SubmitResult) -> dict[str, object]:
+def _result_data(result: SubmitResult, reason: str) -> dict[str, object]:
     result_columns = list(result.result_rows[0].keys()) if result.result_rows else []
     conflict_columns = list(result.conflict_rows[0].keys()) if result.conflict_rows else []
     conflict_count = len(result.conflict_rows)
@@ -93,6 +94,7 @@ def _result_data(result: SubmitResult) -> dict[str, object]:
             "conflictCount": conflict_count,
             "lockStatuses": statuses,
             "outcome": "存在锁班冲突" if conflict_count else "提交成功" if statuses == ["待审批"] else "未返回有效待审批结果",
+            "remark": reason,
         },
         "tables": [
             {"id": "results", "title": "普通结果", "columns": result_columns, "rows": result.result_rows},
@@ -111,17 +113,70 @@ def execute(
     if item is None:
         raise ValueError("所选锁班类型已不存在，请重新载入 Cookie")
     identity = protocol.validate_employee(required(supplied, "staffnum", "员工号"))
-    submission = _submission(supplied, identity, item)
+    reason = resolve_lock_reason(metadata, item, supplied.get("lockRemark"))
+    submission = _submission(supplied, identity, item, reason)
     response, result = protocol.submit(submission, identity, item)
     if result.conflict_rows:
         rows, problem = protocol.attribute_result(result, submission, identity, conflicts=True)
         if problem:
             raise IebContractError(problem)
-        return response, _result_data(SubmitResult([], rows))
+        return response, _result_data(SubmitResult([], rows), reason)
     rows, problem = protocol.attribute_result(result, submission, identity)
     if problem:
         raise IebContractError(problem)
     statuses = {normalize_text(row.get("锁班状态") or row.get("状态")) for row in rows}
     if statuses != {"待审批"}:
         raise IebContractError("门户普通结果已归属，但锁班状态不是待审批")
-    return response, _result_data(SubmitResult(rows, []))
+    return response, _result_data(SubmitResult(rows, []), reason)
+
+
+def execute_approval(
+    record: EndpointRecord,
+    supplied: dict[str, object],
+    protocol: LockProtocol,
+) -> dict[str, object]:
+    started = time.perf_counter()
+    metadata = protocol.require_metadata()
+    item = metadata.lock_types.get(required(supplied, "lockType", "锁班类型"))
+    if item is None:
+        raise ValueError("所选锁班类型已不存在，请重新载入 Cookie")
+    identity = protocol.validate_employee(required(supplied, "staffnum", "员工号"))
+    reason = resolve_lock_reason(metadata, item, supplied.get("lockRemark"))
+    submission = _submission(supplied, identity, item, reason)
+    pending = protocol.query_records(identity.employee_id, "待审批")
+    rows, problem = protocol.attribute_records(pending, submission, identity, "待审批记录")
+    if problem:
+        raise IebContractError(problem)
+    message = protocol.approve_records(rows, reason)
+    public_rows = []
+    for row in rows:
+        public_row = {key: value for key, value in row.items() if key != "记录ID"}
+        public_row["状态"] = "已锁"
+        public_rows.append(public_row)
+    data = {
+        "summary": {
+            "resultCount": len(public_rows),
+            "lockStatuses": ["已锁"],
+            "outcome": "通过成功",
+            "remark": reason,
+            "message": message,
+        },
+        "tables": [{
+            "id": "results",
+            "title": "通过结果",
+            "columns": list(public_rows[0].keys()) if public_rows else [],
+            "rows": public_rows,
+        }],
+    }
+    return {
+        "endpointId": record.full_id,
+        "method": record.endpoint["method"],
+        "status": 200,
+        "reason": "Local workflow completed",
+        "elapsedMilliseconds": round((time.perf_counter() - started) * 1000),
+        "finalUrl": "/api/execute",
+        "contentType": "application/json; charset=utf-8",
+        "headers": {},
+        "data": data,
+        "body": json.dumps(data["summary"], ensure_ascii=False),
+    }

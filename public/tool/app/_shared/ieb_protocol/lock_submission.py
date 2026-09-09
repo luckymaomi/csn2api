@@ -4,7 +4,21 @@ from datetime import date
 from typing import Callable
 
 from .base import IebContractError
-from .lock_models import EmployeeIdentity, LockSubmission, LockTypeMetadata
+from .lock_metadata import normalize_text
+from .lock_models import EmployeeIdentity, LockSubmission, LockTypeMetadata, PortalMetadata
+
+
+def resolve_lock_reason(
+    metadata: PortalMetadata,
+    item: LockTypeMetadata,
+    *candidates: object,
+) -> str:
+    reason = next((text for value in candidates if (text := normalize_text(value))), "")
+    if not reason:
+        reason = f"{metadata.default_reason_prefix}{item.description}"
+    if not reason or len(reason) > 60:
+        raise IebContractError("锁班原因不能为空且不能超过60个字符")
+    return reason
 
 
 def build_submit_form(

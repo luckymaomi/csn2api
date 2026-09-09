@@ -132,6 +132,9 @@ class FlightPortalAdapter:
                     supplied,
                     self._lock(),
                 )
+            elif record.full_id == "lock-entry.approve-pending":
+                self.load_options("lock-types")
+                return lock_entry.execute_approval(record, supplied, self._lock())
             else:
                 raise ExecutionError("当前 IEB 系统不支持该业务接口")
         except IebSessionExpired as error:

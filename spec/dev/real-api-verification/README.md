@@ -29,7 +29,7 @@ python -X utf8 scripts/real-api-verification.py --cookies-file spec/dev/real-api
 python -X utf8 scripts/real-api-verification.py --cookies-file spec/dev/real-api-verification/cookies.local.md --system ieb --scope app --case lock-entry
 ```
 
-本轮写操作需要显式确认。锁班最多提交一次，OA 已阅最多提交一条；脚本不会自动撤销锁班，也不会继续派发 OA：
+本轮写操作需要显式确认。锁班会严格执行“提交待审批 -> 通过 -> 回查已锁”两步，只有两步都成功才算通过；OA 已阅最多提交一条。脚本不会自动撤销锁班，也不会继续派发 OA：
 
 ```powershell
 python -X utf8 scripts/real-api-verification.py `

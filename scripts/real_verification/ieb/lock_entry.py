@@ -49,10 +49,38 @@ def verify_api(verifier: Any, executor: Any) -> None:
             raise RuntimeError("锁班响应没有通过业务成功契约")
         return value
 
-    verifier.call(
+    submitted = verifier.call(
         "ieb",
         "api.lock-entry.submit",
         submit,
+        write=True,
+        detail=lambda value: f"HTTP {value.get('status')}，{result_summary(value)}" if isinstance(value, dict) else str(value),
+    )
+    if submitted is None or "ieb" in verifier.halted:
+        return
+
+    def approve() -> object:
+        value = executor.execute(
+            "lock-entry.approve-pending",
+            {
+                "staffnum": verifier.input("lockStaffNumber"),
+                "lockType": item["value"],
+                "lockTimeType": "1",
+                "startDt": f"{verifier.input('lockStartDate')}T08:59",
+                "endDt": f"{verifier.input('lockEndDate')}T19:59",
+                "lockRemark": verifier.input("lockRemark"),
+            },
+        )
+        data = value.get("data") if isinstance(value, dict) else None
+        summary = data.get("summary") if isinstance(data, dict) else None
+        if not isinstance(summary, dict) or summary.get("outcome") != "通过成功" or summary.get("lockStatuses") != ["已锁"]:
+            raise RuntimeError("锁班通过响应没有通过已锁回查业务成功契约")
+        return value
+
+    verifier.call(
+        "ieb",
+        "api.lock-entry.approve-pending",
+        approve,
         write=True,
         detail=lambda value: f"HTTP {value.get('status')}，{result_summary(value)}" if isinstance(value, dict) else str(value),
     )

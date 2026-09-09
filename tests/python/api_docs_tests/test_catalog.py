@@ -36,6 +36,7 @@ class CatalogTests(unittest.TestCase):
             "flight-stats.query",
             "flight-detail.query-month",
             "lock-entry.submit",
+            "lock-entry.approve-pending",
             "personnel-info.basic",
             "oa-read.count",
         }.issubset(self.catalog.endpoints))
@@ -115,6 +116,12 @@ class CatalogTests(unittest.TestCase):
         self.assertEqual(
             [step["id"] for step in self.catalog.get_execution_steps("lock-entry.submit")],
             ["load-lock-types", "validate-employee", "submit"],
+        )
+        approval = self.catalog.get_endpoint("lock-entry.approve-pending").endpoint
+        self.assertEqual(approval["execution"]["kind"], "local-workflow")
+        self.assertEqual(
+            [step["id"] for step in self.catalog.get_execution_steps("lock-entry.approve-pending")],
+            ["load-lock-types", "validate-employee", "query-pending", "approve", "verify-locked", "verify-not-pending"],
         )
         self.assertEqual(
             self.catalog.get_execution_request("lock-entry.submit", "validate-employee").full_id,
@@ -214,6 +221,8 @@ class CatalogTests(unittest.TestCase):
         self.assertEqual(controls["lockYearAndMonth"]["type"], "month")
         self.assertEqual(controls["lockStartHourAndMinute"]["type"], "time")
         self.assertTrue(controls["lockDaysNum"]["repeatable"])
+        self.assertNotIn("required", controls["lockRemark"])
+        self.assertIn("门户", controls["lockRemark"]["description"])
         for derived in ("dateSplitFlag", "lockDays", "lockTypeDesc", "chnName", "orgUnitName", "random"):
             self.assertIn(derived, controls)
             self.assertTrue(controls[derived]["fixed"])
