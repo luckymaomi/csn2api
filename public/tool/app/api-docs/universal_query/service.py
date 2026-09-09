@@ -78,6 +78,20 @@ class UniversalQueryService:
             "operations": [self._operation(record) for record in self.catalog.endpoints.values()],
         }
 
+    def options(self, source_id: str) -> dict[str, object]:
+        """Expose catalog-backed dynamic options without exposing session details."""
+        if not isinstance(source_id, str) or not source_id.strip():
+            raise UniversalQueryError("option_source_required", "请提供选项来源")
+        try:
+            options = self.executor.load_options(source_id.strip())
+        except Exception as error:
+            raise self._execution_error(error, "options_failed", "动态选项读取失败") from error
+        safe_options = []
+        for item in options:
+            if isinstance(item, dict):
+                safe_options.append({str(key): deepcopy(value) for key, value in item.items()})
+        return {"ok": True, "source": source_id.strip(), "options": safe_options}
+
     def operation(self, operation_id: str) -> dict[str, object]:
         return {"ok": True, "operation": self._operation(self._record(operation_id))}
 

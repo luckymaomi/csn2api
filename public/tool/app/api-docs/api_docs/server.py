@@ -194,6 +194,9 @@ def create_server(
                         self._send_json(universal_query.sessions())
                     elif path == "/api/universal-query/v1/operations":
                         self._send_json(universal_query.operations())
+                    elif path.startswith("/api/universal-query/v1/options/"):
+                        source_id = unquote(path.removeprefix("/api/universal-query/v1/options/"))
+                        self._send_json(universal_query.options(source_id))
                     elif path.startswith("/api/universal-query/v1/operations/"):
                         operation_id = unquote(path.removeprefix("/api/universal-query/v1/operations/"))
                         self._send_json(universal_query.operation(operation_id))

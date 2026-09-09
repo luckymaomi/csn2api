@@ -6,6 +6,8 @@
 
 先调用 `GET /operations`。每个操作的 `minimumInput` 就是最少需要向用户询问的参数；`parameters` 中 `mode=input` 的字段可以填写，`mode=fixed` 和 `mode=automatic` 由服务负责。参数有 `default` 时可省略，`risk` 为 `write` 表示动作会改变生产数据。
 
+需要读取门户动态选项时调用 `GET /options/<sourceId>`，例如锁班类型使用 `GET /options/lock-types`。该响应只返回当前选项的业务字段（代码、名称和门户要求的派生标识），不返回 Cookie、请求 URL 或原始响应正文。
+
 向 `POST /sessions/<systemId>` 提交以下 JSON 验证系统凭据。支持完整 Cookie Header 或浏览器 Network 复制的 Copy as cURL；凭据不会在万能查询响应中回显。
 
 ```json

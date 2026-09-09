@@ -279,6 +279,13 @@ class ServerTests(unittest.TestCase):
         self.assertNotIn("private-original-response", serialized_result)
         self.assertNotIn("private-debug-header", serialized_result)
 
+    def test_universal_query_exposes_dynamic_lock_options(self) -> None:
+        options = self.request("/api/universal-query/v1/options/lock-types")
+        self.assertTrue(options["ok"])
+        self.assertEqual(options["source"], "lock-types")
+        self.assertEqual(options["options"][0]["value"], "TEST")
+        self.assertNotIn("cookie", json.dumps(options).lower())
+
     def test_universal_query_materializes_defaults_and_polls_progressive_runs(self) -> None:
         self.request(
             "/api/universal-query/v1/sessions/oa",
