@@ -10,7 +10,7 @@ except ImportError:
     from common import APP_ROOT, PORTAL_PERSON_HEADERS, person_row, portal_export_bytes  # type: ignore[no-redef]  # noqa: F401
 
 from http_qualification_roster.exporter import RosterWorkbook
-from ieb_protocol.roster_models import QueryFilters
+from ieb_protocol.roster_models import CAP_TECHNICAL_LEVELS, QueryFilters
 from ieb_protocol.qualification_roster import QualificationRosterProtocol
 from http_qualification_roster.portal_client import (
     build_filter_params,
@@ -63,6 +63,16 @@ class QualificationRosterCoreTests(unittest.TestCase):
         )
         self.assertEqual([value for name, value in params if name == "operQualArray"], ["RAMA"])
         self.assertEqual([value for name, value in params if name == "fleetCdToArray"], ["777"])
+
+    def test_cap_alias_expands_to_all_captain_and_instructor_levels(self) -> None:
+        filters = QueryFilters.from_payload({"qualTypeArray": ["CAP"]})
+        self.assertEqual(filters.technical_levels, list(CAP_TECHNICAL_LEVELS))
+        params = build_filter_params(filters, "")
+        self.assertEqual(
+            [value for name, value in params if name == "qualTypeArray"],
+            list(CAP_TECHNICAL_LEVELS),
+        )
+        self.assertEqual([value for name, value in params if name == "operQualArray"], [""])
 
     def test_portal_export_projects_page_columns_and_drops_selection_column(self) -> None:
         export_headers, export_rows = parse_ooxml_rows(portal_export_bytes())

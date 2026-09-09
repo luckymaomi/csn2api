@@ -84,8 +84,6 @@ def build_filter_params(
     timestamp: int | None = None,
 ) -> list[tuple[str, str]]:
     code = _text(qualification_code)
-    if not code:
-        raise ValueError("运行资格代码不能为空")
     params: list[tuple[str, str]] = [
         ("personName", filters.person_name),
         ("staffNumAllDesc", ""),

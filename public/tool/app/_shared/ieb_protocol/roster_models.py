@@ -8,6 +8,10 @@ DEFAULT_QUALIFICATION_CODES = (
     "ESEA", "RANC", "RORD", "RJFK", "RLAX", "RNLU",
 )
 DEFAULT_ACTIVE_STATUSES = ("ZAIZHI", "WAIBU", "TUIXIU", "LIZHI")
+CAP_TECHNICAL_LEVELS = (
+    "CAPZ", "CAPA", "CAPB", "CAPC", "CAPD", "CAPR", "CAPS",
+    "RCAP", "CAPTA", "CAPTB", "CAPTC", "CAPE", "CAPF",
+)
 
 
 def _text(value: object) -> str:
@@ -22,6 +26,17 @@ def _values(value: object) -> list[str]:
         if normalized and normalized not in result:
             result.append(normalized)
     return result
+
+
+def expand_technical_levels(value: object) -> list[str]:
+    """Expand friendly technical-level aliases into portal option values."""
+    expanded: list[str] = []
+    for item in _values(value):
+        candidates = CAP_TECHNICAL_LEVELS if item.upper() == "CAP" else (item,)
+        for candidate in candidates:
+            if candidate not in expanded:
+                expanded.append(candidate)
+    return expanded
 
 
 @dataclass(frozen=True)
@@ -93,7 +108,7 @@ class QueryFilters:
             technical_base=_text(data.get("techBase")),
             fleet_codes=_values(data.get("fleetCdToArray")),
             multi_qualification=_text(data.get("bolMultiQualCd")),
-            technical_levels=_values(data.get("qualTypeArray")),
+            technical_levels=expand_technical_levels(data.get("qualTypeArray")),
             help_flying=_text(data.get("bolPriBase")),
             instructor_checker=_text(data.get("bolJCY")),
             active_statuses=_values(data.get("activeStatusArray")),

@@ -236,6 +236,7 @@ class CatalogTests(unittest.TestCase):
             self.assertTrue(parameters["fleetCdToArray"]["repeatable"])
             self.assertTrue(parameters["activeStatusArray"]["repeatable"])
             self.assertFalse(parameters["qualTypeArray"].get("includeWhenEmpty", False))
+            self.assertFalse(parameters["operQualArray"].get("required", False))
 
     def test_caac_catalog_matches_shared_protocol_core(self) -> None:
         listing = self.catalog.get_endpoint("caac-pilot-export.pilot-list").endpoint

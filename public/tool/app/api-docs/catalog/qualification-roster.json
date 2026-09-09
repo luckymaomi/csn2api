@@ -63,13 +63,13 @@
         { "name": "techBase", "in": "query", "label": "技术基地", "type": "text", "default": "", "includeWhenEmpty": true },
         { "name": "fleetCdToArray", "in": "query", "label": "执飞机型", "type": "text", "required": true, "repeatable": true, "description": "重复参数；来自当前动态筛选页" },
         { "name": "bolMultiQualCd", "in": "query", "label": "是否混飞", "type": "text", "default": "", "includeWhenEmpty": true },
-        { "name": "qualTypeArray", "in": "query", "label": "技术等级", "type": "text", "repeatable": true, "description": "未选择时省略，不补空值" },
+        { "name": "qualTypeArray", "in": "query", "label": "技术等级", "type": "text", "repeatable": true, "description": "门户真实技术等级；传入友好别名 CAP 时展开为 CAPZ、CAPA、CAPB、CAPC、CAPD、CAPR、CAPS、RCAP、CAPTA、CAPTB、CAPTC、CAPE、CAPF" },
         { "name": "bolPriBase", "in": "query", "label": "是否帮飞", "type": "text", "default": "", "includeWhenEmpty": true },
         { "name": "bolJCY", "in": "query", "label": "检查员/教员", "type": "text", "default": "", "includeWhenEmpty": true },
         { "name": "activeStatusArray", "in": "query", "label": "在职状态", "type": "text", "required": true, "repeatable": true, "description": "全部状态需重复发送 ZAIZHI、WAIBU、TUIXIU、LIZHI" },
         { "name": "fleetCdbranch", "in": "query", "label": "分部", "type": "text", "default": "", "includeWhenEmpty": true },
         { "name": "isOperQual", "in": "query", "label": "运行资格", "type": "text", "default": "Y", "fixed": true },
-        { "name": "operQualArray", "in": "query", "label": "运行资格代码", "type": "text", "required": true, "description": "每次只填写一个代码；多代码 OR 不能归属单项资格" },
+        { "name": "operQualArray", "in": "query", "label": "运行资格代码", "type": "text", "description": "可选；每次最多填写一个代码。与技术等级同时填写时按门户组合筛选" },
         { "name": "isPl", "in": "query", "label": "偏离", "type": "text", "default": "", "includeWhenEmpty": false },
         { "name": "page", "in": "query", "label": "页码", "type": "number", "default": "1", "required": true },
         { "name": "currentStr", "in": "query", "label": "防缓存参数", "type": "text", "auto": "timestamp", "fixed": true }
@@ -99,7 +99,7 @@
         { "name": "activeStatusArray", "in": "query", "label": "在职状态", "type": "text", "repeatable": true, "required": true },
         { "name": "fleetCdbranch", "in": "query", "label": "分部", "type": "text", "default": "", "includeWhenEmpty": true },
         { "name": "isOperQual", "in": "query", "label": "运行资格", "type": "text", "default": "Y", "fixed": true },
-        { "name": "operQualArray", "in": "query", "label": "运行资格代码", "type": "text", "required": true },
+        { "name": "operQualArray", "in": "query", "label": "运行资格代码", "type": "text", "description": "可选；技术等级查询可留空" },
         { "name": "isPl", "in": "query", "label": "偏离", "type": "text", "default": "", "includeWhenEmpty": false },
         { "name": "currentStr", "in": "query", "label": "防缓存参数", "type": "text", "auto": "timestamp", "fixed": true }
       ],
@@ -130,7 +130,7 @@
   ],
   "technicalNotes": [
     "运行资格列表当前一次返回的数量和代码完全动态；复选框 value 是内部 ID，查询必须使用行内 data-qualCd。",
-    "operQualArray 多代码查询语义为 OR；本地名册工作流按资格逐项执行，不能把一次 OR 结果猜测成单项资质。",
+    "operQualArray 多代码查询语义为 OR；本地名册工作流按资格逐项执行，不能把一次 OR 结果猜测成单项资质；技术等级别名 CAP 在共享 core 中展开为 13 项机长/教员等级。",
     "普通导出必须复刻实际表单参数存在性；未选择的 qualTypeArray 不补空参数。",
     "普通导出响应体按 OOXML ZIP 处理，worksheet dimension 可能错误为 A1，解析时必须读取真实行节点。",
     "本地工作流默认直飞机型 777、全部人员状态和 owner 指定的 13 个默认资格；默认值仅用于页面初始选择，资格选项不写死。"

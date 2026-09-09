@@ -13,7 +13,7 @@
 
 ## 请求与归属
 
-- `showEmpProfileCompositeResult` 的 `operQualArray` 每次只发送一个资格代码。门户多个代码查询是 OR，不能用一次多选结果推断人员对应的单项资格。
+- `showEmpProfileCompositeResult` 的 `operQualArray` 可留空，也可每次发送一个资格代码。门户多个代码查询是 OR，不能用一次多选结果推断人员对应的单项资格；`qualTypeArray=CAP` 是共享 core 提供的友好别名，发送时展开为当前门户的 13 个机长/教员技术等级。
 - `activeStatusArray` 和多选机型/技术等级按重复 Query 参数发送；未选择的 `qualTypeArray` 省略，不能补空值。
 - 每项先记录查询总人数，再调用 `/createEmpProfileCompositeExcel`。普通导出响应虽可能命名为 `.xls`，实际按 OOXML ZIP 验证；worksheet 的 dimension 错误不能作为空文件依据，读取前重置维度。
 - 人员字段及顺序由当前查询结果表头决定，空表头和 `#` 选择列不进入结果。普通导出必须包含查询页全部人员字段，再按查询页顺序投影全量人员；当前确认字段为员工号、姓名、技术基地、注册基地、运行基地、技术信息、实际机型、保护等级、性别、在职状态、出生日期、国籍、政治面貌、所属部门、行政职务、行政级别。
