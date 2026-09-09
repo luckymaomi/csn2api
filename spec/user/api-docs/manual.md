@@ -30,6 +30,10 @@ Cookie 文件等同于登录凭据，只保存在受控本机，不发送给他�
 
 API 文档的生产请求仍由 Python `requests` 发送，但请求头会显式携带浏览器 User-Agent，不会使用 `python-requests/...` 默认标识；OA 粘贴完整 cURL 时优先沿用其中的 User-Agent，纯 Cookie 输入才使用默认浏览器 User-Agent。
 
+## 万能查询
+
+机器人、CLI 和其他受控本机程序可使用 `/api/universal-query/v1` 的标准 JSON 接口，而不是消费调试页面的原始正文和响应 headers。先读取 `GET /operations`，按每个操作的 `minimumInput` 向用户收集最少字段；再向 `POST /sessions/<systemId>` 载入 Cookie/cURL，并向 `POST /executions` 提交 `operation` 与 `parameters`。固定和自动参数不需要传入，Catalog 默认值会自动补齐。查询结果只有摘要和表格，不回传 Cookie、请求 URL、原始响应或调试 headers；渐进操作返回 `runId` 后以 `GET /executions/<runId>` 轮询。读写操作都会列出，调用 `risk=write` 的操作前仍需取得当前对象和动作授权。完整请求示例见 `spec/user/universal-query/manual.md`。
+
 飞行人员信息查询的运行资格接口默认包含当前和历史资格，等价于门户勾选“查看历史资格”。培训记录接口在文档中按页单次调用；要读取全部分页，请使用“飞行人员信息查询（皇帝版）”工作台。
 
 CAAC 的“有效飞行员分页列表”支持按姓名和档案号筛选，并按当前返回字段展示表格。“按姓名查询单个飞行员详情”先查询列表：姓名唯一时自动使用列表返回的 `pilotId` 获取详情；重名时填写档案号继续筛选，仍不唯一则停止。详情的基础字段、资质树、教育、工作、检查和打印记录按当前响应分别显示，不需要手工记忆飞行员 ID。

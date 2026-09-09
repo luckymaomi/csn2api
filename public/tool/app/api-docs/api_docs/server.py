@@ -12,6 +12,7 @@ from uuid import uuid4
 
 from .catalog import ApiCatalog
 from .executor import ApiExecutor
+from universal_query import UniversalQueryError, UniversalQueryService
 
 
 class ApiDocsServer(ThreadingHTTPServer):
@@ -108,6 +109,7 @@ def create_server(
     catalog = executor.catalog if executor is not None else ApiCatalog(app_directory / "catalog")
     request_executor = executor or ApiExecutor(catalog)
     execution_tasks = ExecutionTaskStore(request_executor, catalog)
+    universal_query = UniversalQueryService(catalog, request_executor, execution_tasks)
     shared_static_root = app_directory.parents[2] if len(app_directory.parents) >= 3 else app_directory
 
     def shared_asset(relative_path: str) -> Path:
@@ -184,6 +186,27 @@ def create_server(
 
         def do_GET(self) -> None:  # noqa: N802
             path = urlparse(self.path).path
+            if path.startswith("/api/universal-query/v1"):
+                try:
+                    if path == "/api/universal-query/v1/health":
+                        self._send_json(universal_query.health())
+                    elif path == "/api/universal-query/v1/sessions":
+                        self._send_json(universal_query.sessions())
+                    elif path == "/api/universal-query/v1/operations":
+                        self._send_json(universal_query.operations())
+                    elif path.startswith("/api/universal-query/v1/operations/"):
+                        operation_id = unquote(path.removeprefix("/api/universal-query/v1/operations/"))
+                        self._send_json(universal_query.operation(operation_id))
+                    elif path.startswith("/api/universal-query/v1/executions/"):
+                        run_id = unquote(path.removeprefix("/api/universal-query/v1/executions/"))
+                        self._send_json(universal_query.execution(run_id))
+                    else:
+                        self._send_json(universal_query.error_response(
+                            UniversalQueryError("route_not_found", "接口不存在"),
+                        ), HTTPStatus.NOT_FOUND)
+                except Exception as error:
+                    self._send_json(universal_query.error_response(error), HTTPStatus.BAD_REQUEST)
+                return
             if path == "/api/health":
                 self._send_json({"available": True, "sessions": request_executor.all_session_statuses()})
                 return
@@ -217,6 +240,23 @@ def create_server(
             path = urlparse(self.path).path
             try:
                 payload = self._read_json()
+                if path.startswith("/api/universal-query/v1"):
+                    if path.startswith("/api/universal-query/v1/sessions/"):
+                        system_id = unquote(path.removeprefix("/api/universal-query/v1/sessions/"))
+                        result = universal_query.load_session(system_id, payload.get("credential"))
+                        self._send_json(result)
+                        return
+                    if path == "/api/universal-query/v1/executions":
+                        result, accepted = universal_query.execute(
+                            payload.get("operation"),
+                            payload.get("parameters", {}),
+                        )
+                        self._send_json(result, HTTPStatus.ACCEPTED if accepted else HTTPStatus.OK)
+                        return
+                    self._send_json(universal_query.error_response(
+                        UniversalQueryError("route_not_found", "接口不存在"),
+                    ), HTTPStatus.NOT_FOUND)
+                    return
                 if path == "/api/session":
                     result = request_executor.load_credentials(
                         str(payload.get("credentials", "") or ""),
@@ -239,10 +279,25 @@ def create_server(
                     return
                 self._send_json(result)
             except Exception as error:
-                self._send_json({"error": str(error)}, HTTPStatus.BAD_REQUEST)
+                if path.startswith("/api/universal-query/v1"):
+                    self._send_json(universal_query.error_response(error), HTTPStatus.BAD_REQUEST)
+                else:
+                    self._send_json({"error": str(error)}, HTTPStatus.BAD_REQUEST)
 
         def do_DELETE(self) -> None:  # noqa: N802
             parsed = urlparse(self.path)
+            if parsed.path.startswith("/api/universal-query/v1"):
+                try:
+                    if parsed.path.startswith("/api/universal-query/v1/sessions/"):
+                        system_id = unquote(parsed.path.removeprefix("/api/universal-query/v1/sessions/"))
+                        self._send_json(universal_query.clear_session(system_id))
+                    else:
+                        self._send_json(universal_query.error_response(
+                            UniversalQueryError("route_not_found", "接口不存在"),
+                        ), HTTPStatus.NOT_FOUND)
+                except Exception as error:
+                    self._send_json(universal_query.error_response(error), HTTPStatus.BAD_REQUEST)
+                return
             if parsed.path != "/api/session":
                 self._send_json({"error": "接口不存在"}, HTTPStatus.NOT_FOUND)
                 return
@@ -253,4 +308,5 @@ def create_server(
     server = ApiDocsServer(("127.0.0.1", port), Handler)
     server.executor = request_executor  # type: ignore[attr-defined]
     server.execution_tasks = execution_tasks  # type: ignore[attr-defined]
+    server.universal_query = universal_query  # type: ignore[attr-defined]
     return server

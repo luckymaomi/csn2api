@@ -1,0 +1,8 @@
+{
+  "operation": "flight-stats.query",
+  "parameters": {
+    "staffNum": "<员工号>",
+    "startStr": "<YYYY-MM-DD>",
+    "endStr": "<YYYY-MM-DD>"
+  }
+}

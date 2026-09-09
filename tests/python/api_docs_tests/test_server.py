@@ -14,13 +14,15 @@ from api_docs.server import create_server
 class StubExecutor:
     def __init__(self) -> None:
         self.catalog = ApiCatalog(CATALOG_ROOT)
-        self.ready = {"flight-portal": False, "oa": False}
+        self.ready = {"flight-portal": False, "oa": False, "soc": False}
         self.calls: list[tuple[object, ...]] = []
         self.progress_started = threading.Event()
         self.progress_release = threading.Event()
 
     def session_status(self, system_id="flight-portal") -> dict[str, object]:
         ready = self.ready[system_id]
+        if system_id == "soc":
+            return {"cookieNames": ["JSESSIONID"] if ready else [], "cookieCount": 1 if ready else 0}
         names = ["JSESSIONID", "iebJSid"] if system_id == "flight-portal" else ["SESSION", "ROUTE-SESSION"]
         return {"ready": ready, "cookieNames": names if ready else [], "cookieCount": 2 if ready else 0}
 
@@ -98,8 +100,8 @@ class StubExecutor:
     def _execution_result(rows: list[dict[str, object]]) -> dict[str, object]:
         return {
             "status": 200,
-            "body": "ok",
-            "headers": {},
+            "body": "private-original-response",
+            "headers": {"X-Debug-Header": "private-debug-header"},
             "elapsedMilliseconds": 1,
             "data": {
                 "tables": [{"id": "results", "title": "结果", "columns": ["title", "status"], "rows": rows}],
@@ -164,7 +166,7 @@ class ServerTests(unittest.TestCase):
         options = self.request("/api/options/lock-types")
         self.assertEqual(options["options"][0]["value"], "TEST")
         result = self.request("/api/execute", "POST", {"endpointId": "flight-stats.query", "parameters": {}})
-        self.assertEqual(result["body"], "ok")
+        self.assertEqual(result["body"], "private-original-response")
         oa_cleared = self.request("/api/session?systemId=oa", "DELETE")
         self.assertTrue(oa_cleared["sessions"]["flight-portal"]["ready"])
         self.assertFalse(oa_cleared["sessions"]["oa"]["ready"])
@@ -224,6 +226,85 @@ class ServerTests(unittest.TestCase):
             completed = self.request(f"/api/execute/{task_id}")
         self.assertEqual(completed["state"], "completed")
         self.assertEqual(len(completed["result"]["data"]["tables"][0]["rows"]), 2)
+
+    def test_universal_query_exposes_dynamic_operations_and_safe_results(self) -> None:
+        operations = self.request("/api/universal-query/v1/operations")
+        self.assertTrue(operations["ok"])
+        self.assertEqual(
+            {item["operation"] for item in operations["operations"]},
+            set(self.executor.catalog.endpoints),
+        )
+        flight_stats = next(
+            item for item in operations["operations"]
+            if item["operation"] == "flight-stats.query"
+        )
+        self.assertEqual(flight_stats["systemId"], "flight-portal")
+        self.assertEqual(flight_stats["risk"], "read")
+        self.assertEqual(
+            flight_stats["minimumInput"],
+            ["staffNum", "startStr", "endStr"],
+        )
+        self.assertTrue(any(item["operation"] == "lock-entry.submit" and item["risk"] == "write" for item in operations["operations"]))
+        self.assertTrue(any(parameter["name"] == "currentStr" and parameter["mode"] == "automatic" for parameter in flight_stats["parameters"]))
+        self.executor.ready["soc"] = True
+        self.assertTrue(self.request("/api/universal-query/v1/sessions")["sessions"]["soc"]["ready"])
+
+        session = self.request(
+            "/api/universal-query/v1/sessions/flight-portal",
+            "POST",
+            {"credential": "secret-cookie-text"},
+        )
+        serialized_session = json.dumps(session)
+        self.assertTrue(session["ok"])
+        self.assertNotIn("secret-cookie-text", serialized_session)
+        self.assertNotIn("session-value", serialized_session)
+        self.assertNotIn("browser-value", serialized_session)
+
+        completed = self.request("/api/universal-query/v1/executions", "POST", {
+            "operation": "flight-stats.query",
+            "parameters": {
+                "staffNum": "900001",
+                "startStr": "2026-01-01",
+                "endStr": "2026-01-31",
+            },
+        })
+        serialized_result = json.dumps(completed)
+        self.assertTrue(completed["ok"])
+        self.assertEqual(completed["state"], "completed")
+        self.assertEqual(completed["result"]["meta"]["status"], 200)
+        self.assertEqual(completed["result"]["summary"], {"success": 0})
+        self.assertEqual(completed["result"]["tables"][0]["id"], "results")
+        self.assertNotIn("body", completed["result"])
+        self.assertNotIn("headers", completed["result"])
+        self.assertNotIn("private-original-response", serialized_result)
+        self.assertNotIn("private-debug-header", serialized_result)
+
+    def test_universal_query_materializes_defaults_and_polls_progressive_runs(self) -> None:
+        self.request(
+            "/api/universal-query/v1/sessions/oa",
+            "POST",
+            {"credential": "oa-cookie-text"},
+        )
+        started = self.request("/api/universal-query/v1/executions", "POST", {
+            "operation": "oa-read.read",
+            "parameters": {},
+        })
+        self.assertEqual(started["state"], "running")
+        self.assertEqual(started["risk"], "write")
+        self.assertEqual(self.executor.calls[-1], ("execute", "oa-read.read", {"count": "10"}))
+        self.assertTrue(self.executor.progress_started.wait(timeout=1))
+
+        running = self.request(f"/api/universal-query/v1/executions/{started['runId']}")
+        self.assertEqual(running["state"], "running")
+        self.assertEqual(len(running["result"]["tables"][0]["rows"]), 1)
+
+        self.executor.progress_release.set()
+        deadline = time.monotonic() + 2
+        completed = running
+        while completed["state"] == "running" and time.monotonic() < deadline:
+            completed = self.request(f"/api/universal-query/v1/executions/{started['runId']}")
+        self.assertEqual(completed["state"], "completed")
+        self.assertEqual(len(completed["result"]["tables"][0]["rows"]), 2)
 
 
 if __name__ == "__main__":
