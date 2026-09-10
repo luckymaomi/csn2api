@@ -34,6 +34,16 @@ body { min-width: 320px; min-height: 100vh; margin: 0; background: var(--watchdo
 .stage-actions, .download-row { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 16px; }
 .stage-actions .btn, .download-row .btn { min-height: 40px; }
 .query-note, .progress-text { margin-top: 12px; color: var(--watchdog-text-muted); font-size: 12px; }
+.area-default-panel { margin-top: 14px; border: 1px solid var(--watchdog-divider); background: var(--watchdog-surface-soft); }
+.area-default-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border-bottom: 1px solid var(--watchdog-divider); background: var(--watchdog-surface-muted); }
+.area-default-heading h3 { margin: 0; font-size: 14px; }
+.area-default-heading span { color: var(--watchdog-text-muted); font-size: 12px; white-space: nowrap; }
+.area-default-catalog { display: block; }
+.area-default-item { min-width: 0; padding: 10px 12px; border-bottom: 1px solid var(--watchdog-divider); font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
+.area-default-item:last-child { border-bottom: 0; }
+.area-default-item strong { margin-right: 3px; font-size: 13px; }
+.area-default-subjects { color: var(--watchdog-text-muted); }
+.area-default-empty { grid-column: 1 / -1; padding: 16px 12px; color: var(--watchdog-text-muted); font-size: 12px; text-align: center; }
 .progress { height: 10px; margin: 0; background: var(--watchdog-surface-muted); }
 .progress-bar { background: var(--watchdog-info-text); }
 .summary-table-wrap { margin-top: 16px; overflow-x: auto; border: 1px solid var(--watchdog-divider); background: var(--watchdog-surface-soft); }

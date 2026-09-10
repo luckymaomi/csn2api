@@ -59,6 +59,13 @@
         <button id="stopButton" class="btn btn-outline-danger" type="button" disabled>停止</button>
       </div>
       <div id="areaDefaultStatus" class="query-note">加载训练类别后，区域默认配置会自动校验 11 个业务类型。</div>
+      <section class="area-default-panel" aria-labelledby="areaDefaultTitle">
+        <div class="area-default-heading">
+          <h3 id="areaDefaultTitle">区域默认查询范围</h3>
+          <span id="areaDefaultCount">正在读取配置</span>
+        </div>
+        <div id="areaDefaultCatalog" class="area-default-catalog"><span class="area-default-empty">正在读取默认类型和科目</span></div>
+      </section>
       <div class="query-note">默认结束日期为本地今日；查询严格按周期和页码串行执行，结果完成后可下载 Excel。</div>
     </section>
 

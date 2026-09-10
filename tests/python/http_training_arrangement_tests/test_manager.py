@@ -60,6 +60,19 @@ class FakeClient:
 
 
 class ManagerTests(unittest.TestCase):
+    def test_initial_state_exposes_the_default_area_catalog(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            manager = RunManager(Path(directory), client=FakeClient())  # type: ignore[arg-type]
+            try:
+                catalog = manager.snapshot()["areaDefaults"]["categories"]
+                self.assertEqual([item["name"] for item in catalog], [item.name for item in AREA_DEFAULTS])
+                self.assertEqual(
+                    sum(len(item["subjects"]) for item in catalog),
+                    sum(len(item.subjects) for item in AREA_DEFAULTS),
+                )
+            finally:
+                manager.shutdown()
+
     def test_verify_load_query_and_excel_download_keep_credentials_private(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             client = FakeClient()

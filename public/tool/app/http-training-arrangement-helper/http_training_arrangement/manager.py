@@ -4,12 +4,13 @@ import copy
 import re
 import threading
 import uuid
+from collections.abc import Iterable
 from datetime import date, datetime
 from pathlib import Path
 from typing import Callable
 
 from .exporter import ResultExporter
-from .area_defaults import area_details, resolve_area_defaults
+from .area_defaults import AREA_DEFAULTS, AreaCategory, ResolvedAreaCategory, area_details, resolve_area_defaults
 from .models import Event, QueryInput
 from .portal_client import PortalClient, PortalSessionExpired
 from .runner import AreaDefaultRunner, QueryRunner
@@ -21,6 +22,16 @@ SECRET_PATTERN = re.compile(r"(?i)(JSESSIONID|iebJSid)\s*=\s*[^;\s]+")
 
 def _safe_error(error: Exception) -> str:
     return SECRET_PATTERN.sub(r"\1=[已隐藏]", str(error) or error.__class__.__name__)
+
+
+def _area_catalog(categories: Iterable[AreaCategory | ResolvedAreaCategory]) -> list[dict[str, object]]:
+    return [
+        {
+            "name": category.name,
+            "subjects": [str(getattr(subject, "label", subject)) for subject in category.subjects],
+        }
+        for category in categories
+    ]
 
 
 class RunManager:
@@ -47,7 +58,7 @@ class RunManager:
             "message": "等待验证登录凭据",
             "session": {"verified": False, "verifiedAt": "", "identity": None, "cookieCount": 0},
             "metadata": {"loaded": False, "options": []},
-            "areaDefaults": {"available": False, "categories": [], "error": ""},
+            "areaDefaults": {"available": False, "categories": _area_catalog(AREA_DEFAULTS), "error": ""},
             "selection": {"category": "", "dateRange": "all", "endDate": ""},
             "progress": {"period": "", "page": 0, "pages": 0, "records": 0},
             "results": [],
@@ -146,10 +157,7 @@ class RunManager:
             self._state["areaDefaults"] = {
                 "available": not area_error,
                 "error": area_error,
-                "categories": [
-                    {"name": category.name, "subjects": [item.label for item in category.subjects]}
-                    for category in self._area_categories
-                ],
+                "categories": _area_catalog(self._area_categories or AREA_DEFAULTS),
             }
             self._state["phase"] = "ready"
             self._state["message"] = f"已加载 {len(options)} 个训练类别"

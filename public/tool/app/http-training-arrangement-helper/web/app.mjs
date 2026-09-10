@@ -4,7 +4,7 @@ const elements = {
   savedCredentialsPanel: $("savedCredentialsPanel"), savedCredentials: $("savedCredentials"), copyCredentialsButton: $("copyCredentialsButton"),
   sessionVerified: $("sessionVerified"), sessionVerifiedAt: $("sessionVerifiedAt"), sessionIdentity: $("sessionIdentity"), sessionCookieCount: $("sessionCookieCount"),
   keepAliveRing: $("keepAliveRing"), keepAliveCountdown: $("keepAliveCountdown"), keepAliveStatus: $("keepAliveStatus"), keepAliveDetail: $("keepAliveDetail"),
-  categorySelect: $("categorySelect"), dateRange: $("dateRange"), endDate: $("endDate"), metadataButton: $("metadataButton"), runButton: $("runButton"), areaRunButton: $("areaRunButton"), stopButton: $("stopButton"), areaDefaultStatus: $("areaDefaultStatus"),
+  categorySelect: $("categorySelect"), dateRange: $("dateRange"), endDate: $("endDate"), metadataButton: $("metadataButton"), runButton: $("runButton"), areaRunButton: $("areaRunButton"), stopButton: $("stopButton"), areaDefaultStatus: $("areaDefaultStatus"), areaDefaultCount: $("areaDefaultCount"), areaDefaultCatalog: $("areaDefaultCatalog"),
   resultSummary: $("resultSummary"), progressBar: $("progressBar"), progressText: $("progressText"), summaryTable: $("summaryTable"), resultsViewport: $("resultsViewport"), resultsEmpty: $("resultsEmpty"), resultsTable: $("resultsTable"), excelDownload: $("excelDownload"), logList: $("logList"), themeToggle: $("themeToggle"),
 };
 
@@ -12,6 +12,7 @@ let savedCredentials = "";
 let followResults = true;
 let followLogs = true;
 let lastResultsSignature = "";
+let lastAreaDefaultsSignature = "";
 let keepAliveTimer = () => ({ active: false, remaining: 0, total: 0 });
 let keepAliveRenderer = null;
 
@@ -48,6 +49,33 @@ function showError(error) {
 function renderOptions(options = []) {
   elements.categorySelect.replaceChildren(new Option("请选择训练类别", ""), ...options.map((item) => new Option(item.label, item.value)));
   elements.categorySelect.disabled = options.length === 0;
+}
+
+function renderAreaDefaults(areaDefaults = {}) {
+  const categories = Array.isArray(areaDefaults.categories) ? areaDefaults.categories : [];
+  const subjectCount = categories.reduce((sum, category) => sum + (Array.isArray(category.subjects) ? category.subjects.length : 0), 0);
+  elements.areaDefaultCount.textContent = categories.length ? `${categories.length} 个类型 · ${subjectCount} 个科目` : "暂无配置";
+  const signature = JSON.stringify(categories);
+  if (signature === lastAreaDefaultsSignature) return;
+  lastAreaDefaultsSignature = signature;
+  if (!categories.length) {
+    const empty = document.createElement("span");
+    empty.className = "area-default-empty";
+    empty.textContent = "暂无默认类型和科目";
+    elements.areaDefaultCatalog.replaceChildren(empty);
+    return;
+  }
+  elements.areaDefaultCatalog.replaceChildren(...categories.map((category) => {
+    const item = document.createElement("div");
+    item.className = "area-default-item";
+    const name = document.createElement("strong");
+    name.textContent = `${escapeText(category.name)}：`;
+    const subjects = document.createElement("span");
+    subjects.className = "area-default-subjects";
+    subjects.textContent = (Array.isArray(category.subjects) ? category.subjects : []).map(escapeText).join("、");
+    item.append(name, subjects);
+    return item;
+  }));
 }
 
 function renderResults(results = []) {
@@ -151,6 +179,7 @@ function renderState(state) {
   elements.areaDefaultStatus.textContent = areaDefaults.available
     ? `区域默认配置已就绪：${(areaDefaults.categories || []).length} 个业务类型，可一键查询周、月、年。`
     : (areaDefaults.error || "加载训练类别后自动校验区域默认配置");
+  renderAreaDefaults(areaDefaults);
   renderSummary(state.summary || []);
   renderResults(results); renderLogs(state.logs || []);
   const downloadId = state.downloads?.excelId;

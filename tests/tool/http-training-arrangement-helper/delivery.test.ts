@@ -19,10 +19,14 @@ describe("HTTP training arrangement delivery", () => {
     expect(html).toContain("加载训练类别");
     expect(html).toContain("导出 Excel");
     expect(html).toContain("一键导出区域默认配置");
+    expect(html).toContain('id="areaDefaultCatalog"');
+    expect(html).toContain('id="areaDefaultCount"');
     expect(html).toContain('id="summaryTable"');
     expect(script).toContain("/api/metadata/load");
     expect(script).toContain("/api/run");
     expect(script).toContain('mode: "area-default"');
+    expect(script).toContain("renderAreaDefaults");
+    expect(script).toContain("areaDefaults.categories");
     expect(script).toContain("renderSummary");
     expect(script).toContain("navigator.clipboard.writeText");
     expect(requirements).toContain("requests");
