@@ -12,7 +12,7 @@
 - 人员归属：`GET /newieb/basics/showEmpProfileCompositeResult`，`personName` 使用员工号，`activeStatusArray=ZAIZHI`、`WAIBU`、`TUIXIU`、`LIZHI` 必须作为四个重复 Query 参数发送，以覆盖在职、外部、退休和离职人员。
 - 基础信息：`POST /newieb/hrInfo/showEmpInfo`，multipart 字段 `staffNum`，返回 `empDto`、`eduList`、`workList`、`titleList`、`relationList`，分别对应基本信息、教育经历、工作经历、职称信息、家庭信息。
 - 技术等级：`POST /newieb/basics/qualList`，表单字段 `staffNum`、`currentStr`，结果区域 `#qualList`。
-- 运行资格：`POST /newieb/basics/showSingleEmpHisOperQualListByempId`，表单字段 `empid`、`date`，等价于门户勾选“查看历史资格”，结果区域 `#showSingleEmpOperQualList`。
+- 运行资格：`POST /newieb/basics/showSingleEmpOperQualListByempIdNew`，表单字段 `empid`、`currentStr`，返回当前运行资格，结果区域 `#showSingleEmpOperQualList`。
 - 培训记录：`POST /newieb/basics/trainingRecordList`，表单字段 `page`、`staffId`、`fuzzyQuery=true`、`newMachineId`、`trainName`；每页最多 12 条，须从第 1 页遍历到末页，超过末页会重复末页，客户端不得继续请求。
 - 训练经历：`POST /newieb/basics/trainResultList`，表单字段 `staffNum`、`trainName`，一次返回全部训练记录，不读取历史记录。
 

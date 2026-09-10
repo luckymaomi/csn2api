@@ -583,8 +583,8 @@ class ExecutorTests(unittest.TestCase):
         operation = executor.execute("personnel-info.operation", {"empid": "900001"})
         self.assertEqual(operation["data"]["summary"]["recordCount"], 2)
         self.assertEqual(operation["data"]["tables"][0]["rows"][1]["运行资格"], "历史资格")
-        self.assertTrue(session.requests[-1]["url"].endswith("/newieb/basics/showSingleEmpHisOperQualListByempId"))
-        self.assertEqual(set(session.requests[-1]["data"]), {"empid", "date"})
+        self.assertTrue(session.requests[-1]["url"].endswith("/newieb/basics/showSingleEmpOperQualListByempIdNew"))
+        self.assertEqual(set(session.requests[-1]["data"]), {"empid", "currentStr"})
 
     def test_qualification_query_uses_fixed_code_and_parses_page_info(self) -> None:
         executor, session = self.create_executor([

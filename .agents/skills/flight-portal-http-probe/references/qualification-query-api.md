@@ -124,10 +124,10 @@ currentStr=<毫秒时间戳>
 
 结果区域为 `#qualList`。区域内第一个 table 是 9 列表头，第二个 table 是数据：`#`、技术等级代码、技术等级、水平等级、机型、生效时间、失效时间、对应检查记录、数据来源。
 
-## 运行资格（含历史）
+## 运行资格
 
 ```text
-POST https://ieb.csair.com/newieb/basics/showSingleEmpHisOperQualListByempId
+POST https://ieb.csair.com/newieb/basics/showSingleEmpOperQualListByempIdNew
 Content-Type: application/x-www-form-urlencoded; charset=UTF-8
 ```
 
@@ -135,10 +135,10 @@ Form：
 
 ```text
 empid=<六位员工号>
-date=<毫秒时间戳>
+currentStr=<毫秒时间戳>
 ```
 
-该接口等价于门户勾选“查看历史资格”，同时返回当前和历史运行资格。已确认 `empid` 使用员工号，不是页面内部 ID。结果区域为 `#showSingleEmpOperQualList`。区域内第一个 table 是 8 列表头，第二个 table 是数据：类型、运行资格代码、运行资格、水平等级、机型、生效时间、失效时间、备注。
+该接口返回当前运行资格。已确认 `empid` 使用员工号，不是页面内部 ID。结果区域为 `#showSingleEmpOperQualList`。区域内第一个 table 是 8 列表头，第二个 table 是数据：类型、运行资格代码、运行资格、水平等级、机型、生效时间、失效时间、备注。
 
 运行资格存在 `rowspan` 和 `colspan`，必须展开为规则网格；单元格有 `title` 时优先读取完整值。每行展开后的宽度必须与表头一致，不能静默截断或错位。
 

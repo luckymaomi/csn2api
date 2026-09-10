@@ -179,8 +179,8 @@ class CatalogTests(unittest.TestCase):
         self.assertEqual([item["name"] for item in basic["response"]["fields"]], [
             "empDto", "eduList", "workList", "titleList", "relationList",
         ])
-        self.assertEqual(operation["path"], "/newieb/basics/showSingleEmpHisOperQualListByempId")
-        self.assertEqual({item["name"] for item in operation["parameters"]}, {"empid", "date"})
+        self.assertEqual(operation["path"], "/newieb/basics/showSingleEmpOperQualListByempIdNew")
+        self.assertEqual({item["name"] for item in operation["parameters"]}, {"empid", "currentStr"})
         self.assertEqual(training["path"], "/newieb/basics/trainingRecordList")
         self.assertEqual({item["name"] for item in training["parameters"]}, {
             "page", "staffId", "fuzzyQuery", "newMachineId", "trainName",
