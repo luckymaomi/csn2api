@@ -63,7 +63,7 @@
         { "name": "techBase", "in": "query", "label": "技术基地", "type": "text", "default": "", "includeWhenEmpty": true },
         { "name": "fleetCdToArray", "in": "query", "label": "执飞机型", "type": "text", "required": true, "repeatable": true, "description": "重复参数；来自当前动态筛选页" },
         { "name": "bolMultiQualCd", "in": "query", "label": "是否混飞", "type": "text", "default": "", "includeWhenEmpty": true },
-        { "name": "qualTypeArray", "in": "query", "label": "技术等级", "type": "text", "repeatable": true, "description": "门户真实技术等级；传入友好别名 CAP 时展开为 CAPZ、CAPA、CAPB、CAPC、CAPD、CAPR、CAPS、RCAP、CAPTA、CAPTB、CAPTC、CAPE、CAPF" },
+        { "name": "qualTypeArray", "in": "query", "label": "技术等级", "type": "text", "repeatable": true, "description": "门户真实技术等级；传入友好别名 CAP 时展开为全部机长/教员等级，传入 FO 时展开为 FOA1、FOA2、FOB、FOC、FOD、FOE" },
         { "name": "bolPriBase", "in": "query", "label": "是否帮飞", "type": "text", "default": "", "includeWhenEmpty": true },
         { "name": "bolJCY", "in": "query", "label": "检查员/教员", "type": "text", "default": "", "includeWhenEmpty": true },
         { "name": "activeStatusArray", "in": "query", "label": "在职状态", "type": "text", "required": true, "repeatable": true, "description": "全部状态需重复发送 ZAIZHI、WAIBU、TUIXIU、LIZHI" },

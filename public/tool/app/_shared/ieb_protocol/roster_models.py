@@ -12,6 +12,11 @@ CAP_TECHNICAL_LEVELS = (
     "CAPZ", "CAPA", "CAPB", "CAPC", "CAPD", "CAPR", "CAPS",
     "RCAP", "CAPTA", "CAPTB", "CAPTC", "CAPE", "CAPF",
 )
+FO_TECHNICAL_LEVELS = ("FOA1", "FOA2", "FOB", "FOC", "FOD", "FOE")
+TECHNICAL_LEVEL_ALIASES = {
+    "CAP": CAP_TECHNICAL_LEVELS,
+    "FO": FO_TECHNICAL_LEVELS,
+}
 
 
 def _text(value: object) -> str:
@@ -32,7 +37,7 @@ def expand_technical_levels(value: object) -> list[str]:
     """Expand friendly technical-level aliases into portal option values."""
     expanded: list[str] = []
     for item in _values(value):
-        candidates = CAP_TECHNICAL_LEVELS if item.upper() == "CAP" else (item,)
+        candidates = TECHNICAL_LEVEL_ALIASES.get(item.upper(), (item,))
         for candidate in candidates:
             if candidate not in expanded:
                 expanded.append(candidate)
