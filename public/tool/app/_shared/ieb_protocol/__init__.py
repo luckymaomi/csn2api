@@ -12,6 +12,7 @@ from .base import (
 )
 from .flight_detail import FlightDetailProtocol
 from .flight_detail_contract import DETAIL_HEADERS
+from .training_arrangement import TrainingArrangementProtocol
 
 __all__ = [
     "BASE_URL",
@@ -24,4 +25,5 @@ __all__ = [
     "parse_credentials",
     "FlightDetailProtocol",
     "DETAIL_HEADERS",
+    "TrainingArrangementProtocol",
 ]

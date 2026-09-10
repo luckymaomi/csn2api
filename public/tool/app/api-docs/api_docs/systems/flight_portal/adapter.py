@@ -18,11 +18,12 @@ from ieb_protocol.lock_protocol import LockProtocol
 from ieb_protocol.personnel import PersonnelProtocol
 from ieb_protocol.qualification_monitor import QualificationMonitorProtocol
 from ieb_protocol.qualification_roster import QualificationRosterProtocol
+from ieb_protocol.training_arrangement import TrainingArrangementProtocol
 
 from ...catalog import ApiCatalog, EndpointRecord
 from ..errors import ExecutionError, SessionExpiredError
 from ..session_keepalive import SessionKeepAlive
-from . import flight_detail, flight_stats, lock_entry, personnel, qualification_monitor, qualification_roster
+from . import flight_detail, flight_stats, lock_entry, personnel, qualification_monitor, qualification_roster, training_arrangement
 from .common import random_keepalive_interval, response_payload
 
 
@@ -49,6 +50,7 @@ class FlightPortalAdapter:
         self.personnel: PersonnelProtocol | None = None
         self.monitor: QualificationMonitorProtocol | None = None
         self.roster: QualificationRosterProtocol | None = None
+        self.training: TrainingArrangementProtocol | None = None
         self.option_cache: dict[str, list[dict[str, str]]] = {}
         self.keepalive = SessionKeepAlive(
             keepalive_interval_factory,
@@ -69,6 +71,7 @@ class FlightPortalAdapter:
         self.personnel = PersonnelProtocol(ieb)
         self.monitor = QualificationMonitorProtocol(ieb)
         self.roster = QualificationRosterProtocol(ieb)
+        self.training = TrainingArrangementProtocol(ieb)
         try:
             _response, identity = self.flight_stats.validate_session()
         except Exception:
@@ -91,6 +94,7 @@ class FlightPortalAdapter:
         self.personnel = None
         self.monitor = None
         self.roster = None
+        self.training = None
         if self.ieb is not None:
             self.ieb.close()
         self.ieb = None
@@ -105,6 +109,14 @@ class FlightPortalAdapter:
         }
 
     def load_options(self, source: str) -> list[dict[str, str]]:
+        if source == "training-items":
+            if source not in self.option_cache:
+                _response, options = self._training().request_options()
+                self.option_cache[source] = [
+                    {"value": item.value, "label": item.label, "displayLabel": item.label}
+                    for item in options
+                ]
+            return self.option_cache[source]
         if source != "lock-types":
             raise ValueError("选项来源不存在")
         if source not in self.option_cache:
@@ -125,6 +137,8 @@ class FlightPortalAdapter:
                 response, data = qualification_monitor.execute(record, supplied, self._monitor())
             elif record.full_id.startswith("qualification-roster."):
                 response, data = qualification_roster.execute(record, supplied, self._roster())
+            elif record.full_id.startswith("training-arrangement."):
+                response, data = training_arrangement.execute(record, supplied, self._training())
             elif record.full_id == "lock-entry.submit":
                 self.load_options("lock-types")
                 response, data = lock_entry.execute(
@@ -174,6 +188,11 @@ class FlightPortalAdapter:
         if self.roster is None:
             raise SessionExpiredError("请先载入有效 Cookie")
         return self.roster
+
+    def _training(self) -> TrainingArrangementProtocol:
+        if self.training is None:
+            raise SessionExpiredError("请先载入有效 Cookie")
+        return self.training
 
     def _check_session(self) -> None:
         try:

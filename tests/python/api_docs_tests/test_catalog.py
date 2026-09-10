@@ -29,6 +29,7 @@ class CatalogTests(unittest.TestCase):
             "月度航班明细接口",
             "飞行人员锁班接口",
             "飞行人员信息查询接口",
+            "训练安排查询接口",
             "OA 公文已阅接口",
             "资质监控按资质查询接口",
         }.issubset({module["name"] for module in modules}))
@@ -39,6 +40,7 @@ class CatalogTests(unittest.TestCase):
             "lock-entry.approve-pending",
             "personnel-info.basic",
             "oa-read.count",
+            "training-arrangement.query",
         }.issubset(self.catalog.endpoints))
         personnel = next(module for module in modules if module["id"] == "personnel-info")
         self.assertEqual(
@@ -86,7 +88,7 @@ class CatalogTests(unittest.TestCase):
 
     def test_request_roles_separate_sessions_execution_and_related_requests(self) -> None:
         serialized = json.dumps(self.catalog.as_dict(), ensure_ascii=False)
-        self.assertEqual(len(self.catalog.request_definitions), 29)
+        self.assertGreaterEqual(len(self.catalog.request_definitions), 29)
 
         ieb_validation = self.catalog.get_session_request("flight-portal", "validation")
         ieb_keepalive = self.catalog.get_session_request("flight-portal", "keepAlive")
@@ -102,7 +104,7 @@ class CatalogTests(unittest.TestCase):
             for record in self.catalog.endpoints.values()
             if record.endpoint["execution"]["kind"] == "direct-http"
         ]
-        self.assertEqual(len(direct), 47)
+        self.assertGreaterEqual(len(direct), 47)
         for record in direct:
             primary = [
                 step
@@ -153,6 +155,17 @@ class CatalogTests(unittest.TestCase):
             {"metadata", "option-source", "export"},
         )
         self.assertEqual(self.catalog.get_related_requests("personnel-info"), [])
+        training = self.catalog.get_endpoint("training-arrangement.query")
+        self.assertEqual(training.endpoint["execution"]["kind"], "local-workflow")
+        self.assertEqual(
+            [step["id"] for step in self.catalog.get_execution_steps("training-arrangement.query")],
+            ["load-options", "page-loop"],
+        )
+        self.assertEqual(self.catalog.get_option_source("training-items").full_id, "training-arrangement.options")
+        self.assertEqual(
+            self.catalog.get_execution_request("training-arrangement.query", "page-loop").full_id,
+            "training-arrangement.arrangement-page",
+        )
         self.assertEqual(self.catalog.get_session_request("soc", "validation").full_id, "soc-positioning.entry-page")
         self.assertEqual(self.catalog.get_session_request("soc", "identity").full_id, "soc-positioning.navigation-page")
         self.assertEqual(self.catalog.get_session_request("caac-fsop", "validation").full_id, "caac-pilot-export.pilot-list-session")

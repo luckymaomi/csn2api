@@ -1,0 +1,119 @@
+{
+  "schemaVersion": 2,
+  "id": "training-arrangement",
+  "systemId": "flight-portal",
+  "name": "训练安排查询接口",
+  "navigationGroup": "训练安排",
+  "description": "按训练类别和周、月、年时间周期查询 IEB 已结束训练安排，严格遍历全部分页。",
+  "baseUrl": "https://ieb.csair.com",
+  "navigationUrl": "https://ieb.csair.com/newieb/train/showArrangementPageNew?trainSectionName=end",
+  "cookies": [
+    { "name": "JSESSIONID", "required": true, "description": "门户 Session Cookie，HttpOnly" },
+    { "name": "iebJSid", "required": true, "description": "IEB 会话 Cookie，HttpOnly" }
+  ],
+  "commonHeaders": [
+    { "name": "Accept", "value": "text/html, */*; q=0.01", "description": "门户 HTML/XHR 响应" },
+    { "name": "Accept-Language", "value": "zh-CN,zh;q=0.9", "description": "中文响应" },
+    { "name": "Referer", "value": "https://ieb.csair.com/index/index", "description": "已验证请求来源" },
+    { "name": "X-Requested-With", "value": "XMLHttpRequest", "description": "门户 XHR 标记" }
+  ],
+  "groups": [{ "id": "business", "name": "训练安排" }],
+  "endpoints": [
+    {
+      "id": "query",
+      "groupId": "business",
+      "name": "按周期查询全部训练安排",
+      "summary": "按一个时间范围和训练类别计算日期、串行读取全部分页，并分别输出周/月/年分组。",
+      "risk": "read",
+      "method": "POST",
+      "path": "/api/local/training-arrangement",
+      "execution": {
+        "kind": "local-workflow",
+        "steps": [
+          { "id": "load-options", "requestRef": "training-arrangement.options", "role": "prerequisite", "cardinality": "once" },
+          { "id": "page-loop", "requestRef": "training-arrangement.arrangement-page", "role": "page-loop", "cardinality": "one-or-more", "stopCondition": "达到响应总记录数，或遇到空页、重复页" }
+        ]
+      },
+      "parameters": [
+        { "name": "dateRange", "in": "workflow", "label": "时间范围", "type": "select", "required": true, "default": "all", "options": [{ "value": "all", "label": "周、月、年" }, { "value": "week", "label": "周" }, { "value": "month", "label": "月" }, { "value": "year", "label": "年" }], "description": "周为结束日前 7 天至结束日，月为当月 1 日至结束日，年为当年 1 月 1 日至结束日；周、月、年分别输出为独立分组。" },
+        { "name": "trainItemArray", "in": "workflow", "label": "训练类别", "type": "select", "required": true, "optionSource": "training-items", "description": "选项来自当前 IEB 训练安排页面。" },
+        { "name": "endDate", "in": "workflow", "label": "结束日期", "type": "date", "auto": "today", "fixed": true, "description": "按本地业务日期自动取今日。" }
+      ],
+      "response": {
+        "format": "Local workflow result",
+        "statuses": [{ "code": 200, "description": "每个周期的全部分页已完成，结果表按当前门户表头输出。" }],
+        "fields": [
+          { "name": "summary", "type": "object", "description": "类别、周期数和总记录数" },
+          { "name": "tables", "type": "array", "description": "每个时间周期一张结果表，包含起止日期、页数和明细" }
+        ],
+        "example": "{\"summary\":{\"periodCount\":3},\"tables\":[{\"title\":\"年（2026-01-01 至 2026-09-10）\",\"rows\":[]}]}"
+      }
+    },
+    {
+      "id": "query-page",
+      "groupId": "business",
+      "name": "训练安排单页查询",
+      "summary": "按门户原生参数查询一页已结束训练安排；需要读取全部分页时使用周期工作流。",
+      "risk": "read",
+      "method": "POST",
+      "path": "/newieb/train/showArrangementList",
+      "execution": { "kind": "direct-http", "steps": [{ "id": "request", "requestRef": "$endpoint", "role": "primary", "cardinality": "once" }] },
+      "parameters": [
+        { "name": "trainSectionName", "in": "query", "label": "训练区段", "type": "text", "default": "end", "fixed": true },
+        { "name": "trainItemArray", "in": "form", "label": "训练类别代码", "type": "text", "required": true, "placeholder": "例如 jzdjxlCD" },
+        { "name": "checkStartDt", "in": "form", "label": "开始日期", "type": "date", "required": true },
+        { "name": "checkEndDt", "in": "form", "label": "结束日期", "type": "date", "required": true },
+        { "name": "page", "in": "form", "label": "页码", "type": "number", "required": true, "default": "1", "minimum": 1 },
+        { "name": "personName", "in": "form", "label": "人员姓名", "type": "text", "default": "", "fixed": true, "includeWhenEmpty": true },
+        { "name": "trainNavArray", "in": "form", "label": "训练机型", "type": "text", "default": "", "fixed": true, "includeWhenEmpty": true },
+        { "name": "baseArray", "in": "form", "label": "基地", "type": "text", "default": "", "fixed": true, "includeWhenEmpty": true },
+        { "name": "classDescription", "in": "form", "label": "类别描述", "type": "text", "default": "", "fixed": true, "includeWhenEmpty": true },
+        { "name": "qtype", "in": "form", "label": "查询类型", "type": "text", "default": "", "fixed": true, "includeWhenEmpty": true },
+        { "name": "currentStr", "in": "form", "label": "防缓存参数", "type": "text", "auto": "timestamp", "fixed": true }
+      ],
+      "response": {
+        "format": "HTML table",
+        "statuses": [{ "code": 200, "description": "响应需排除登录页、校验 #showArrangementListJspId、当前表头及数据列。" }],
+        "fields": [
+          { "name": "训练大纲", "type": "string" }, { "name": "训练科目", "type": "string" }, { "name": "员工号/姓名", "type": "string" },
+          { "name": "申请描述", "type": "string" }, { "name": "检查项", "type": "string" }, { "name": "注册基地", "type": "string" },
+          { "name": "运行基地", "type": "string" }, { "name": "所属分部", "type": "string" }, { "name": "审批过程", "type": "string" },
+          { "name": "录入结果", "type": "string" }, { "name": "训练状态", "type": "string" }, { "name": "检查员", "type": "string" },
+          { "name": "检查日期", "type": "date" }, { "name": "航班信息", "type": "string" }
+        ]
+      }
+    }
+  ],
+  "requestDefinitions": [
+    {
+      "id": "options",
+      "name": "训练类别选项",
+      "purpose": "读取训练安排页面当前动态训练类别及其内部代码。",
+      "risk": "read",
+      "method": "GET",
+      "path": "/newieb/train/showArrangementPageNew",
+      "parameters": ["trainSectionName=end"],
+      "response": "HTML；从 #trainItemArraySelId 的 option 读取 value 和中文名称。"
+    },
+    {
+      "id": "arrangement-page",
+      "name": "训练安排分页",
+      "purpose": "按当前筛选条件读取一页已结束训练安排，返回 flexgrid 表格和页脚总数。",
+      "risk": "read",
+      "method": "POST",
+      "path": "/newieb/train/showArrangementList",
+      "parameters": ["trainSectionName=end", "trainItemArray", "checkStartDt", "checkEndDt", "page", "currentStr"],
+      "response": "HTML；表头与数据表分离，页脚包含共 N 条记录；可能重复末页。"
+    }
+  ],
+  "relatedRequests": [
+    { "requestRef": "training-arrangement.options", "kind": "option-source", "sourceId": "training-items", "description": "提供当前会话可选训练类别。" },
+    { "requestRef": "training-arrangement.arrangement-page", "kind": "reference-query", "description": "本地周期工作流循环调用的生产分页请求。" }
+  ],
+  "technicalNotes": [
+    "周窗口按结束日前 7 天计算，结束日包含在门户查询范围内；月和年从自然周期第一天开始。",
+    "当前真实响应使用 flexgrid 两张 table：第一张只有表头，第二张只有数据；选择列和序号列不进入业务结果。",
+    "分页同时依据页脚总数、空页和整页指纹收敛，不把一次返回的 6 人或页数写死。",
+    "HTTP 200 不能单独证明成功；必须排除登录页并校验结果区域和全部业务表头。"
+  ]
+}

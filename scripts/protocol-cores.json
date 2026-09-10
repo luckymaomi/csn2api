@@ -15,6 +15,7 @@
       "flight-detail",
       "lock-entry",
       "personnel-info",
+      "training-arrangement",
       "qualification-monitor",
       "qualification-roster"
     ],
@@ -25,6 +26,7 @@
       "http-lock-entry-helper",
       "http-qualification-monitor-helper",
       "http-qualification-query-helper",
+      "http-training-arrangement-helper",
       "http-qualification-roster-helper"
     ]
   },

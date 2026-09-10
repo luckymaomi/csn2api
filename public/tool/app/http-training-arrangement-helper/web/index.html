@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="zh-CN" data-default-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>训练安排查询（HTTP版）</title>
+  <script src="./theme.js"></script>
+  <link rel="stylesheet" href="./libs/bootstrap.min.css">
+  <link rel="stylesheet" href="./theme.css">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <main class="workspace-shell">
+    <header class="workspace-header">
+      <div>
+        <p class="eyebrow">IEB / 训练安排</p>
+        <h1>训练安排查询（HTTP版）</h1>
+        <p>按训练类别查询已结束安排，周、月、年结果分组输出。</p>
+      </div>
+      <div class="header-actions">
+        <span id="statusBadge" class="status-badge">等待验证</span>
+        <button id="themeToggle" class="btn btn-outline-secondary" type="button" title="切换主题">主题</button>
+      </div>
+    </header>
+
+    <section class="work-panel credential-panel">
+      <div class="panel-heading"><h2>1. 验证登录凭据</h2><span id="statusMessage">请粘贴 IEB Copy as cURL 或 Cookie Header</span></div>
+      <div class="credential-layout">
+        <textarea id="credentials" class="form-control" autocomplete="off" placeholder="粘贴完整 Copy as cURL 或 Cookie: JSESSIONID=...; iebJSid=..."></textarea>
+        <button id="verifyButton" class="btn btn-primary" type="button">验证凭据</button>
+      </div>
+      <div id="savedCredentialsPanel" class="saved-credential-panel" hidden>
+        <div class="saved-credential-heading"><span class="form-label">当前页 Cookie（仅本地内存）</span><button id="copyCredentialsButton" class="btn btn-sm btn-outline-secondary" type="button">复制</button></div>
+        <textarea id="savedCredentials" class="form-control saved-credential-text" readonly></textarea>
+      </div>
+      <dl class="session-summary">
+        <div><dt>状态</dt><dd id="sessionVerified">未验证</dd></div>
+        <div><dt>验证时间</dt><dd id="sessionVerifiedAt">-</dd></div>
+        <div><dt>当前登录人</dt><dd id="sessionIdentity">-</dd></div>
+        <div><dt>Cookie</dt><dd id="sessionCookieCount">0</dd></div>
+      </dl>
+      <div class="keepalive-summary" data-keepalive-widget>
+        <div id="keepAliveRing" class="keepalive-ring" hidden><span id="keepAliveCountdown">--</span></div>
+        <div class="keepalive-copy"><strong id="keepAliveStatus">保活未启动</strong><span id="keepAliveDetail">验证后启动独立只读检查</span></div>
+      </div>
+    </section>
+
+    <section class="work-panel query-panel">
+      <div class="panel-heading"><h2>2. 设置查询条件</h2><span>类别来自当前门户页面</span></div>
+      <div class="query-grid">
+        <label class="field"><span>训练类别</span><select id="categorySelect" class="form-select" disabled><option value="">请先加载训练类别</option></select></label>
+        <label class="field"><span>时间范围</span><select id="dateRange" class="form-select" disabled><option value="all">周、月、年</option><option value="week">周</option><option value="month">月</option><option value="year">年</option></select></label>
+        <label class="field"><span>结束日期</span><input id="endDate" class="form-control" type="date" disabled></label>
+      </div>
+      <div class="stage-actions">
+        <button id="metadataButton" class="btn btn-outline-primary" type="button" disabled>加载训练类别</button>
+        <button id="runButton" class="btn btn-primary" type="button" disabled>开始查询</button>
+        <button id="areaRunButton" class="btn btn-success" type="button" disabled>一键导出区域默认配置</button>
+        <button id="stopButton" class="btn btn-outline-danger" type="button" disabled>停止</button>
+      </div>
+      <div id="areaDefaultStatus" class="query-note">加载训练类别后，区域默认配置会自动校验 11 个业务类型。</div>
+      <div class="query-note">默认结束日期为本地今日；查询严格按周期和页码串行执行，结果完成后可下载 Excel。</div>
+    </section>
+
+    <section class="work-panel results-panel">
+      <div class="panel-heading"><h2>3. 结果与 Excel</h2><span id="resultSummary">尚无结果</span></div>
+      <div class="progress" role="progressbar" aria-label="查询进度"><div id="progressBar" class="progress-bar" style="width:0%"></div></div>
+      <div id="progressText" class="progress-text">等待查询</div>
+      <div id="summaryTable" class="summary-table-wrap" hidden></div>
+      <div id="resultsViewport" class="result-viewport">
+        <div id="resultsEmpty" class="results-empty">验证凭据并开始查询后显示结果。</div>
+        <div id="resultsTable" class="results-table-stack" hidden></div>
+      </div>
+      <div class="download-row"><a id="excelDownload" class="btn btn-outline-success disabled" aria-disabled="true">导出 Excel</a></div>
+    </section>
+
+    <section class="work-panel log-panel">
+      <div class="panel-heading"><h2>运行记录</h2><span>只保留当前页面运行摘要</span></div>
+      <ul id="logList" class="log-list"><li class="is-muted">尚无运行记录</li></ul>
+    </section>
+  </main>
+  <script type="module" src="./app.mjs"></script>
+</body>
+</html>

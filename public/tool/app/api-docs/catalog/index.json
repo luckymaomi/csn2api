@@ -103,6 +103,12 @@
       "source": "./personnel-info.json"
     },
     {
+      "id": "training-arrangement",
+      "name": "训练安排查询接口",
+      "description": "按周、月、年周期查询已结束训练安排并遍历全部分页",
+      "source": "./training-arrangement.json"
+    },
+    {
       "id": "qualification-roster",
       "name": "运行资质人员名册接口",
       "description": "技术资料组合筛选、动态运行资格和普通人员导出；多资格合并属于本地工作流",
