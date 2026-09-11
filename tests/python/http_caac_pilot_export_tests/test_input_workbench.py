@@ -32,7 +32,8 @@ class InputWorkbenchTests(unittest.TestCase):
     def test_template_and_excel_input_use_name_with_optional_archive_number(self) -> None:
         template = load_workbook(ROOT / "template.xlsx", data_only=True)
         self.assertEqual([cell.value for cell in template.active[1]], ["姓名", "档案号"])
-        self.assertEqual(template.active.max_row, 1)
+        self.assertEqual(template.active.max_row, 2)
+        self.assertEqual([cell.value for cell in template.active[2]], ["示例姓名", "00000000"])
         template.close()
 
         content = input_workbook([
