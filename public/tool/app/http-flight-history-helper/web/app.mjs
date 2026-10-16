@@ -1,0 +1,346 @@
+const elements = {
+  statusMessage: document.querySelector("#statusMessage"),
+  statusBadge: document.querySelector("#statusBadge"),
+  themeToggle: document.querySelector("#themeToggle"),
+  credentials: document.querySelector("#credentials"),
+  verifyButton: document.querySelector("#verifyButton"),
+  savedCredentialsPanel: document.querySelector("#savedCredentialsPanel"),
+  savedCredentials: document.querySelector("#savedCredentials"),
+  copyCredentialsButton: document.querySelector("#copyCredentialsButton"),
+  sessionStatus: document.querySelector("#sessionStatus"),
+  sessionVerified: document.querySelector("#sessionVerified"),
+  sessionVerifiedAt: document.querySelector("#sessionVerifiedAt"),
+  sessionIdentity: document.querySelector("#sessionIdentity"),
+  keepAliveRing: document.querySelector("#keepAliveRing"),
+  keepAliveCountdown: document.querySelector("#keepAliveCountdown"),
+  keepAliveStatus: document.querySelector("#keepAliveStatus"),
+  keepAliveDetail: document.querySelector("#keepAliveDetail"),
+  queryMode: document.querySelector("#queryMode"),
+  excelPanel: document.querySelector("#excelPanel"),
+  pastePanel: document.querySelector("#pastePanel"),
+  excelFile: document.querySelector("#excelFile"),
+  pastedText: document.querySelector("#pastedText"),
+  dataCheckButton: document.querySelector("#dataCheckButton"),
+  runButton: document.querySelector("#runButton"),
+  stopButton: document.querySelector("#stopButton"),
+  dataCheckResult: document.querySelector("#dataCheckResult"),
+  dataCheckErrors: document.querySelector("#dataCheckErrors"),
+  progress: document.querySelector(".progress"),
+  progressBar: document.querySelector("#progressBar"),
+  progressText: document.querySelector("#progressText"),
+  totalCount: document.querySelector("#totalCount"),
+  completedCount: document.querySelector("#completedCount"),
+  successCount: document.querySelector("#successCount"),
+  failedCount: document.querySelector("#failedCount"),
+  currentRecord: document.querySelector("#currentRecord"),
+  originalDownload: document.querySelector("#originalDownload"),
+  resultsCount: document.querySelector("#resultsCount"),
+  resultsViewport: document.querySelector("#resultsViewport"),
+  resultsEmpty: document.querySelector("#resultsEmpty"),
+  resultsTable: document.querySelector("#resultsTable"),
+  logList: document.querySelector("#logList"),
+};
+
+let keepAliveTimer = () => ({ active: false, total: 0, remaining: 0 });
+let renderKeepAlive = () => undefined;
+
+void import("./session_keepalive.mjs")
+  .then((keepAliveModule) => {
+    keepAliveTimer = keepAliveModule.createKeepAliveTimer();
+    renderKeepAlive = keepAliveModule.renderKeepAlive;
+    return pollStatus();
+  })
+  .catch(() => {
+    elements.keepAliveRing.hidden = true;
+    elements.keepAliveStatus.textContent = "保活组件加载失败";
+    elements.keepAliveDetail.textContent = "核心功能仍可使用，请重新下载安装包";
+    showActionError(new Error("保活状态组件加载失败，核心功能仍可使用"));
+  });
+const phaseLabels = {
+  waiting_credentials: "待验证",
+  verifying_credentials: "验证中",
+  credentials_ready: "凭据有效",
+  checking_data: "检查数据",
+  data_checked: "数据已检查",
+  running: "查询中",
+  writing: "生成文件",
+  stopping: "终止中",
+  completed: "已完成",
+  terminated: "已终止",
+  session_expired: "会话失效",
+  failed: "失败",
+};
+
+let followLog = true;
+let followResults = true;
+let lastLogsSignature = "";
+let lastResultsSignature = "";
+let pollingFailed = false;
+let savedCredentials = "";
+
+function updateSavedCredentials(value) {
+  savedCredentials = String(value || "");
+  elements.savedCredentials.value = savedCredentials;
+  elements.savedCredentialsPanel.hidden = !savedCredentials;
+}
+
+async function copySavedCredentials() {
+  if (!savedCredentials) return;
+  try {
+    await navigator.clipboard.writeText(savedCredentials);
+    elements.statusMessage.textContent = "当前页 Cookie 已复制";
+  } catch (error) {
+    showActionError(new Error("复制失败，请手动选择当前页 Cookie"));
+  }
+}
+
+function isNearBottom(element) {
+  return element.scrollHeight - element.scrollTop - element.clientHeight < 20;
+}
+
+function escapeText(value) {
+  return String(value ?? "");
+}
+
+function setDownload(link, enabled, kind) {
+  link.classList.toggle("disabled", !enabled);
+  link.setAttribute("aria-disabled", enabled ? "false" : "true");
+  if (enabled) link.href = `./api/download/${kind}`;
+  else link.removeAttribute("href");
+}
+
+function currentInputMode() {
+  return document.querySelector('input[name="inputMode"]:checked')?.value || "excel";
+}
+
+function readFileAsBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("读取 Excel 文件失败"));
+    reader.onload = () => resolve(String(reader.result).split(",", 2)[1] || "");
+    reader.readAsDataURL(file);
+  });
+}
+
+async function buildPayload() {
+  const inputMode = currentInputMode();
+  const payload = {
+    inputMode,
+    excelName: "",
+    excelBase64: "",
+    pastedText: elements.pastedText.value,
+  };
+  if (inputMode === "excel") {
+    const file = elements.excelFile.files[0];
+    if (!file) throw new Error("请选择 Excel 文件");
+    payload.excelName = file.name;
+    payload.excelBase64 = await readFileAsBase64(file);
+  }
+  return payload;
+}
+
+async function postJson(path, payload = {}) {
+  const response = await fetch(path, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.error || `请求失败：HTTP ${response.status}`);
+  return data;
+}
+
+async function verifyCredentials() {
+  const credentials = elements.credentials.value.trim();
+  if (!credentials) throw new Error("请粘贴登录凭据");
+  elements.verifyButton.disabled = true;
+  try {
+    const state = await postJson("./api/session/verify", { credentials });
+    updateSavedCredentials(state.credentials);
+    elements.credentials.value = "";
+    renderState(state);
+  } catch (error) {
+    updateSavedCredentials("");
+    throw error;
+  } finally {
+    elements.verifyButton.disabled = false;
+  }
+}
+
+async function checkData() {
+  renderState(await postJson("./api/check-data", await buildPayload()));
+}
+
+async function runQuery() {
+  renderState(await postJson("./api/run", await buildPayload()));
+}
+
+async function stopQuery() {
+  renderState(await postJson("./api/stop"));
+}
+
+function showActionError(error) {
+  elements.statusMessage.textContent = error.message || String(error);
+  elements.statusBadge.textContent = "操作失败";
+  elements.statusBadge.className = "status-badge is-failed";
+}
+
+function renderCheck(check = {}) {
+  const strong = elements.dataCheckResult.querySelector("strong");
+  if (!check.checked) {
+    elements.dataCheckResult.className = "health-check";
+    strong.textContent = "尚未检查";
+  } else {
+    elements.dataCheckResult.className = `health-check ${check.ok ? "is-ok" : "is-error"}`;
+    strong.textContent = `有效 ${check.validCount || 0}，无效 ${check.invalidCount || 0}`;
+  }
+  const errors = check.errors || [];
+  elements.dataCheckErrors.hidden = errors.length === 0;
+  elements.dataCheckErrors.replaceChildren(...errors.map((message) => {
+    const item = document.createElement("li");
+    item.textContent = message;
+    return item;
+  }));
+}
+
+function renderLogs(logs = []) {
+  const signature = JSON.stringify(logs);
+  if (signature === lastLogsSignature) return;
+  lastLogsSignature = signature;
+  if (!logs.length) {
+    const item = document.createElement("li");
+    item.className = "is-muted";
+    item.textContent = "尚无运行记录";
+    elements.logList.replaceChildren(item);
+    return;
+  }
+  elements.logList.replaceChildren(...logs.map((log) => {
+    const item = document.createElement("li");
+    item.className = log.level === "error" ? "is-error" : log.level === "success" ? "is-success" : "";
+    item.textContent = `${log.time ? `[${log.time}] ` : ""}${escapeText(log.message)}`;
+    return item;
+  }));
+  if (followLog) elements.logList.scrollTop = elements.logList.scrollHeight;
+}
+
+function resultColumns(results) {
+  const columns = ["序号", "员工号", "姓名", "状态"];
+  results.forEach((result) => {
+    (result.headers || []).forEach((header) => {
+      if (!["员工号", "姓名"].includes(header) && !columns.includes(header)) columns.push(header);
+    });
+  });
+  columns.push("错误说明");
+  return columns;
+}
+
+function resultValue(result, column) {
+  if (column === "序号") return Number(result.index) + 1;
+  if (column === "员工号") return result.employeeId;
+  if (column === "姓名") return result.name;
+  if (column === "状态") return result.status;
+  if (column === "错误说明") return result.error;
+  return result.values?.[column] ?? "";
+}
+
+function renderResults(results = []) {
+  const signature = JSON.stringify(results);
+  if (signature === lastResultsSignature) return;
+  lastResultsSignature = signature;
+  elements.resultsCount.textContent = `${results.length} 人 / ${results.reduce((count, result) => count + (result.rows?.length || 0), 0)} 行`;
+  elements.resultsEmpty.hidden = results.length > 0;
+  elements.resultsTable.hidden = results.length === 0;
+  if (!results.length) return;
+  const columns = resultColumns(results);
+  const headerRow = document.createElement("tr");
+  columns.forEach((column) => {
+    const cell = document.createElement("th");
+    cell.textContent = column;
+    headerRow.append(cell);
+  });
+  const expanded = results.flatMap((result) => (result.rows?.length ? result.rows : [{}]).map((values) => ({ ...result, values })));
+  const rows = expanded.map((result) => {
+    const row = document.createElement("tr");
+    columns.forEach((column) => {
+      const cell = document.createElement("td");
+      cell.textContent = escapeText(resultValue(result, column));
+      if (column === "状态") cell.className = result.status === "成功" ? "is-success" : "is-failed";
+      row.append(cell);
+    });
+    return row;
+  });
+  elements.resultsTable.querySelector("thead").replaceChildren(headerRow);
+  elements.resultsTable.querySelector("tbody").replaceChildren(...rows);
+  if (followResults) elements.resultsViewport.scrollTop = elements.resultsViewport.scrollHeight;
+}
+
+function renderState(state) {
+  const phase = state.phase || "waiting_credentials";
+  const session = state.session || {};
+  const progress = state.progress || {};
+  const total = Number(progress.total || 0);
+  const completed = Number(progress.completed || 0);
+  const percent = total ? Math.min(100, Math.round((completed / total) * 100)) : 0;
+  if (!session.verified || phase === "session_expired") updateSavedCredentials("");
+  elements.statusMessage.textContent = state.message || "";
+  elements.statusBadge.textContent = phaseLabels[phase] || phase;
+  elements.statusBadge.className = `status-badge is-${phase}`;
+  elements.sessionStatus.textContent = session.verified ? "已验证" : "尚未验证";
+  elements.sessionVerified.textContent = session.verified ? "有效" : "未验证";
+  elements.sessionVerifiedAt.textContent = session.verifiedAt || "-";
+  const identity = session.identity || {};
+  elements.sessionIdentity.textContent = session.verified
+    ? [identity.staffNumber, identity.name].filter(Boolean).join(" · ") || "未识别"
+    : "-";
+  renderKeepAlive({ ring: elements.keepAliveRing, countdown: elements.keepAliveCountdown, status: elements.keepAliveStatus, detail: elements.keepAliveDetail }, session, keepAliveTimer);
+  elements.queryMode.textContent = state.queryMode || "按输入顺序逐人查询";
+  elements.verifyButton.disabled = !state.canVerify;
+  elements.dataCheckButton.disabled = !state.canCheckData;
+  elements.runButton.disabled = !state.canRun;
+  elements.stopButton.disabled = !state.canStop;
+  elements.progressBar.style.width = `${percent}%`;
+  elements.progress.setAttribute("aria-valuenow", String(percent));
+  elements.progressText.textContent = `${completed} / ${total}`;
+  elements.totalCount.textContent = String(total);
+  elements.completedCount.textContent = String(completed);
+  elements.successCount.textContent = String(progress.success || 0);
+  elements.failedCount.textContent = String(progress.failed || 0);
+  elements.currentRecord.textContent = progress.current || "-";
+  renderCheck(state.checks?.data || {});
+  renderLogs(state.logs || []);
+  renderResults(state.results || []);
+  setDownload(elements.originalDownload, Boolean(state.downloads?.original), "original");
+  elements.savedCredentials.value = savedCredentials;
+  elements.savedCredentialsPanel.hidden = !savedCredentials;
+}
+
+async function pollStatus() {
+  try {
+    const response = await fetch("./api/status", { cache: "no-store" });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    renderState(await response.json());
+    pollingFailed = false;
+  } catch (error) {
+    if (!pollingFailed) showActionError(new Error(`状态连接失败：${error.message || error}`));
+    pollingFailed = true;
+  }
+}
+
+document.querySelectorAll('input[name="inputMode"]').forEach((input) => {
+  input.addEventListener("change", () => {
+    const excel = currentInputMode() === "excel";
+    elements.excelPanel.hidden = !excel;
+    elements.pastePanel.hidden = excel;
+  });
+});
+elements.verifyButton.addEventListener("click", () => verifyCredentials().catch(showActionError));
+elements.copyCredentialsButton.addEventListener("click", () => copySavedCredentials());
+elements.dataCheckButton.addEventListener("click", () => checkData().catch(showActionError));
+elements.runButton.addEventListener("click", () => runQuery().catch(showActionError));
+elements.stopButton.addEventListener("click", () => stopQuery().catch(showActionError));
+elements.themeToggle.addEventListener("click", () => window.WatchdogTheme?.toggleTheme());
+elements.logList.addEventListener("scroll", () => { followLog = isNearBottom(elements.logList); });
+elements.resultsViewport.addEventListener("scroll", () => { followResults = isNearBottom(elements.resultsViewport); });
+
+pollStatus();
+window.setInterval(pollStatus, 800);

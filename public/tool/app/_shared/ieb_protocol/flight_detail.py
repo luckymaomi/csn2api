@@ -37,13 +37,25 @@ class FlightDetailProtocol:
         )
         validate_detail_query_page(str(response.text or ""), response.status_code)
 
-    def request_timeline(self, staff_number: str, expected_name: str = "") -> list[dict[str, str]]:
+    def request_timeline_response(self, staff_number: str) -> object:
         response = self.session.request(
             "POST", TIMELINE_PATH,
             data={"staffNum": staff_number, "currentStr": str(time.time_ns())},
             headers={"Origin": self.session.base_url, "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8"},
         )
+        response.encoding = "utf-8"
+        return response
+
+    def request_timeline(self, staff_number: str, expected_name: str = "") -> list[dict[str, str]]:
+        response = self.request_timeline_response(staff_number)
         return parse_timeline(str(response.text or ""), staff_number, expected_name)
+
+    def request_history(self, staff_number: str, name: str) -> tuple[object, list[str], list[dict[str, str]]]:
+        from .flight_history_contract import parse_history
+
+        response = self.request_timeline_response(staff_number)
+        headers, values = parse_history(str(response.text or ""), staff_number, name)
+        return response, headers, values
 
     def request_month(
         self,

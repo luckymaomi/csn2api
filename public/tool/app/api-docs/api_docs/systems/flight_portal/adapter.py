@@ -129,7 +129,7 @@ class FlightPortalAdapter:
         try:
             if record.full_id == "flight-stats.query":
                 response, data = flight_stats.execute(record, supplied, self._flight_stats())
-            elif record.full_id == "flight-detail.query-month":
+            elif record.full_id.startswith("flight-detail."):
                 response, data = flight_detail.execute(record, supplied, self._flight_detail())
             elif record.full_id.startswith("personnel-info."):
                 response, data = personnel.execute(record, supplied, self._personnel())

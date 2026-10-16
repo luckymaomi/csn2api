@@ -1,6 +1,7 @@
 import type { ToolItem } from "./models";
 
 export const tools: ToolItem[] = [
+    { name: "飞行经历时间查询", desc: "输入员工号和姓名，批量导出飞行经历时间页的汇总、年度和月份全部数据。", entry: "http-flight-history-helper", status: "done", homepageState: "beta" },
     { name: "锁班皇帝（新）", desc: "好活，直接调用接口锁班，极速。", entry: "http-lock-entry-helper", status: "done", homepageState: "beta" },
     { name: "飞行经历查询（皇帝版）", desc: "好活，直接调用接口查完整飞行经历和起落数，极速。", entry: "http-flight-stats-helper", status: "done", homepageState: "beta" },
     { name: "航班明细查询（皇帝版）", desc: "按员工和自然月读取 IEB 逐航班明细，保留人工飞行方式。", entry: "http-flight-detail-helper", status: "done", homepageState: "beta" },

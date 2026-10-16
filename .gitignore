@@ -72,3 +72,6 @@ plan.md
 /flight_detail_export.tmp.py
 /flight_detail_*.tmp.xlsx
 /flight_detail_audit.tmp.md
+
+# 飞行经历时间查询运行结果
+/public/tool/app/http-flight-history-helper/results/

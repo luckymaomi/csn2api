@@ -13,6 +13,7 @@
   "flightStartDate": "",
   "flightEndDate": "",
   "flightDetailMonth": "",
+  "flightHistoryExpectedTime": "",
   "iebRosterQualification": "",
   "iebMonitorQualification": "",
   "lockStaffNumber": "",

@@ -22,6 +22,7 @@
     "targets": [
       "api-docs",
       "http-flight-stats-helper",
+      "http-flight-history-helper",
       "http-flight-detail-helper",
       "http-lock-entry-helper",
       "http-qualification-monitor-helper",

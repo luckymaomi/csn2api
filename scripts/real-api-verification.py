@@ -21,6 +21,7 @@ from real_verification.runner import CASE_SYSTEMS, RealVerifier
 ROOT = Path(__file__).resolve().parents[1]
 configure_import_paths()
 CASE_NAMES = (
+    "flight-history",
     "flight-detail",
     "flight-stats",
     "personnel-info",
@@ -100,6 +101,8 @@ def main() -> int:
         print(f"Cookie 模板缺少系统段落：{', '.join(missing)}")
         return 2
     required_inputs: set[str] = set()
+    if "ieb" in required and (not selected_cases or "flight-history" in selected_cases):
+        required_inputs.update({"iebStaffNumber", "iebStaffName"})
     if "ieb" in required and (not selected_cases or selected_cases & {"flight-detail", "flight-stats", "personnel-info"}):
         required_inputs.add("iebStaffNumber")
     if "ieb" in required and (not selected_cases or "flight-detail" in selected_cases):

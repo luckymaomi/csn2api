@@ -9,6 +9,7 @@ from .common import API_DOCS_ROOT, ROOT
 from .ieb import (
     flight_detail,
     flight_stats,
+    flight_history,
     lock_entry,
     personnel_info,
     qualification_monitor,
@@ -17,6 +18,7 @@ from .ieb import (
 
 
 APP_ROOTS = [
+    ROOT / "public/tool/app/http-flight-history-helper",
     ROOT / "public/tool/app/http-flight-stats-helper",
     ROOT / "public/tool/app/http-flight-detail-helper",
     ROOT / "public/tool/app/http-qualification-query-helper",
@@ -25,6 +27,7 @@ APP_ROOTS = [
     ROOT / "public/tool/app/http-lock-entry-helper",
 ]
 CASES = (
+    ("flight-history", flight_history),
     ("flight-detail", flight_detail),
     ("flight-stats", flight_stats),
     ("personnel-info", personnel_info),

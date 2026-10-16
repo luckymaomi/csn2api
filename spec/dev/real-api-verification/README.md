@@ -21,6 +21,8 @@ python -X utf8 scripts/real-api-verification.py --cookies-file spec/dev/real-api
 
 每个业务模块可单独执行；`--case` 可重复填写：
 
+`flight-history` 用于完整飞行经历时间页，使用员工号和姓名，可通过本地参数 `flightHistoryExpectedTime` 核对汇总飞行时间。该 Case 比较 API、APP 粘贴、Excel 输入及导出文件的全部行列，执行后检查临时端口释放。
+
 ```powershell
 python -X utf8 scripts/real-api-verification.py --cookies-file spec/dev/real-api-verification/cookies.local.md --system ieb --scope both --case flight-stats
 python -X utf8 scripts/real-api-verification.py --cookies-file spec/dev/real-api-verification/cookies.local.md --system ieb --scope both --case personnel-info

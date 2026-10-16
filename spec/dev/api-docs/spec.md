@@ -36,6 +36,8 @@ CAAC 有效飞行员列表把当前 `{total, rows}` 转为动态字段表格。�
 
 ## 接口执行
 
+飞行经历时间轴提供 `flight-detail.query-history`：按员工号和姓名校验归属，输出全页汇总、历史合计、年度和月份全部行及动态原表头，与飞行经历时间查询 APP 共用同一 protocol core；姓名仅作为本地归属校验参数。
+
 页面只提交完整 endpoint ID 和业务参数，基础地址、路径和方法来自目录。后端按 `systemId` 选择适配器，区分 HTTP 状态、登录失效、解析错误和业务返回；HTTP 200 不单独代表业务成功。结构化表格、原始 JSON/HTML、响应 Headers 和状态码同时返回。
 
 API 文档服务同时提供 `/api/universal-query/v1` 机器接口，供机器人和 CLI 使用。该接口在 `universal_query` 模块内把同一 `ApiCatalog` 动态投影为操作、参数、默认值、固定/自动项、最少用户输入和读写风险，不维护第二份操作清单或协议实现。它经现有 `ApiExecutor` 复用同一系统会话和保活；会话载入只接受 `credential`，返回的会话状态已脱敏。普通和渐进执行统一返回操作、系统、风险、状态和安全的 `summary`/`tables`，不返回 Cookie、请求 URL、原始正文或调试 headers。写操作仍在动态清单和同一执行入口中开放，但真实调用遵守现有当次生产授权边界。完整 HTTP 契约见 `spec/dev/universal-query/spec.md`。

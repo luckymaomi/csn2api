@@ -50,6 +50,110 @@
         { "name": "飞行阶段", "type": "string" }, { "name": "人工飞行时间", "type": "duration" }, { "name": "人工飞行方式", "type": "string" }
       ]
     }
+  },
+  {
+    "id": "query-history",
+    "groupId": "business",
+    "name": "查询完整飞行经历时间页",
+    "summary": "按员工号和姓名读取时间轴完整表格，包括汇总、历史合计、年度和月份行；不继续请求逐航班明细。",
+    "risk": "read",
+    "method": "POST",
+    "path": "/newieb/basics/flytimeList",
+    "execution": {
+      "kind": "direct-http",
+      "steps": [
+        {
+          "id": "request",
+          "requestRef": "$endpoint",
+          "role": "primary",
+          "cardinality": "once"
+        }
+      ]
+    },
+    "parameters": [
+      {
+        "name": "staffNum",
+        "in": "form",
+        "label": "员工号",
+        "type": "text",
+        "required": true
+      },
+      {
+        "name": "staffName",
+        "in": "workflow",
+        "label": "姓名",
+        "type": "text",
+        "required": true,
+        "description": "仅用于校验时间轴归属，不发送给门户"
+      },
+      {
+        "name": "currentStr",
+        "in": "form",
+        "label": "防缓存参数",
+        "type": "text",
+        "auto": "timestamp",
+        "fixed": true
+      }
+    ],
+    "response": {
+      "format": "HTML table",
+      "statuses": [
+        {
+          "code": 200,
+          "description": "校验人员归属、独立表头、唯一汇总行以及所有行列宽；返回完整动态字段和全部数据行"
+        }
+      ],
+      "fields": [
+        {
+          "name": "日期",
+          "type": "string"
+        },
+        {
+          "name": "执飞机型",
+          "type": "string"
+        },
+        {
+          "name": "飞行经历",
+          "type": "string"
+        },
+        {
+          "name": "夜航经历",
+          "type": "string"
+        },
+        {
+          "name": "左座经历",
+          "type": "string"
+        },
+        {
+          "name": "右座经历",
+          "type": "string"
+        },
+        {
+          "name": "起落总数",
+          "type": "string"
+        },
+        {
+          "name": "航线起落",
+          "type": "string"
+        },
+        {
+          "name": "本场起落",
+          "type": "string"
+        },
+        {
+          "name": "飞行时间",
+          "type": "string"
+        },
+        {
+          "name": "模拟机",
+          "type": "string"
+        },
+        {
+          "name": "人工飞行时间",
+          "type": "string"
+        }
+      ]
+    }
   }],
   "requestDefinitions": [{
     "id": "timeline",
@@ -68,6 +172,7 @@
     "月度明细请求使用 dateType=2、startStr=YYYY-MM、endStr 为空。",
     "fleetCdArray 必须来自当前人员时间轴；月份按钮优先，年度按钮作为同年度回退。",
     "航班表头为 15 列，主行通常 14 个单元格，后续附加行包含人工飞行方式；按下一条数字序号边界解析。",
-    "当前模块只提供单月真实接口；跨月批量编排属于独立 APP。"
+    "月度明细入口提供单月真实接口；跨月批量编排属于独立 APP。",
+    "query-history 返回时间轴完整表格；列标题和数据位于独立 table，所有行、动态字段及空单元格保真输出。"
   ]
 }
