@@ -15,13 +15,15 @@ python -m pip install -r requirements.txt
 npm.cmd run verify
 ```
 
-`verify` 包含类型检查、TypeScript/Python 全量测试和确定性双构建。真实浏览器验证和临时性能采样不属于仓库级验证入口；三个 HTTP APP 仍按各自用户手册安装运行依赖。
+`verify` 包含类型检查、TypeScript/Python 全量测试和确定性双构建。真实浏览器验证和临时性能采样不属于仓库级验证入口；各 HTTP APP 按自己的用户手册安装运行依赖。
 
 ## 文档
 
 - 用户功能说明统一写在 `spec/`。
 - 根目录 `README.md` 只放项目入口和当前功能概览。
 - 不要把未实现功能写成已实现功能。
+- [文档目录](spec/README.md)组织系统说明、APP 规格和用户手册；完整接口事实维护在 API catalog。
+- 构建和标准测试自动合并可发布的 spec Markdown 与 catalog 生成的 API 文档；首页下载单个 `csn2api开发者文档-YYYY-MM-DD.md`。本地凭据文件遵守 Git 忽略规则，不进入合并结果，生成全文不提交。
 
 ## 代码风格
 

@@ -14,6 +14,7 @@ import {
   type ToolCatalogItem
 } from "./runtime-delivery.mjs";
 import { buildToolExports, isRuntimeGeneratedPath, type ToolExportDefinition } from "./tool-exports.mjs";
+import { buildDocumentation, DOCUMENTATION_FILENAME } from "./documentation-export.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -266,6 +267,10 @@ async function main() {
     await copySourceAsset(sourceFilePath);
   }
 
+  const documentation = await buildDocumentation({
+    projectRoot,
+    outputFile: path.join(distRoot, "downloads", DOCUMENTATION_FILENAME)
+  });
   await buildPageEntries();
   const standaloneRoot = await buildStandaloneApplicationBundles(toolCatalog);
   let exportCount = 0;
@@ -278,7 +283,7 @@ async function main() {
   await generateVersionFile();
 
   const outputLabel = distRoot === path.join(projectRoot, "dist") ? "dist/" : "an isolated output directory";
-  process.stdout.write(`Built ${pageEntries.length} page entries, ${workerEntries.length} worker, ${assetFiles.length} source assets and ${exportCount} standalone exports into ${outputLabel}\n`);
+  process.stdout.write(`Built ${pageEntries.length} page entries, ${workerEntries.length} worker, ${assetFiles.length} source assets, ${exportCount} standalone exports and ${documentation.files.length} documentation sources into ${outputLabel}\n`);
 }
 
 main().catch((error) => {

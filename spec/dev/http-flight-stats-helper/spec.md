@@ -2,7 +2,7 @@
 
 ## 产品边界
 
-`http-flight-stats-helper` 是与 `flight-stats-helper` 并列的独立 Python 本地 APP。用户自行从已登录 IEB 门户复制 cURL 或 Cookie Header，工具只提取 `JSESSIONID` 和 `iebJSid`，通过纯 HTTP 查询飞行经历，不启动 Playwright，不执行门户录入、撤销或其他写操作。
+`http-flight-stats-helper` 是独立 Python 本地 APP。用户自行从已登录 IEB 门户复制 cURL 或 Cookie Header，工具只提取 `JSESSIONID` 和 `iebJSid`，通过纯 HTTP 查询飞行经历，不启动 Playwright，不执行门户录入、撤销或其他写操作。
 
 服务只监听 `127.0.0.1`。登录凭据只保存在当前 Python 进程内存，不进入状态响应、日志、Excel 或文件系统；验证成功的那一次响应可额外返回规范化 Cookie Header，供当前页面复制，后续状态响应不返回 Cookie。一批完成后保留当前登录态，可更换输入继续查询；凭据失效时清除内存 Cookie 并提示重新验证。
 

@@ -258,7 +258,7 @@ export function buildApiDocsMarkdown(modules, systems = []) {
         "",
         "## 认证与会话",
         "",
-        "IEB 与 OA 的 Cookie、Session 和保活请求彼此独立。Cookie 值由调用者从当前已登录会话提供；本文档只记录字段名称和认证事实。",
+        "各系统的 Cookie、Session 和保活请求彼此独立。Cookie 值由调用者从当前已登录会话提供；本文档只记录字段名称和认证事实。",
         ""
     ];
     catalogSystems.forEach((system) => appendSystemGuide(lines, system, catalogModules));

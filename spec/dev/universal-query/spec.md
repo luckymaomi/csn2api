@@ -15,6 +15,7 @@
 - `POST /sessions/<systemId>`：请求体仅含 `credential`，通过现有系统验证链路载入 Cookie/cURL 并启动同一保活实例。
 - `DELETE /sessions/<systemId>`：清除该系统的内存会话。
 - `GET /operations` 和 `GET /operations/<operationId>`：从当前 Catalog 动态生成的操作与参数元数据。
+- `GET /options/<sourceId>`：通过同一执行器读取 catalog 声明的动态选项，例如锁班类型；需要对应系统已有有效会话。
 - `POST /executions`：请求体为 `operation` 与 `parameters`，执行已登记操作。
 - `GET /executions/<runId>`：读取渐进操作的当前快照。
 

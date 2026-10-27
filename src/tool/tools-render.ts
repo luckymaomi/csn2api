@@ -1,4 +1,5 @@
 import "./home-pattern-gate";
+import { bindDocumentationDownloads } from "./documentation-download";
 import type { ToolHomepageState, ToolItem } from "./models";
 import { tools } from "./tools-data";
 
@@ -12,6 +13,7 @@ const toolList = document.getElementById("toolList");
 const homeThemeToggle = document.getElementById("homeThemeToggle");
 const apiDocsLink = document.getElementById("apiDocsLink");
 
+bindDocumentationDownloads();
 bindHomeThemeToggle();
 bindRuntimeLinks();
 renderToolList(tools);

@@ -36,6 +36,8 @@
 
 ## 开源协议与贡献
 
+开发规格、用户手册和重建说明见[文档目录](spec/README.md)。首页“下载开发文档”提供构建时合并的 APP 与 API 单文件 Markdown。
+
 本项目遵循 [MIT License](./LICENSE) 开源协议。
 
 欢迎提交 Issue 或 Pull Request 改进工具、修复问题、补充文档。贡献前建议先阅读 [贡献指南](./CONTRIBUTING.md)，并尽量说明问题场景、输入样例、期望结果和验证方式。
