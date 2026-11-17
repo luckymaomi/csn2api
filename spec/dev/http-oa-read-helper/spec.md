@@ -22,7 +22,7 @@
 GET /oai/work/login/userInfo
 ```
 
-HTTP 200 之外还必须满足 JSON 根节点为对象且业务码 `code` 为 `200`。验证使用 5 秒连接、10 秒读取超时；业务码 `301` 或重定向视为登录失效。验证不自动跟随 SSO 重定向，避免把最终登录页的 HTTP 200 误判为有效 Session。
+HTTP 200 之外还必须满足 JSON 根节点为对象且业务码 `code` 为 `200`。验证、待办查询、已阅与保活默认不对上游 HTTP 设置时间上限，由 `requests` 一直等到响应或底层连接失败；业务码 `301` 或重定向视为登录失效。验证不自动跟随 SSO 重定向，避免把最终登录页的 HTTP 200 误判为有效 Session。
 
 验证和扫描只在修改 manager 内存状态时持有状态锁，等待 OA 网络响应期间允许 `/api/status` 继续读取“验证中”或“扫描中”。验证失败后清除旧 Session 并进入明确失败状态；验证或扫描进行中拒绝重复前台动作。
 
@@ -54,9 +54,11 @@ Content-Type: application/json
 {
   "offsetPageIndex": 0,
   "pageMode": "page",
-  "resultCountPerPage": 100
+  "resultCountPerPage": 10
 }
 ```
+
+`resultCountPerPage` 优先沿用 waiting cURL 模板中的正整数；没有模板时默认 10，与浏览器待办页一致。同一轮扫描固定页大小，避免 offset 分页中途改页大小导致漏扫或重扫。若选用大于 10 的页大小后待办查询返回 HTTP 504 或超时，整轮回退到 10 重新扫描。
 
 `offsetPageIndex` 从 0 开始。客户端在动态 JSON 包装中识别已确认的记录字段 `resultMyBoxItems/resultList/rows/records/list/content/items` 和总数字段 `totalRecordCount/totalCount/total/recordsTotal/totalElements`；总数可以是非负整数或整数字符串。存在总数时按当前总数收敛，不存在总数时按空页、短页或不再出现新记录收敛；记录按 `fileId + stepItemId` 去重，不设置固定页数上限。记录缺少标题、内部标识或模块分类时停止，不猜测业务字段。
 

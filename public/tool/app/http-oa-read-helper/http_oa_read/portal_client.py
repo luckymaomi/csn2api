@@ -29,13 +29,17 @@ class PortalClient:
     def __init__(
         self,
         session_factory: Callable[[], requests.Session] = requests.Session,
-        timeout_seconds: int = 30,
+        timeout_seconds: float | tuple[float, float] | None = None,
         keepalive_interval_factory: Callable[[], int] = random_keepalive_interval,
     ) -> None:
         self.protocol = OaProtocolClient(session_factory, timeout_seconds=timeout_seconds)
+        # 保活停止时的线程 join 仍需数值上限；与上游 HTTP 不超时策略分离。
+        keepalive_join_seconds = 60 if timeout_seconds is None else int(
+            timeout_seconds[1] if isinstance(timeout_seconds, tuple) else timeout_seconds
+        )
         self.keepalive = SessionKeepAlive(
             keepalive_interval_factory,
-            timeout_seconds,
+            max(1, keepalive_join_seconds),
             "http-oa-read-cookie-keepalive",
         )
         self.copyable_credentials = ""

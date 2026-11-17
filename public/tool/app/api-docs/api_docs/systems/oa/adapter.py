@@ -25,7 +25,7 @@ class OaAdapter:
         self,
         catalog: ApiCatalog,
         session_factory: Callable[[], requests.Session] = requests.Session,
-        timeout_seconds: int = 30,
+        timeout_seconds: float | tuple[float, float] | None = None,
         keepalive_interval_factory: Callable[[], int] = lambda: 45,
     ) -> None:
         self.catalog = catalog
@@ -33,7 +33,14 @@ class OaAdapter:
         self.timeout_seconds = timeout_seconds
         self.protocol: OaProtocolClient | None = None
         self.cookies: dict[str, str] = {}
-        self.keepalive = SessionKeepAlive(keepalive_interval_factory, timeout_seconds, "oa-cookie-keepalive")
+        keepalive_join_seconds = 60 if timeout_seconds is None else int(
+            timeout_seconds[1] if isinstance(timeout_seconds, tuple) else timeout_seconds
+        )
+        self.keepalive = SessionKeepAlive(
+            keepalive_interval_factory,
+            max(1, keepalive_join_seconds),
+            "oa-cookie-keepalive",
+        )
 
     def load_credentials(self, source: str) -> dict[str, object]:
         self.clear_credentials()

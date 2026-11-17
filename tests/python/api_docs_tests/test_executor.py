@@ -839,7 +839,7 @@ class ExecutorTests(unittest.TestCase):
         self.assertEqual(session.requests[1]["json"], {
             "offsetPageIndex": 0,
             "pageMode": "page",
-            "resultCountPerPage": 100,
+            "resultCountPerPage": 10,
         })
         self.assertEqual(session.requests[2]["json"], {
             "approveOpinionType": None,

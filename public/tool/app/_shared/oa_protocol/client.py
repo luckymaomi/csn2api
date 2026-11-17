@@ -24,8 +24,10 @@ BASE_URL = "https://work.csair.com"
 USER_INFO_PATH = "/oai/work/login/userInfo"
 WAITING_QUERY_PATH = "/oai/work/box/query/waiting"
 HAVE_READ_PATH = "/oai/doc/pc/form/sw/haveRead"
-PAGE_SIZE = 100
-VERIFY_TIMEOUT = (5, 10)
+# 浏览器待办页默认 10；更大页大小可能触发上游网关约 30 秒 504。
+PAGE_SIZE = 10
+SAFE_PAGE_SIZE = 10
+_UNSET = object()
 DEFAULT_BROWSER_USER_AGENT = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
     "AppleWebKit/537.36 Chrome/151 Safari/537.36"
@@ -39,7 +41,7 @@ class OaProtocolClient:
         self,
         session_factory: Callable[[], requests.Session] = requests.Session,
         base_url: str = BASE_URL,
-        timeout_seconds: int = 30,
+        timeout_seconds: float | tuple[float, float] | None = None,
     ) -> None:
         self.session_factory = session_factory
         self.base_url = base_url.rstrip("/")
@@ -49,9 +51,37 @@ class OaProtocolClient:
         self.cookies: dict[str, str] = {}
         self.identity: dict[str, str] | None = None
         self.waiting_template: dict[str, object] | None = None
+        self._scan_page_size: int | None = None
 
     def url(self, path: str) -> str:
         return urljoin(self.base_url + "/", path.lstrip("/"))
+
+    @staticmethod
+    def _positive_page_size(value: object) -> int | None:
+        if isinstance(value, bool):
+            return None
+        if isinstance(value, int):
+            return value if value > 0 else None
+        if isinstance(value, float) and value.is_integer():
+            return int(value) if value > 0 else None
+        if isinstance(value, str) and value.strip().isdigit():
+            number = int(value.strip())
+            return number if number > 0 else None
+        return None
+
+    def preferred_waiting_page_size(self) -> int:
+        if self.waiting_template:
+            template_size = self._positive_page_size(self.waiting_template.get("resultCountPerPage"))
+            if template_size is not None:
+                return template_size
+        return PAGE_SIZE
+
+    @staticmethod
+    def _is_page_size_capacity_error(error: Exception) -> bool:
+        message = str(error)
+        return isinstance(error, OaProtocolError) and (
+            "HTTP 504" in message or message.endswith("超时") or "超时" in message
+        )
 
     def load_credentials(self, source: str) -> tuple[dict[str, str], dict[str, str]]:
         cookies = parse_credentials(source)
@@ -71,7 +101,7 @@ class OaProtocolClient:
         self.session, self.cookies = session, cookies
         self.waiting_template = parse_waiting_template(source)
         try:
-            _response, identity = self.fetch_identity(verify=True)
+            _response, identity = self.fetch_identity()
         except Exception:
             self.clear_credentials()
             raise
@@ -83,12 +113,21 @@ class OaProtocolClient:
             raise OaSessionExpired("请先验证 OA 登录凭据")
         return self.session
 
-    def request(self, method: str, path: str, *, action: str, timeout: object | None = None, **kwargs: object) -> tuple[object, dict[str, object]]:
+    def request(
+        self,
+        method: str,
+        path: str,
+        *,
+        action: str,
+        timeout: object = _UNSET,
+        **kwargs: object,
+    ) -> tuple[object, dict[str, object]]:
+        effective_timeout = self.timeout_seconds if timeout is _UNSET else timeout
         with self.request_lock:
             session = self.require_session()
             try:
                 response = session.request(  # type: ignore[attr-defined]
-                    method, self.url(path), timeout=timeout or self.timeout_seconds,
+                    method, self.url(path), timeout=effective_timeout,
                     allow_redirects=False, **kwargs,
                 )
             except requests.Timeout as error:
@@ -102,8 +141,8 @@ class OaProtocolClient:
             raise
         return response, payload
 
-    def fetch_identity(self, *, verify: bool = False) -> tuple[object, dict[str, str]]:
-        response, payload = self.request("GET", USER_INFO_PATH, action="验证 OA 凭据", timeout=VERIFY_TIMEOUT if verify else None)
+    def fetch_identity(self) -> tuple[object, dict[str, str]]:
+        response, payload = self.request("GET", USER_INFO_PATH, action="验证 OA 凭据")
         identity = parse_identity(payload)
         self.identity = identity
         return response, identity
@@ -111,15 +150,25 @@ class OaProtocolClient:
     def check_session(self) -> None:
         self.fetch_identity()
 
-    def waiting_payload(self, page_index: int) -> dict[str, object]:
+    def waiting_payload(self, page_index: int, page_size: int | None = None) -> dict[str, object]:
         payload = copy.deepcopy(self.waiting_template) if self.waiting_template else {}
         payload.pop("moduleMainCategoryId", None)
-        payload.update({"offsetPageIndex": page_index, "pageMode": "page", "resultCountPerPage": PAGE_SIZE})
+        size = page_size if page_size is not None else (
+            self._scan_page_size if self._scan_page_size is not None else self.preferred_waiting_page_size()
+        )
+        payload.update({"offsetPageIndex": page_index, "pageMode": "page", "resultCountPerPage": size})
         return payload
 
-    def request_waiting_page(self, page_index: int) -> tuple[object, list[WaitingRecord], int | None]:
+    def request_waiting_page(
+        self,
+        page_index: int,
+        page_size: int | None = None,
+    ) -> tuple[object, list[WaitingRecord], int | None]:
         response, payload = self.request(
-            "POST", WAITING_QUERY_PATH, action="查询 OA 待办", json=self.waiting_payload(page_index),
+            "POST",
+            WAITING_QUERY_PATH,
+            action="查询 OA 待办",
+            json=self.waiting_payload(page_index, page_size),
         )
         contract = find_page_contract(payload)
         if contract is None:
@@ -132,13 +181,14 @@ class OaProtocolClient:
             raise OaContractError(str(error)) from error
         return response, records, total
 
-    def scan_waiting(self) -> ScanSnapshot:
+    def _scan_waiting_with_page_size(self, page_size: int) -> ScanSnapshot:
+        self._scan_page_size = page_size
         records: list[WaitingRecord] = []
         seen: set[tuple[str, str]] = set()
         page = 0
         observed_total: int | None = None
         while True:
-            _response, page_records, total = self.request_waiting_page(page)
+            _response, page_records, total = self.request_waiting_page(page, page_size)
             if total is not None:
                 observed_total = total
             if not page_records:
@@ -147,15 +197,26 @@ class OaProtocolClient:
             for record in page_records:
                 key = (record.file_id, record.step_item_id)
                 if key not in seen:
-                    seen.add(key); records.append(record); added += 1
+                    seen.add(key)
+                    records.append(record)
+                    added += 1
             if observed_total is not None and len(records) >= observed_total:
                 break
-            if len(page_records) < PAGE_SIZE or added == 0:
+            if len(page_records) < page_size or added == 0:
                 break
             page += 1
         if observed_total is not None and len(records) < observed_total:
             raise OaContractError("OA 待办分页提前结束，未达到服务端总数")
         return ScanSnapshot(records, len(records))
+
+    def scan_waiting(self) -> ScanSnapshot:
+        preferred = self.preferred_waiting_page_size()
+        try:
+            return self._scan_waiting_with_page_size(preferred)
+        except OaProtocolError as error:
+            if preferred <= SAFE_PAGE_SIZE or not self._is_page_size_capacity_error(error):
+                raise
+            return self._scan_waiting_with_page_size(SAFE_PAGE_SIZE)
 
     def mark_read(self, record: WaitingRecord) -> object:
         if record.category != ELIGIBLE_CATEGORY:
@@ -174,6 +235,7 @@ class OaProtocolClient:
             self.cookies = {}
             self.identity = None
             self.waiting_template = None
+            self._scan_page_size = None
 
     def close(self) -> None:
         self.clear_credentials()

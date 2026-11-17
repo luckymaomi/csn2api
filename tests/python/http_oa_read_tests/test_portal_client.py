@@ -166,7 +166,7 @@ class PortalClientTests(unittest.TestCase):
             client.load_credentials("Cookie: SESSION=secret")
 
         self.assertTrue(session.closed)
-        self.assertEqual(session.calls[0][2]["timeout"], (5, 10))
+        self.assertIsNone(session.calls[0][2]["timeout"])
 
     def test_scan_uses_json_zero_based_pages_and_classifies_records(self) -> None:
         first_rows = [row(index) for index in range(100)]
@@ -186,7 +186,7 @@ class PortalClientTests(unittest.TestCase):
         post_calls = [call for call in session.calls if call[0] == "POST"]
         self.assertEqual(post_calls[0][2]["json"]["offsetPageIndex"], 0)
         self.assertEqual(post_calls[1][2]["json"]["offsetPageIndex"], 1)
-        self.assertEqual(post_calls[0][2]["json"]["resultCountPerPage"], 100)
+        self.assertEqual(post_calls[0][2]["json"]["resultCountPerPage"], 10)
 
     def test_scan_reuses_waiting_curl_template_and_accepts_nested_page_contract(self) -> None:
         session = FakeSession(
@@ -206,9 +206,31 @@ class PortalClientTests(unittest.TestCase):
         self.assertEqual(snapshot.total, 1)
         request_body = session.calls[-1][2]["json"]
         self.assertEqual(request_body["offsetPageIndex"], 0)
-        self.assertEqual(request_body["resultCountPerPage"], 100)
+        self.assertEqual(request_body["resultCountPerPage"], 5)
         self.assertNotIn("moduleMainCategoryId", request_body)
         self.assertNotIn("fileTitle", request_body)
+
+    def test_scan_falls_back_to_safe_page_size_after_gateway_timeout(self) -> None:
+        session = FakeSession(
+            get_responses=[user_info()],
+            post_responses=[
+                FakeResponse("<html>504</html>", status_code=504),
+                page([row(1), row(2)], 2),
+            ],
+        )
+        client = PortalClient(session_factory=lambda: session)
+        client.load_credentials(
+            "curl 'https://work.csair.com/oai/work/box/query/waiting' "
+            "-H 'Cookie: SESSION=secret' "
+            "--data-raw '{\"pageMode\":\"page\",\"offsetPageIndex\":0,\"resultCountPerPage\":100}'"
+        )
+
+        snapshot = client.scan_waiting()
+
+        self.assertEqual(snapshot.total, 2)
+        post_calls = [call for call in session.calls if call[0] == "POST"]
+        self.assertEqual(post_calls[0][2]["json"]["resultCountPerPage"], 100)
+        self.assertEqual(post_calls[1][2]["json"]["resultCountPerPage"], 10)
 
     def test_mark_read_posts_confirmed_mapping_once_without_followup_query(self) -> None:
         record = WaitingRecord.from_payload(row(1))

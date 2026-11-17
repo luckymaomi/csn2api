@@ -36,7 +36,7 @@ class ApiExecutor:
             "oa": OaAdapter(
                 catalog,
                 session_factory,
-                timeout_seconds,
+                None,
                 keepalive_interval_factory,
             ),
             "soc": SocAdapter(
