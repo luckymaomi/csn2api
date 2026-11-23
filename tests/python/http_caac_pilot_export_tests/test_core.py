@@ -81,6 +81,40 @@ class CoreTests(unittest.TestCase):
         self.assertEqual(portal.query_one.call_count, 3)
         self.assertEqual([item.status for item in persisted], ["失败", "成功", "成功"])
 
+    def test_runner_retries_network_errors_up_to_five_times(self) -> None:
+        from caac_pilot_export.portal_client import PortalError
+
+        record = PilotRecord(0, {"pilotId": "1", "pilotname": "网络示例"})
+        portal = Mock()
+        portal.query_one.side_effect = [
+            PortalError("CAAC 请求失败：ConnectionError"),
+            PortalError("CAAC 请求失败：Timeout"),
+            PilotOutcome(record, "成功", {"pilotId": "1"}),
+        ]
+        logs: list[dict[str, object]] = []
+        result = BatchRunner(portal, emit=logs.append, retry_wait_seconds=0).run([record], 1)
+        self.assertEqual(result.outcomes[0].status, "成功")
+        self.assertEqual(portal.query_one.call_count, 3)
+        warnings = [item for item in logs if item.get("type") == "log" and item.get("level") == "warning"]
+        self.assertEqual(len(warnings), 2)
+
+    def test_runner_records_failure_after_five_network_attempts(self) -> None:
+        from caac_pilot_export.portal_client import PortalContractError, PortalError
+
+        record = PilotRecord(0, {"pilotId": "1", "pilotname": "网络示例"})
+        portal = Mock()
+        portal.query_one.side_effect = PortalError("CAAC 请求失败：ConnectionError")
+        result = BatchRunner(portal, retry_wait_seconds=0).run([record], 1)
+        self.assertEqual(result.outcomes[0].status, "失败")
+        self.assertIn("ConnectionError", result.outcomes[0].error)
+        self.assertEqual(portal.query_one.call_count, 5)
+
+        contract_portal = Mock()
+        contract_portal.query_one.side_effect = PortalContractError("CAAC 姓名查询没有返回精确匹配的飞行员")
+        contract_result = BatchRunner(contract_portal, retry_wait_seconds=0).run([record], 1)
+        self.assertEqual(contract_result.outcomes[0].status, "失败")
+        self.assertEqual(contract_portal.query_one.call_count, 1)
+
     def test_runner_stops_after_session_expired(self) -> None:
         records = [PilotRecord(i, {"pilotId": str(i + 1)}) for i in range(2)]
         portal = Mock()
