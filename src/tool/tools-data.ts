@@ -1,9 +1,9 @@
 import type { ToolItem } from "./models";
 
 export const tools: ToolItem[] = [
-    { name: "飞行经历时间查询", desc: "输入员工号和姓名，批量导出飞行经历时间页的汇总、年度和月份全部数据。", entry: "http-flight-history-helper", status: "done", homepageState: "beta" },
+    { name: "技术资料-飞行经历时间查询", desc: "输入员工号和姓名，批量导出飞行经历时间页的汇总、年度和月份全部数据。", entry: "http-flight-history-helper", status: "done", homepageState: "beta" },
     { name: "锁班皇帝（新）", desc: "好活，直接调用接口锁班，极速。", entry: "http-lock-entry-helper", status: "done", homepageState: "beta" },
-    { name: "飞行经历查询（皇帝版）", desc: "好活，直接调用接口查完整飞行经历和起落数，极速。", entry: "http-flight-stats-helper", status: "done", homepageState: "beta" },
+    { name: "统计应用-飞行经历查询（皇帝版）", desc: "好活，直接调用接口查完整飞行经历和起落数，极速。", entry: "http-flight-stats-helper", status: "done", homepageState: "beta" },
     { name: "航班明细查询（皇帝版）", desc: "按员工和自然月读取 IEB 逐航班明细，保留人工飞行方式。", entry: "http-flight-detail-helper", status: "done", homepageState: "beta" },
     { name: "飞行人员信息查询（皇帝版）", desc: "好活，哈哈。直接调用 IEB 接口查询基础信息、技术等级、运行资格和训练检查记录。", entry: "http-qualification-query-helper", status: "done", homepageState: "beta" },
     { name: "训练安排查询（HTTP版）", desc: "查询 IEB 已结束训练安排，支持单类别和区域默认配置一键汇总导出。", entry: "http-training-arrangement-helper", status: "done", homepageState: "beta" },

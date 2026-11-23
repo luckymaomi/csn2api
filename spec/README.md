@@ -14,9 +14,9 @@
 
 | APP | 开发规格 | 用户手册 |
 | --- | --- | --- |
-| 飞行经历时间查询 | [规格](dev/http-flight-history-helper/spec.md) | [手册](user/http-flight-history-helper/manual.md) |
+| 技术资料-飞行经历时间查询 | [规格](dev/http-flight-history-helper/spec.md) | [手册](user/http-flight-history-helper/manual.md) |
 | 锁班皇帝（新） | [规格](dev/http-lock-entry-helper/spec.md) | [手册](user/http-lock-entry-helper/manual.md) |
-| 飞行经历查询（皇帝版） | [规格](dev/http-flight-stats-helper/spec.md) | [手册](user/http-flight-stats-helper/manual.md) |
+| 统计应用-飞行经历查询（皇帝版） | [规格](dev/http-flight-stats-helper/spec.md) | [手册](user/http-flight-stats-helper/manual.md) |
 | 航班明细查询（皇帝版） | [规格](dev/http-flight-detail-helper/spec.md) | [手册](user/http-flight-detail-helper/manual.md) |
 | 飞行人员信息查询（皇帝版） | [规格](dev/http-qualification-query-helper/spec.md) | [手册](user/http-qualification-query-helper/manual.md) |
 | 训练安排查询（HTTP版） | [规格](dev/http-training-arrangement-helper/spec.md) | [手册](user/http-training-arrangement-helper/manual.md) |

@@ -8,9 +8,9 @@ APP 实现均位于 `public/tool/app/<entry>/`；下表模块名位于各 APP �
 
 | APP/能力 | 核对的输入、行为和结果 | 主要代码与测试证据 |
 | --- | --- | --- |
-| 飞行经历时间查询 | 两列身份、完整时间页、动态列、汇总唯一性、失败继续与逐人检查点 | `http_flight_history/`、`ieb_protocol/flight_history_contract.py`、`tests/python/test_flight_history.py` |
+| 技术资料-飞行经历时间查询 | 两列身份、完整时间页、动态列、汇总唯一性、失败继续与逐人检查点 | `http_flight_history/`、`ieb_protocol/flight_history_contract.py`、`tests/python/test_flight_history.py` |
 | 锁班皇帝（新） | 动态类型、五列及可选时间、单次提交、冲突归属、可选通过后回查、即时 Excel | `http_lock_entry/`、`ieb_protocol/lock_*.py`、`tests/python/http_lock_entry_tests/` |
-| 飞行经历查询（皇帝版） | 日期输入、范围筛选、单次逐人查询、结束时原版/去分钟版 | `http_flight_stats/`、`ieb_protocol/flight_stats*.py`、`tests/python/http_flight_stats_tests/` |
+| 统计应用-飞行经历查询（皇帝版） | 日期输入、范围筛选、单次逐人查询、结束时原版/去分钟版 | `http_flight_stats/`、`ieb_protocol/flight_stats*.py`、`tests/python/http_flight_stats_tests/` |
 | 航班明细查询（皇帝版） | 四列年月、时间轴及逐月明细、追加检查点、收口 Excel、分页结果 | `http_flight_detail/`、`ieb_protocol/flight_detail*.py`、`tests/python/http_flight_detail_tests/` |
 | 飞行人员信息查询（皇帝版） | 员工唯一归属、历史资格、培训分页、五类结果、Excel/JSON/报告 | `http_qualification_query/`、`ieb_protocol/personnel*.py`、`tests/python/http_qualification_query_tests/` |
 | 训练安排查询（HTTP版） | 动态类别、单类别/区域默认、周期去重、占位行剔除、通过率与完整导出 | `http_training_arrangement/`、`ieb_protocol/training_arrangement*.py`、`tests/python/http_training_arrangement_tests/` |

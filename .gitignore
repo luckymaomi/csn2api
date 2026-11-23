@@ -27,7 +27,7 @@ __pycache__/
 *.pyc
 *.pyo
 
-# 飞行经历查询（皇帝版）运行结果，禁止进入版本库
+# 统计应用-飞行经历查询（皇帝版）运行结果，禁止进入版本库
 /public/tool/app/http-flight-stats-helper/results/
 /public/tool/app/http-flight-detail-helper/results/
 /public/tool/app/http-caac-pilot-export-helper/results/
@@ -73,5 +73,5 @@ plan.md
 /flight_detail_*.tmp.xlsx
 /flight_detail_audit.tmp.md
 
-# 飞行经历时间查询运行结果
+# 技术资料-飞行经历时间查询运行结果
 /public/tool/app/http-flight-history-helper/results/
