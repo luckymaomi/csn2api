@@ -8,6 +8,7 @@ from openpyxl import load_workbook
 
 from .models import InputPayload, QueryRecord
 
+
 EMPLOYEE_HEADERS = {'员工号', '工号', '员工编号'}
 NAME_HEADERS = {'姓名', '员工姓名'}
 
@@ -21,14 +22,20 @@ def normalize_employee_id(value: object) -> str:
     return text.zfill(6)
 
 
+def normalize_optional_name(value: object) -> str:
+    """姓名仅作展示；查询归属只认员工号，故不做严校验。"""
+    name = str(value or '').strip()
+    if not name or name.isdigit():
+        return ''
+    return name
+
+
 def _collect(rows: list[tuple[object, object, str]]) -> tuple[list[QueryRecord], list[str]]:
     records, errors, seen = [], [], set()
     for staff, name_value, source in rows:
         try:
             staff_number = normalize_employee_id(staff)
-            name = str(name_value or '').strip()
-            if not name or not re.fullmatch(r'[\w\u00b7\u2022\u30fb -]+', name) or name.isdigit():
-                raise ValueError('姓名为空或格式无效')
+            name = normalize_optional_name(name_value)
             if staff_number in seen:
                 raise ValueError('重复员工号，已跳过')
             seen.add(staff_number)
@@ -50,23 +57,36 @@ def parse_pasted_records(text: str) -> tuple[list[QueryRecord], list[str]]:
     return _collect(rows)
 
 
+def _locate_unique(headers: list[str], aliases: set[str], label: str) -> int:
+    matches = [i for i, value in enumerate(headers) if value in aliases]
+    if len(matches) != 1:
+        raise ValueError(f'Excel 必须包含唯一的{label}表头')
+    return matches[0]
+
+
+def _locate_optional(headers: list[str], aliases: set[str], label: str) -> int | None:
+    matches = [i for i, value in enumerate(headers) if value in aliases]
+    if len(matches) > 1:
+        raise ValueError(f'Excel {label}表头不唯一')
+    return matches[0] if matches else None
+
+
 def read_excel_records(source: str | Path | bytes) -> tuple[list[QueryRecord], list[str]]:
     workbook = load_workbook(BytesIO(source) if isinstance(source, bytes) else source, data_only=True, read_only=True)
     try:
         rows = iter(workbook.active.iter_rows(values_only=True))
         headers = [str(value or '').strip() for value in next(rows, ())]
-        def locate(aliases: set[str]) -> int:
-            matches = [i for i, value in enumerate(headers) if value in aliases]
-            if len(matches) != 1:
-                raise ValueError('Excel 必须包含唯一的员工号和姓名表头')
-            return matches[0]
-        staff_index, name_index = locate(EMPLOYEE_HEADERS), locate(NAME_HEADERS)
+        staff_index = _locate_unique(headers, EMPLOYEE_HEADERS, '员工号')
+        name_index = _locate_optional(headers, NAME_HEADERS, '姓名')
         values = []
         for index, row in enumerate(rows, 2):
             if any(value not in (None, '') for value in row):
-                values.append((row[staff_index] if staff_index < len(row) else None,
-                               row[name_index] if name_index < len(row) else None,
-                               f'Excel 第{index}行'))
+                name_value = row[name_index] if name_index is not None and name_index < len(row) else ''
+                values.append((
+                    row[staff_index] if staff_index < len(row) else None,
+                    name_value,
+                    f'Excel 第{index}行',
+                ))
         return _collect(values)
     finally:
         workbook.close()
@@ -79,6 +99,6 @@ def read_input(payload: InputPayload) -> tuple[list[QueryRecord], list[str]]:
         return read_excel_records(payload.excel_bytes)
     if payload.input_mode == 'paste':
         if not payload.pasted_text.strip():
-            raise ValueError('请粘贴员工号和姓名')
+            raise ValueError('请粘贴员工号')
         return parse_pasted_records(payload.pasted_text)
     raise ValueError('不支持的输入方式')

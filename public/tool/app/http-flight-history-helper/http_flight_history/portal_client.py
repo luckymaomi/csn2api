@@ -83,7 +83,8 @@ class PortalClient:
         self._protocol().session.require_credentials()
 
     def query(self, record: QueryRecord) -> TableResult:
-        _response, headers, rows = self._protocol().request_history(record.employee_id, record.name)
+        # 门户请求只带员工号；姓名不参与归属校验，避免名单姓名与页面不一致时报错。
+        _response, headers, rows = self._protocol().request_history(record.employee_id, "")
         return TableResult(headers=headers, rows=rows)
 
     def invalidate_credentials(self) -> None:

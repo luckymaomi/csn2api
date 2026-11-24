@@ -17,6 +17,10 @@ def required(supplied: dict[str, object], name: str, label: str) -> str:
     return value
 
 
+def optional_text(supplied: dict[str, object], name: str) -> str:
+    return str(supplied.get(name, "") or "").strip()
+
+
 def response_payload(
     record: EndpointRecord,
     response: object,

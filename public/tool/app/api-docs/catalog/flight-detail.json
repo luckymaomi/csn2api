@@ -55,7 +55,7 @@
     "id": "query-history",
     "groupId": "business",
     "name": "查询完整飞行经历时间页",
-    "summary": "按员工号和姓名读取时间轴完整表格，包括汇总、历史合计、年度和月份行；不继续请求逐航班明细。",
+    "summary": "按员工号读取时间轴完整表格，包括汇总、历史合计、年度和月份行；姓名可选，仅本地校验；不继续请求逐航班明细。",
     "risk": "read",
     "method": "POST",
     "path": "/newieb/basics/flytimeList",
@@ -83,8 +83,8 @@
         "in": "workflow",
         "label": "姓名",
         "type": "text",
-        "required": true,
-        "description": "仅用于校验时间轴归属，不发送给门户"
+        "required": false,
+        "description": "可选；填写时仅用于校验时间轴归属，不发送给门户"
       },
       {
         "name": "currentStr",

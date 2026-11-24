@@ -43,7 +43,7 @@ def verify_app(verifier: Any) -> None:
     import base64
 
     try:
-        staff, name = verifier.input('iebStaffNumber'), verifier.input('iebStaffName')
+        staff = verifier.input('iebStaffNumber')
         with TemporaryDirectory(prefix='csn2api-real-flight-history-') as directory:
             manager = RunManager(Path(directory))
             server = create_server(APP_ROOT, 0, manager)
@@ -52,13 +52,13 @@ def verify_app(verifier: Any) -> None:
                 verify_frontend_route(base_url, '/api/run')
                 post_json(base_url, '/api/session/verify', {'credentials': verifier.credentials['ieb']})
                 workbook = Workbook()
-                workbook.active.append(['员工号', '姓名'])
-                workbook.active.append([staff, name])
+                workbook.active.append(['员工号'])
+                workbook.active.append([staff])
                 buffer = BytesIO()
                 workbook.save(buffer)
                 workbook.close()
                 inputs = [
-                    {'inputMode': 'paste', 'pastedText': f'员工号\t姓名\n{staff}\t{name}'},
+                    {'inputMode': 'paste', 'pastedText': f'员工号\n{staff}'},
                     {'inputMode': 'excel', 'excelBase64': base64.b64encode(buffer.getvalue()).decode('ascii')},
                 ]
                 for payload in inputs:
@@ -77,7 +77,7 @@ def verify_app(verifier: Any) -> None:
                         rows = list(exported.worksheets[0].values)
                         if len(rows) != len(result['rows']) + 1 or list(rows[0]) != ['员工号', '姓名', *result['headers']]:
                             raise RuntimeError('Excel 全页表头或行数异常')
-                        expected_rows = [[staff, name, *[row[h] or None for h in result['headers']]] for row in result['rows']]
+                        expected_rows = [[staff, None, *[row[h] or None for h in result['headers']]] for row in result['rows']]
                         if [list(row) for row in rows[1:]] != expected_rows:
                             raise RuntimeError('Excel 与页面全页数据不一致')
                     finally:

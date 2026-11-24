@@ -52,6 +52,10 @@ class TemplateAssetTests(unittest.TestCase):
                 ["员工号", "姓名"],
                 ["000000", "示例姓名"],
             ),
+            "http-flight-history-helper": (
+                ["员工号"],
+                ["000000"],
+            ),
         }
         for app_name, (headers, example) in expected.items():
             with self.subTest(app=app_name):

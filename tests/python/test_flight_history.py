@@ -83,20 +83,41 @@ class HistoryContractTests(unittest.TestCase):
 
 
 class HistoryWorkbenchTests(unittest.TestCase):
-    def test_two_column_inputs_aliases_duplicates_and_invalid_rows(self):
-        records, errors = parse_pasted_records('员工号\t姓名\n900001\t示例甲\n900001 示例甲\n900002\n900003 示例丙')
-        self.assertEqual([r.employee_id for r in records], ['900001', '900003'])
-        self.assertEqual(len(errors), 2)
+    def test_employee_id_only_and_optional_name_inputs(self):
+        records, errors = parse_pasted_records('员工号\n900001\n900001\n900002\n900003\t示例丙')
+        self.assertEqual([(r.employee_id, r.name) for r in records], [
+            ('900001', ''),
+            ('900002', ''),
+            ('900003', '示例丙'),
+        ])
+        self.assertEqual(len(errors), 1)
         book = Workbook()
-        book.active.append(['员工姓名', '工号'])
-        book.active.append(['示例甲', 12.0])
-        book.active.append([None, 900002])
+        book.active.append(['工号'])
+        book.active.append([12.0])
+        book.active.append([900002])
         buffer = BytesIO()
         book.save(buffer)
         book.close()
         records, errors = read_excel_records(buffer.getvalue())
-        self.assertEqual((records[0].employee_id, records[0].name), ('000012', '示例甲'))
-        self.assertEqual(len(errors), 1)
+        self.assertEqual([(r.employee_id, r.name) for r in records], [
+            ('000012', ''),
+            ('900002', ''),
+        ])
+        self.assertEqual(errors, [])
+
+        named = Workbook()
+        named.active.append(['员工姓名', '工号'])
+        named.active.append(['示例甲', 12.0])
+        named.active.append(['Olivier Jean Y.SCHDANOFF', 900003])
+        named_buffer = BytesIO()
+        named.save(named_buffer)
+        named.close()
+        records, errors = read_excel_records(named_buffer.getvalue())
+        self.assertEqual([(r.employee_id, r.name) for r in records], [
+            ('000012', '示例甲'),
+            ('900003', 'Olivier Jean Y.SCHDANOFF'),
+        ])
+        self.assertEqual(errors, [])
 
     def test_export_preserves_every_row_empty_values_and_duration_text(self):
         headers, rows = parse_history(HTML, '900001', '示例甲')
