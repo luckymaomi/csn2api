@@ -58,7 +58,10 @@ class BatchRunner:
         metadata = self.client.metadata
         type_code = str(record.get("请假类型", ""))
         type_item = metadata.lock_types.get(type_code) if metadata else None
-        type_name = type_item.description if type_item else type_code
+        # 与模板下拉一致：code-名称，例如 RECU_LVE-健康疗养
+        type_label = (
+            f"{type_item.code}-{type_item.description}" if type_item else type_code
+        )
         return {
             "type": "record_result",
             "index": index,
@@ -66,8 +69,8 @@ class BatchRunner:
             "employeeId": record.get("员工号", ""),
             "expectedName": record.get("姓名", "") or "",
             "name": identity_name,
-            "inputType": type_name,
-            "actualType": type_name,
+            "inputType": type_label,
+            "actualType": type_label,
             "inputStartDate": record.get("开始日期", ""),
             "inputEndDate": record.get("结束日期", ""),
             "actualStartDateTime": start_value,

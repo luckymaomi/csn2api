@@ -76,6 +76,8 @@ class HttpLockEntryRunnerTest(unittest.TestCase):
         self.assertEqual(store.rows[-1]["status"], "冲突")
         self.assertEqual(store.rows[-1]["conflictReason"], "年度年假锁班天数不足")
         self.assertEqual(store.rows[-1]["message"], "")
+        self.assertEqual(store.rows[-1]["inputType"], "BS_STUDY-业务学习(占值勤期类别)")
+        self.assertEqual(store.rows[-1]["actualType"], "BS_STUDY-业务学习(占值勤期类别)")
 
     def test_leave_types_are_submitted_once_without_quota_routing(self):
         client = RecordingClient([
@@ -86,16 +88,20 @@ class HttpLockEntryRunnerTest(unittest.TestCase):
             {**self.record(), "请假类型": lock_type, "来源行": index + 2}
             for index, lock_type in enumerate(("RECU_LVE", "ALV_FD"))
         ]
+        store = RecordingStore()
         summary = BatchRunner(
             client,
-            RecordingStore(),
+            store,
             "批量测试",
             threading.Event(),
             lambda _event: None,
         ).run(records)
-
         self.assertEqual(summary["success"], 2)
         self.assertEqual([call[0] for call in client.calls], ["validate", "submit", "validate", "submit"])
+        self.assertEqual(
+            [row["actualType"] for row in store.rows],
+            ["RECU_LVE-健康疗养", "ALV_FD-飞行员公休（订座）"],
+        )
 
     def test_records_are_submitted_in_input_order(self):
         client = RecordingClient()
