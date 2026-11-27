@@ -314,17 +314,18 @@ function renderResults(results) {
   const columns = [
     ["序号", "index"],
     ["员工号", "employeeId"],
-    ["姓名", "name"],
+    ["输入姓名", "expectedName"],
     ["输入类型", "inputType"],
-    ["实际类型", "actualType"],
     ["输入开始", "inputStartDate"],
     ["输入结束", "inputEndDate"],
+    ["备注", "remark"],
+    ["门户姓名", "name"],
+    ["实际类型", "actualType"],
     ["实际开始", "actualStartDateTime"],
     ["实际结束", "actualEndDateTime"],
     ["状态", "status"],
     ["门户结果", "portalStatus"],
     ["冲突原因", "conflictReason"],
-    ["备注", "remark"],
     ["说明", "message"],
   ];
   const headRow = document.createElement("tr");

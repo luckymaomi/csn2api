@@ -11,23 +11,24 @@ from pathlib import Path
 from openpyxl import Workbook, load_workbook
 
 
+# 左块=输入（便于整段选中删除），右块=门户／回执；序号固定最左作行号。
 RESULT_HEADERS = [
     ("序号", "index"),
     ("来源行", "sourceRow"),
     ("员工号", "employeeId"),
     ("输入姓名", "expectedName"),
-    ("门户姓名", "name"),
     ("输入锁班类型", "inputType"),
-    ("实际锁班类型", "actualType"),
     ("输入开始日期", "inputStartDate"),
     ("输入结束日期", "inputEndDate"),
+    ("锁班备注", "remark"),
+    ("门户姓名", "name"),
+    ("实际锁班类型", "actualType"),
     ("实际开始日期时间", "actualStartDateTime"),
     ("实际结束日期时间", "actualEndDateTime"),
     ("时间模式", "timeMode"),
     ("处理状态", "status"),
     ("门户结果", "portalStatus"),
     ("冲突原因", "conflictReason"),
-    ("锁班备注", "remark"),
     ("说明", "message"),
     ("记录时间", "recordedAt"),
 ]
